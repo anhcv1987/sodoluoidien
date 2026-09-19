@@ -44,6 +44,7 @@ const init = await page.evaluate(() => {
     kv,
     tram: document.querySelectorAll('.tram-row').length,
     palette: document.querySelectorAll('.palette-item').length,
+    khung: a.store.entities.filter((e) => e.layer === 'Khung bản vẽ').length,
   };
 });
 check('Mở ra là sơ đồ kết dây tổng', init.active.includes('kết dây'), init.active);
@@ -55,6 +56,7 @@ check(
   JSON.stringify(init.kv),
 );
 check('Danh mục có 25 trạm', init.tram === 25, `${init.tram} trạm`);
+check('Có khung bản vẽ A0 + khung tên', init.khung >= 6, `${init.khung} đối tượng khung`);
 check('Thư viện thiết bị', init.palette >= 20, `${init.palette} block`);
 
 /* ---------------- Nhay toi tung tram tren to tong ---------------- */
@@ -94,8 +96,19 @@ const geo = await page.evaluate(() => {
 check('Sơ đồ địa lý có trạm', (geo.substation ?? 0) >= 25, `${geo.substation} trạm`);
 check('Sơ đồ địa lý có đường dây', (geo.branch ?? 0) >= 25, `${geo.branch} tuyến`);
 
-const decl = await page.evaluate(() => window.sodo.declutter());
-check('Giãn trạm chồng lấn', decl > 0, `${decl} trạm`);
+const chong = await page.evaluate(() => {
+  const subs = window.sodo.store.entities.filter((e) => e.kind === 'substation');
+  let n = 0;
+  for (let i = 0; i < subs.length; i++) {
+    for (let j = i + 1; j < subs.length; j++) {
+      const A = subs[i];
+      const B = subs[j];
+      if (Math.abs(A.p.x - B.p.x) < (A.w + B.w) / 2 && Math.abs(A.p.y - B.p.y) < (A.h + B.h) / 2) n++;
+    }
+  }
+  return n;
+});
+check('Không trạm nào đè lên nhau trên sơ đồ địa lý', chong === 0, `${chong} cặp chồng lấn`);
 
 /* ---------------- Cong cu ve ---------------- */
 

@@ -23,7 +23,7 @@ export function declutterSubstations(store: DocStore, iterations = 400, maxShift
     pos.set(s.id, { ...s.p });
   }
 
-  const gap = 0.6; // khoang ho toi thieu giua hai khoi (km)
+  const gap = 1.2; // khoang ho toi thieu giua hai khoi (km)
   for (let it = 0; it < iterations; it++) {
     let moved = 0;
     for (let i = 0; i < subs.length; i++) {

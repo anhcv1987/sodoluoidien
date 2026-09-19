@@ -244,8 +244,9 @@ export class Renderer {
     }
     if (e.kind === 'boundary') {
       color = layer?.color ?? (this.opt.printMode ? '#9aa4b2' : '#39424f');
-      width = 1.4;
-      dash = [7, 5];
+      width = layer?.lineWidth ?? 1.4;
+      // Nen ban do ve net dut; khung ban ve / khung ten ve net lien
+      dash = e.dashed === false ? [] : [7, 5];
     }
     if (e.kind === 'text') color = layer?.color ?? this.fg();
 

@@ -145,9 +145,15 @@ tuyến, nhãn ngăn lộ và mã hiệu cáp ở đủ các cấp **220 / 110 /
 * Hoặc **Dữ liệu → Danh mục trạm trên sơ đồ kết dây…**
 * Trang thứ hai — **"Lưới 220-110kV theo vị trí địa lý"** — đặt các trạm gần đúng vị
   trí thật; nhấn đúp vào khối trạm ở đó sẽ nhảy sang đúng trạm trên sơ đồ kết dây.
+  Các khối trạm 220/110kV được giãn sẵn nên **không khối nào đè lên khối nào**
+  (kiểm thử tự động xác nhận 0 cặp chồng lấn), lệch tối đa 18 km so với vị trí thật.
 
 ### Ký hiệu thiết bị dựng lại đúng bản CAD
 
+* **Nối đoạn thẳng**: dung sai gộp các đoạn thẳng liền nhau phải rất nhỏ. Lúc đầu
+  dung sai lấy theo tỷ lệ bản vẽ (≈3 đơn vị CAD) nên hai đầu mút cách nhau vài
+  đơn vị bị coi là một, phần mềm vẽ thêm nét nối **không có thật** — chính là hình
+  "dao cách ly có liên động" giả ở E6.13. Nay dung sai nhỏ hơn 150 lần.
 * **Góc xoay**: hình học block trong phần mềm được xoay về trục dọc để tiện vẽ tay,
   nên khi nhập từ CAD phải trừ lại đúng góc đó; thiếu bước này thì mọi dao cách ly,
   dao tiếp địa, chống sét van, recloser đều lệch 90°.
@@ -179,6 +185,27 @@ C61/C62 là 6kV. Nhờ vậy **E26.1 Bắc Kạn** ra đúng 110/35/22kV, **E26.
 
 Nếu còn chỗ nào sai, sửa cả lớp một lần bằng **Dữ liệu → Gán cấp điện áp theo lớp CAD
 gốc…** (tên lớp CAD gốc được giữ lại trong từng đối tượng).
+
+### Khung bản vẽ A0
+
+Tờ sơ đồ kết dây có sẵn khung bản vẽ khổ **A0 (841 x 1189 mm)** theo TCVN 7285:
+lề trái 20mm để đóng tập, ba lề còn lại 10mm, khung tên ở góc dưới bên phải ghi
+tên đơn vị, Phòng Điều độ, tên bản vẽ và ngày lập. Khung nằm trên lớp riêng
+**"Khung bản vẽ"**, tắt/bật được trong bảng Lớp và xuất sang DXF cùng bản vẽ.
+
+### Ký hiệu vẽ bằng nét rời được thay bằng block
+
+9/25 trạm trong bản vẽ gốc (E26.1 Bắc Kạn, E6.17 Phú Bình, E26.2 Chợ Đồn,
+E26.3 Nà Phặc, E6.20 Lưu Xá 220, E6.13 Yên Bình, E6.23, E6.14, E6.18) không dùng
+block mà vẽ thẳng bằng LINE/CIRCLE. Phần mềm dò hình rồi thay bằng block:
+
+* **Máy cắt** — bốn đoạn khép kín thành hình chữ nhật, hai cạnh ngắn có dây nối
+  (ví dụ MC 472 E6.13): **377 cái** được thay.
+* **Biến dòng TI** — vòng tròn nhỏ nằm trên đường dây: **800 cái**.
+
+Dao cách ly và dao tiếp địa vẽ tay mỗi nơi một tỷ lệ nên quy về block sẽ sai cỡ
+và lệch chỗ; hai dạng này để **tắt** (bật được trong `macDinhNhanDang()` của
+`src/io/nhanDangBlock.ts` nếu muốn thử).
 
 ### Dựng lại bộ dữ liệu từ file CAD mới
 

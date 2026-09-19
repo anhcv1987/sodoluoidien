@@ -6,6 +6,8 @@ import { DIA_DANH, HO_BA_BE, HO_NUI_COC, RANH_GIOI_TINH, project } from './geo';
 import { DUONG_DAY, TRAM_220_110, type TramData } from './grid110';
 import { dist, norm, sub } from '../core/geom';
 import { MA_TO_TONG, buildCadSheet, cadLayerNames, cadSheetInfo } from './tramSheets';
+import { taoKhungA0 } from './khungA0';
+import { declutterSubstations } from '../editor/declutter';
 
 /** Tach chuoi cong suat kieu "2x40 MVA" thanh danh sach may bien ap. */
 function parseMba(s: string, kvList: VoltageKv[]): TransformerInfo[] {
@@ -213,6 +215,10 @@ export function buildProvinceDrawing(): Drawing {
 export function buildDefaultDrawing(): Drawing {
   const d = buildProvinceDrawing();
   d.sheets[0].name = 'Lưới 220-110kV theo vị trí địa lý';
+  // Giãn sẵn các trạm nằm sát nhau để không khối nào đè lên khối nào
+  const store0 = new DocStore(d);
+  declutterSubstations(store0, 1200, 18);
+  store0.clearHistory();
 
   const info = cadSheetInfo(MA_TO_TONG);
   const tong = buildCadSheet(MA_TO_TONG, 'Sơ đồ kết dây lưới điện tỉnh Thái Nguyên');
@@ -221,6 +227,52 @@ export function buildDefaultDrawing(): Drawing {
     for (const l of cadLayerNames()) {
       if (!d.layers[l]) d.layers[l] = { name: l, visible: true, locked: false };
     }
+
+    // Khung bản vẽ khổ A0 + khung tên bao quanh sơ đồ
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const e of Object.values(tong.entities)) {
+      const ps =
+        e.kind === 'node' || e.kind === 'device' || e.kind === 'text'
+          ? [e.p]
+          : e.kind === 'circle'
+            ? [
+                { x: e.c.x - e.r, y: e.c.y - e.r },
+                { x: e.c.x + e.r, y: e.c.y + e.r },
+              ]
+            : [];
+      for (const p of ps) {
+        minX = Math.min(minX, p.x);
+        minY = Math.min(minY, p.y);
+        maxX = Math.max(maxX, p.x);
+        maxY = Math.max(maxY, p.y);
+      }
+    }
+    if (isFinite(minX)) {
+      d.layers['Khung bản vẽ'] = {
+        name: 'Khung bản vẽ',
+        color: '#cfd6e0',
+        visible: true,
+        locked: false,
+        lineWidth: 1.4,
+      };
+      const today = new Date();
+      const ngay = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+      for (const e of taoKhungA0(
+        { minX, minY, maxX, maxY },
+        {
+          tenBanVe: 'SƠ ĐỒ KẾT DÂY LƯỚI ĐIỆN TỈNH THÁI NGUYÊN',
+          donVi: 'TỔNG CÔNG TY ĐIỆN LỰC MIỀN BẮC - CÔNG TY ĐIỆN LỰC THÁI NGUYÊN',
+          phong: 'PHÒNG ĐIỀU ĐỘ',
+          ngay,
+        },
+      )) {
+        tong.entities[e.id] = e;
+      }
+    }
+
     d.sheets.unshift(tong);
     d.activeSheet = tong.id;
   }

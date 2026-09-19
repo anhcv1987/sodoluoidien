@@ -1,0 +1,421 @@
+import type { Pt } from '../core/types';
+
+/**
+ * NHẬN DẠNG KÝ HIỆU VẼ BẰNG NÉT RỜI → THAY BẰNG BLOCK THIẾT BỊ.
+ *
+ * Trong bản vẽ CAD của Phòng Điều độ, 9/25 trạm (E26.1 Bắc Kạn, E6.17 Phú Bình,
+ * E26.2 Chợ Đồn, E26.3 Nà Phặc, E6.20 Lưu Xá 220, E6.13 Yên Bình, E6.23, E6.14,
+ * E6.18) không dùng block mà vẽ thẳng bằng LINE/CIRCLE. Nhập nguyên như vậy thì
+ * những chỗ đó chỉ là các đoạn thẳng rời: không sửa được theo thiết bị, không đổi
+ * được trạng thái đóng/cắt, và trông khác hẳn các trạm dùng block (E6.3, E6.5...).
+ *
+ * Module này dò bốn dạng ký hiệu phổ biến rồi thay bằng block tương ứng:
+ *
+ *   Máy cắt      bốn đoạn khép kín thành hình chữ nhật, hai cạnh ngắn có dây nối
+ *   Biến dòng TI hình tròn nhỏ nằm trên đường dây
+ *   Dao tiếp địa ba vạch song song ngắn dần (ký hiệu đất) + cần + lưỡi dao
+ *   Dao cách ly  khe hở trên đường dây + lưỡi dao chéo ở một mép khe
+ *
+ * Với dao cách ly, các nét vẽ "liên động" (thanh nối cơ khí giữa dao cách ly và
+ * dao tiếp địa) cũng được bỏ đi, để ký hiệu giống hệt các trạm dùng block.
+ *
+ * LÀM VIỆC TRÊN ĐOẠN THẲNG GỐC, trước khi gộp thành tuyến: nếu chạy sau bước gộp
+ * thì cần và lưỡi dao đã dính vào đường dây, không còn nhận ra hình được nữa.
+ */
+
+export interface SegIn {
+  a: Pt;
+  b: Pt;
+  layer: string;
+}
+
+export interface CircleIn {
+  c: Pt;
+  r: number;
+  layer: string;
+}
+
+/** Thiết bị nhận dạng được, mô tả theo cách đặt block. */
+export interface NhanDang {
+  block: string;
+  /** Tâm block trong toạ độ CAD gốc. */
+  p: Pt;
+  /** Góc quay của block trong hệ toạ độ phần mềm (độ). */
+  rot: number;
+  /** Cỡ block (đơn vị CAD). */
+  scale: number;
+  mirror: boolean;
+  layer: string;
+}
+
+export interface KetQuaNhanDang {
+  devices: NhanDang[];
+  /** Chỉ số các đoạn thẳng đã bị thay bằng block (không tạo tuyến nữa). */
+  boSeg: Set<number>;
+  /** Chỉ số các hình tròn đã bị thay bằng block. */
+  boCircle: Set<number>;
+  thongKe: Record<string, number>;
+}
+
+/* ------------------------------ hình học ------------------------------ */
+
+const len = (a: Pt, b: Pt): number => Math.hypot(b.x - a.x, b.y - a.y);
+const sub = (a: Pt, b: Pt): Pt => ({ x: a.x - b.x, y: a.y - b.y });
+const add = (a: Pt, b: Pt): Pt => ({ x: a.x + b.x, y: a.y + b.y });
+const mul = (a: Pt, k: number): Pt => ({ x: a.x * k, y: a.y * k });
+const mid = (a: Pt, b: Pt): Pt => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+const dot = (a: Pt, b: Pt): number => a.x * b.x + a.y * b.y;
+const cross = (a: Pt, b: Pt): number => a.x * b.y - a.y * b.x;
+const degOf = (v: Pt): number => (Math.atan2(v.y, v.x) * 180) / Math.PI;
+const norm = (v: Pt): Pt => {
+  const l = Math.hypot(v.x, v.y);
+  return l < 1e-12 ? { x: 0, y: 0 } : { x: v.x / l, y: v.y / l };
+};
+
+/** Chênh lệch giữa hai phương, 0..90 độ (không phân biệt chiều). */
+function lechPhuong(a: Pt, b: Pt): number {
+  const d = Math.abs(degOf(a) - degOf(b)) % 180;
+  return Math.min(d, 180 - d);
+}
+
+/** Chỉ mục lưới cho các điểm. */
+class LuoiDiem<T> {
+  private o = new Map<string, { p: Pt; v: T }[]>();
+
+  constructor(private cell: number) {}
+
+  them(p: Pt, v: T): void {
+    const k = `${Math.floor(p.x / this.cell)}|${Math.floor(p.y / this.cell)}`;
+    const a = this.o.get(k);
+    if (a) a.push({ p, v });
+    else this.o.set(k, [{ p, v }]);
+  }
+
+  quanh(p: Pt, r: number): { p: Pt; v: T }[] {
+    const out: { p: Pt; v: T }[] = [];
+    const n = Math.max(1, Math.ceil(r / this.cell));
+    const cx = Math.floor(p.x / this.cell);
+    const cy = Math.floor(p.y / this.cell);
+    for (let i = cx - n; i <= cx + n; i++) {
+      for (let j = cy - n; j <= cy + n; j++) {
+        for (const e of this.o.get(`${i}|${j}`) ?? []) {
+          if (len(e.p, p) <= r) out.push(e);
+        }
+      }
+    }
+    return out;
+  }
+}
+
+/* ----------------------- thông số block trong CAD ---------------------- */
+
+/** Hệ số chuẩn hoá dùng chung với src/symbols/blocks.ts. */
+const K = 1 / 18.669;
+/** Bán kính vòng tròn của block TI sau chuẩn hoá. */
+const R_TI = 2.11 * K;
+/** Khoảng cách từ vạch đất dài nhất tới đầu tiếp điểm, trong block "110-Tiep Dia". */
+const L_DTD = 15.917;
+/** Khoảng cách từ vạch đất dài nhất tới điểm chèn của block đó. */
+const L_DTD_CHEN = 11.732;
+/** Chiều dài block "110-DCL" theo phương đường dây, sau chuẩn hoá. */
+const H_DCL = 9.64 * K;
+/** Chiều cao block "110-MC" sau chuẩn hoá (theo định nghĩa = 1). */
+const H_MC = 1;
+
+/* ------------------------------ nhận dạng ------------------------------ */
+
+/**
+ * Chọn những dạng ký hiệu nào được phép thay bằng block.
+ *
+ * Mặc định CHỈ bật máy cắt và TI: hai dạng này có dấu hiệu hình học rõ ràng
+ * (hình chữ nhật khép kín có dây nối hai đầu; vòng tròn nhỏ nằm trên dây) nên
+ * nhận gần như không sai. Dao cách ly và dao tiếp địa vẽ tay mỗi nơi một tỷ lệ,
+ * quy về block sẽ sai cỡ và lệch chỗ, nên để tắt; bật khi cần thử nghiệm.
+ */
+export interface TuyChonNhanDang {
+  mayCat: boolean;
+  ti: boolean;
+  daoCachLy: boolean;
+  daoTiepDia: boolean;
+  /** Bỏ nét liên động quanh dao cách ly (chỉ có tác dụng khi bật daoCachLy). */
+  boLienDong: boolean;
+}
+
+export const macDinhNhanDang = (): TuyChonNhanDang => ({
+  mayCat: true,
+  ti: true,
+  daoCachLy: false,
+  daoTiepDia: false,
+  boLienDong: false,
+});
+
+export function nhanDangBlock(
+  segs: SegIn[],
+  circles: CircleIn[],
+  tol: number,
+  chon: TuyChonNhanDang = macDinhNhanDang(),
+): KetQuaNhanDang {
+  const devices: NhanDang[] = [];
+  const boSeg = new Set<number>();
+  const boCircle = new Set<number>();
+  const thongKe: Record<string, number> = {};
+  const dem = (k: string, n = 1): void => void (thongKe[k] = (thongKe[k] ?? 0) + n);
+
+  /** Bán kính coi hai điểm là "chạm nhau". */
+  const hut = Math.max(tol * 8, 0.05);
+
+  const dai = segs.map((s) => len(s.a, s.b));
+  const huong = segs.map((s) => norm(sub(s.b, s.a)));
+
+  // Chỉ mục đầu mút -> chỉ số đoạn
+  const mut = new LuoiDiem<number>(Math.max(hut * 4, 1e-6));
+  segs.forEach((s, i) => {
+    mut.them(s.a, i);
+    mut.them(s.b, i);
+  });
+
+  /** Các đoạn chưa dùng có đầu mút trùng `p`. */
+  const taiDiem = (p: Pt, tru: number[] = []): number[] =>
+    mut
+      .quanh(p, hut)
+      .map((e) => e.v)
+      .filter((i, k, arr) => !boSeg.has(i) && !tru.includes(i) && arr.indexOf(i) === k);
+
+  /** Đầu còn lại của đoạn i tính từ điểm p. */
+  const dauKia = (i: number, p: Pt): Pt => (len(segs[i].a, p) <= len(segs[i].b, p) ? segs[i].b : segs[i].a);
+
+  /* -------- 1. Máy cắt: bốn đoạn khép kín thành hình chữ nhật -------- */
+
+  for (let i0 = 0; chon.mayCat && i0 < segs.length; i0++) {
+    if (boSeg.has(i0) || dai[i0] < 2 || dai[i0] > 60) continue;
+    const goc = segs[i0].a;
+    // Đi vòng 4 cạnh, mỗi lần rẽ vuông góc
+    const canh = [i0];
+    let diem = segs[i0].b;
+    let ok = true;
+    for (let k = 1; k < 4; k++) {
+      const tiep = taiDiem(diem, canh).filter(
+        (j) => dai[j] >= 2 && dai[j] <= 60 && lechPhuong(huong[j], huong[canh[k - 1]]) > 80,
+      );
+      if (tiep.length !== 1) {
+        ok = false;
+        break;
+      }
+      canh.push(tiep[0]);
+      diem = dauKia(tiep[0], diem);
+    }
+    if (!ok || len(diem, goc) > hut) continue;
+
+    const l = canh.map((j) => dai[j]);
+    if (Math.abs(l[0] - l[2]) > l[0] * 0.1 || Math.abs(l[1] - l[3]) > l[1] * 0.1) continue;
+    const dDai = Math.max(l[0], l[1]);
+    const dNgan = Math.min(l[0], l[1]);
+    const tyLe = dNgan / dDai;
+    if (dDai < 4 || dDai > 60 || tyLe < 0.3 || tyLe > 1.0) continue;
+
+    const truc = l[0] >= l[1] ? huong[canh[0]] : huong[canh[1]];
+    const tam = mid(mid(segs[canh[0]].a, segs[canh[0]].b), mid(segs[canh[2]].a, segs[canh[2]].b));
+
+    // Phải có dây nối vào ít nhất một cạnh ngắn -> đúng là thiết bị nối tiếp
+    const ngangTruc = { x: -truc.y, y: truc.x };
+    const dauNgan: Pt[] = [add(tam, mul(truc, dDai / 2)), add(tam, mul(truc, -dDai / 2))];
+    const coDay = dauNgan.some((m) => taiDiem(m, canh).length > 0);
+    if (!coDay) continue;
+    void ngangTruc;
+
+    for (const j of canh) boSeg.add(j);
+    devices.push({
+      block: 'MC',
+      p: tam,
+      rot: degOf(truc) - 90,
+      scale: dDai / H_MC,
+      mirror: false,
+      layer: segs[i0].layer,
+    });
+    dem('MC');
+  }
+
+  /* ---------------- 2. Biến dòng TI: vòng tròn trên dây ---------------- */
+
+  circles.forEach((c, i) => {
+    if (!chon.ti) return;
+    if (c.r < 0.4 || c.r > 6) return;
+    if (!mut.quanh(c.c, Math.max(c.r * 3.5, hut * 4)).length) return;
+    boCircle.add(i);
+    devices.push({
+      block: 'TI',
+      p: c.c,
+      rot: 0,
+      scale: c.r / R_TI,
+      mirror: false,
+      layer: c.layer,
+    });
+    dem('TI');
+  });
+
+  /* ------- 3. Dao tiếp địa: ba vạch song song ngắn dần + cần + lưỡi ------ */
+
+  const tamSeg = segs.map((s) => mid(s.a, s.b));
+  const luoiTam = new LuoiDiem<number>(8);
+  segs.forEach((_, i) => {
+    if (dai[i] >= 0.3 && dai[i] <= 20) luoiTam.them(tamSeg[i], i);
+  });
+
+  for (let i1 = 0; chon.daoTiepDia && i1 < segs.length; i1++) {
+    if (boSeg.has(i1) || dai[i1] < 0.8 || dai[i1] > 20) continue;
+    const L1 = dai[i1];
+    const h1 = huong[i1];
+    const truc = { x: -h1.y, y: h1.x };
+    const t = (p: Pt): number => dot(sub(p, tamSeg[i1]), truc);
+    const ngang = (p: Pt): number => dot(sub(p, tamSeg[i1]), h1);
+
+    const gan = luoiTam
+      .quanh(tamSeg[i1], L1 * 3 + 4)
+      .map((e) => e.v)
+      .filter(
+        (j) =>
+          j !== i1 &&
+          !boSeg.has(j) &&
+          dai[j] < L1 * 0.95 &&
+          lechPhuong(huong[j], h1) < 10 &&
+          Math.abs(ngang(tamSeg[j])) < L1 * 0.4,
+      )
+      .sort((a, b) => Math.abs(t(tamSeg[a])) - Math.abs(t(tamSeg[b])));
+    if (gan.length < 2) continue;
+    const i2 = gan[0];
+    const i3 = gan[1];
+    const t2 = t(tamSeg[i2]);
+    const t3 = t(tamSeg[i3]);
+    if (!t2 || !t3 || Math.sign(t2) !== Math.sign(t3)) continue;
+    if (Math.abs(t2) > L1 * 1.3 || Math.abs(t3) > L1 * 2.4) continue;
+    // Ba vạch cách đều nhau
+    if (Math.abs(Math.abs(t3) - 2 * Math.abs(t2)) > Math.abs(t2) * 0.8) continue;
+    if (dai[i3] > dai[i2]) continue;
+
+    // Hướng từ đất ra tiếp điểm
+    const d = mul(norm(truc), -Math.sign(t2));
+
+    // Cần nối: đoạn xuất phát từ tâm vạch dài nhất, chạy theo hướng d
+    const can = taiDiem(tamSeg[i1], [i1, i2, i3]).find(
+      (j) => lechPhuong(huong[j], d) < 14 && dai[j] > 0.5 && dai[j] < L1 * 6,
+    );
+    if (can === undefined) continue;
+    const dauCan = dauKia(can, tamSeg[i1]);
+
+    // Lưỡi dao: đoạn chéo nối tiếp đầu kia của cần
+    const luoi = taiDiem(dauCan, [i1, i2, i3, can]).find((j) => {
+      const v = sub(dauKia(j, dauCan), dauCan);
+      const a = lechPhuong(v, d);
+      return a > 8 && a < 82 && dai[j] > 0.8 && dai[j] < L1 * 6;
+    });
+    if (luoi === undefined) continue;
+    const dinhLuoi = dauKia(luoi, dauCan);
+
+    const L = len(tamSeg[i1], dinhLuoi);
+    if (L < 3 || L > 150) continue;
+
+    boSeg.add(i1);
+    boSeg.add(i2);
+    boSeg.add(i3);
+    boSeg.add(can);
+    boSeg.add(luoi);
+    devices.push({
+      block: 'DTD',
+      p: add(tamSeg[i1], mul(d, (L_DTD_CHEN / L_DTD) * L)),
+      rot: degOf(d),
+      scale: (L / L_DTD) * 18.669,
+      mirror: cross(d, sub(dinhLuoi, dauCan)) < 0,
+      layer: segs[i1].layer,
+    });
+    dem('DTĐ');
+  }
+
+  /* ---------- 4. Dao cách ly: khe hở trên đường dây + lưỡi chéo ---------- */
+
+  interface Mep {
+    seg: number;
+    p: Pt;
+    /** Phương của đoạn, hướng từ mép khe đi vào trong đoạn. */
+    vao: Pt;
+  }
+  const meps: Mep[] = [];
+  if (chon.daoCachLy) segs.forEach((s, i) => {
+    if (boSeg.has(i) || dai[i] < 1) return;
+    meps.push({ seg: i, p: s.a, vao: huong[i] });
+    meps.push({ seg: i, p: s.b, vao: mul(huong[i], -1) });
+  });
+  const luoiMep = new LuoiDiem<number>(12);
+  meps.forEach((m, i) => luoiMep.them(m.p, i));
+
+  const daDung = new Set<number>();
+  for (let i = 0; i < meps.length; i++) {
+    const A = meps[i];
+    if (daDung.has(i) || boSeg.has(A.seg)) continue;
+    for (const e of luoiMep.quanh(A.p, 45)) {
+      const j = e.v;
+      if (j <= i || daDung.has(j)) continue;
+      const B = meps[j];
+      if (B.seg === A.seg || boSeg.has(B.seg)) continue;
+
+      const G = len(A.p, B.p);
+      // Khe của dao cách ly vẽ tay chỉ khoảng 10-20 đơn vị; khe rộng hơn thường
+      // là hai đoạn dây rời nhau chứ không phải thiết bị.
+      if (G < 6 || G > 24) continue;
+      const truc = norm(sub(B.p, A.p));
+      // Hai đoạn cùng phương với khe và quay lưng vào nhau (khe nằm giữa)
+      if (lechPhuong(truc, A.vao) > 6 || lechPhuong(truc, B.vao) > 6) continue;
+      if (dot(A.vao, truc) > 0 || dot(B.vao, truc) < 0) continue;
+
+      // Lưỡi dao: đoạn chéo bắt đầu ở một trong hai mép khe
+      let luoi: number | undefined;
+      for (const mep of [A.p, B.p]) {
+        luoi = taiDiem(mep, [A.seg, B.seg]).find((k) => {
+          const v = sub(dauKia(k, mep), mep);
+          const a = lechPhuong(v, truc);
+          return a > 10 && a < 80 && dai[k] > 1.5 && dai[k] < G * 1.8;
+        });
+        if (luoi !== undefined) break;
+      }
+      if (luoi === undefined) continue;
+
+      const tam = mid(A.p, B.p);
+      boSeg.add(luoi);
+      daDung.add(i);
+      daDung.add(j);
+      devices.push({
+        block: 'DCL',
+        p: tam,
+        rot: degOf(truc) - 90,
+        scale: G / H_DCL,
+        mirror: false,
+        layer: segs[A.seg].layer,
+      });
+      dem('DCL');
+
+      /* --- Bỏ nét liên động còn sót quanh dao cách ly vừa nhận dạng --- */
+      if (!chon.boLienDong) break;
+      const R = G * 1.1;
+      const ngangTruc = { x: -truc.y, y: truc.x };
+      const trong = (p: Pt): boolean =>
+        Math.abs(dot(sub(p, tam), truc)) <= R && Math.abs(dot(sub(p, tam), ngangTruc)) <= R;
+      let boDi = 0;
+      for (let k = 0; k < segs.length; k++) {
+        if (boSeg.has(k) || k === A.seg || k === B.seg) continue;
+        if (!trong(segs[k].a) || !trong(segs[k].b)) continue;
+        // Chỉ bỏ nét nằm LỆCH hẳn khỏi trục ngăn lộ (thanh nối cơ khí),
+        // không đụng tới phần nằm trên chính đường dây.
+        const lech = Math.min(
+          Math.abs(dot(sub(segs[k].a, tam), ngangTruc)),
+          Math.abs(dot(sub(segs[k].b, tam), ngangTruc)),
+        );
+        if (lech < G * 0.18) continue;
+        boSeg.add(k);
+        boDi++;
+      }
+      if (boDi) dem('bỏ nét liên động', boDi);
+      break;
+    }
+  }
+
+  return { devices, boSeg, boCircle, thongKe };
+}

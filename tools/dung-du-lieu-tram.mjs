@@ -173,7 +173,10 @@ for (const item of index) {
   console.log(
     `  ${item.code.padEnd(8)} ${String(b.length).padStart(5)} tuyến  ` +
       `${String(d.length).padStart(5)} thiết bị  ${String(c.length).padStart(4)} hình tròn  ${String(t.length).padStart(5)} chữ` +
-      (res.stats.suyTuKyHieu ? `  (${res.stats.suyTuKyHieu} suy từ ký hiệu ngăn lộ)` : ''),
+      (res.stats.suyTuKyHieu ? `  (${res.stats.suyTuKyHieu} suy cấp ĐA)` : '') +
+      (Object.keys(res.stats.nhanDang ?? {}).length
+        ? `  [nhận dạng: ${Object.entries(res.stats.nhanDang).map(([k, v]) => `${k} ${v}`).join(', ')}]`
+        : ''),
   );
 }
 

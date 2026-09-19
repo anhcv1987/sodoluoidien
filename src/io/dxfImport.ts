@@ -3,6 +3,7 @@ import { newId } from '../core/doc';
 import { layerOf } from '../core/voltage';
 import { emptyBox, growBox, rotate, type Box } from '../core/geom';
 import { getBlock } from '../symbols/blocks';
+import { nhanDangBlock } from './nhanDangBlock';
 
 /**
  * NHAP FILE DXF TU CAD.
@@ -479,10 +480,14 @@ function flatten(recs: Rec[]): Flat {
 
 /* --------------------------- gop doan thang --------------------------- */
 
-const key = (p: Pt, tol: number): string =>
-  `${Math.round(p.x / tol)}|${Math.round(p.y / tol)}`;
-
-/** Noi cac doan thang lien tiep (cung lop) thanh polyline de de sua. */
+/**
+ * Noi cac doan thang lien tiep (cung lop) thanh polyline de de sua.
+ *
+ * QUAN TRONG: chi noi khi hai dau mut TRUNG NHAU trong dung sai rat nho.
+ * Neu dung sai lon, hai dau mut cach nhau vai don vi cung bi coi la mot, va
+ * polyline se ve them mot net noi KHONG CO THAT - dung la loi lam cac dao cach
+ * ly ve bang net roi (E6.13...) hien ra nhu co dao tiep dia lien dong.
+ */
 function chain(segs: Seg[], tol: number): { pts: Pt[]; layer: string }[] {
   const byLayer = new Map<string, Seg[]>();
   for (const s of segs) {
@@ -491,32 +496,59 @@ function chain(segs: Seg[], tol: number): { pts: Pt[]; layer: string }[] {
     else byLayer.set(s.layer, [s]);
   }
   const out: { pts: Pt[]; layer: string }[] = [];
+  const cell = Math.max(tol, 1e-9);
+
   for (const [layer, list] of byLayer) {
-    const adj = new Map<string, number[]>();
-    const push = (k: string, i: number): void => {
-      const a = adj.get(k);
+    // Chi muc luoi: o luoi bang dung sai, khi tim thi quet ca 9 o lan can
+    const grid = new Map<string, number[]>();
+    const push = (p: Pt, i: number): void => {
+      const k = `${Math.floor(p.x / cell)}|${Math.floor(p.y / cell)}`;
+      const a = grid.get(k);
       if (a) a.push(i);
-      else adj.set(k, [i]);
+      else grid.set(k, [i]);
     };
     list.forEach((s, i) => {
-      push(key(s.a, tol), i);
-      push(key(s.b, tol), i);
+      push(s.a, i);
+      push(s.b, i);
     });
+
+    /** Cac doan chua dung co dau mut trung voi `p` (trong dung sai). */
+    const at = (p: Pt, used: boolean[]): number[] => {
+      const gx = Math.floor(p.x / cell);
+      const gy = Math.floor(p.y / cell);
+      const found: number[] = [];
+      for (let i = -1; i <= 1; i++) {
+        for (let j = -1; j <= 1; j++) {
+          for (const k of grid.get(`${gx + i}|${gy + j}`) ?? []) {
+            if (used[k] || found.includes(k)) continue;
+            const s = list[k];
+            if (
+              Math.hypot(s.a.x - p.x, s.a.y - p.y) <= tol ||
+              Math.hypot(s.b.x - p.x, s.b.y - p.y) <= tol
+            ) {
+              found.push(k);
+            }
+          }
+        }
+      }
+      return found;
+    };
+
     const used = new Array(list.length).fill(false);
     for (let i = 0; i < list.length; i++) {
       if (used[i]) continue;
       used[i] = true;
       const pts: Pt[] = [list[i].a, list[i].b];
-      // Noi ve hai phia chung nao con dinh bac 2
       for (const dir of [0, 1]) {
         for (;;) {
           const end = dir === 0 ? pts[pts.length - 1] : pts[0];
-          const cand = (adj.get(key(end, tol)) ?? []).filter((j) => !used[j]);
+          const cand = at(end, used);
+          // Chi noi tiep khi dung MOT doan di tiep (dinh bac 2); cho re nhanh thi dung
           if (cand.length !== 1) break;
           const j = cand[0];
           const s = list[j];
           used[j] = true;
-          const near = key(s.a, tol) === key(end, tol);
+          const near = Math.hypot(s.a.x - end.x, s.a.y - end.y) <= tol;
           const next = near ? s.b : s.a;
           if (dir === 0) pts.push(next);
           else pts.unshift(next);
@@ -544,6 +576,11 @@ export interface ImportOptions {
   /** Giu nguyen ten lop goc cua CAD thay vi gom theo cap dien ap. */
   keepLayers: boolean;
   /**
+   * Nhan dang cac ky hieu ve bang net roi (may cat, TI, dao tiep dia, dao cach ly)
+   * roi thay bang block thiet bi tuong ung - xem src/io/nhanDangBlock.ts.
+   */
+  nhanDang: boolean;
+  /**
    * Khi ten lop khong cho biet cap dien ap, suy ra tu ky hieu ngan lo gan nhat
    * (171 -> 110kV, 331 -> 35kV, 431 -> 22kV...). Rat can cho cac ban ve do don vi
    * khac lap, dat ten lop kieu "DUONGCHINH" / "LINE".
@@ -559,13 +596,23 @@ export const defaultImportOptions = (): ImportOptions => ({
   skipLayers: ['Defpoints', 'KHUNG', 'Khung ten', 'Viền KT', 'Đường Viền'],
   keepLayers: false,
   inferKv: true,
+  nhanDang: true,
 });
 
 export interface ImportResult {
   entities: Entity[];
   box: Box;
   /** Thong ke de bao cao cho nguoi dung. */
-  stats: { tuyen: number; thietBi: number; chu: number; hinhTron: number; lop: string[]; suyTuKyHieu: number };
+  stats: {
+    tuyen: number;
+    thietBi: number;
+    chu: number;
+    hinhTron: number;
+    lop: string[];
+    suyTuKyHieu: number;
+    /** So ky hieu ve bang net roi da duoc thay bang block. */
+    nhanDang: Record<string, number>;
+  };
 }
 
 export function importDxf(text: string, opt: ImportOptions): ImportResult {
@@ -586,7 +633,9 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
     growBox(raw, s.b);
   }
   const span = Math.max(raw.maxX - raw.minX, raw.maxY - raw.minY, 1);
-  const tol = span / 5000;
+  // Chi tiet nho nhat trong ban ve tram chi vai don vi -> dung sai phai nho hon
+  // nhieu lan the, neu khong se noi nham cac dau mut khac nhau.
+  const tol = Math.max(span * 2e-6, 1e-9);
 
   /* --- Gợi ý cấp điện áp từ ký hiệu ngăn lộ và từ tên block thiết bị --- */
   const hints = new HintGrid(Math.max(span / 120, 1e-6));
@@ -605,7 +654,20 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
   }
   let suyTuKyHieu = 0;
 
-  for (const ch of chain(flat.segs.filter((s) => keep(s.layer)), tol)) {
+  /* --- Nhan dang ky hieu ve bang net roi -> thay bang block thiet bi ---
+     Phai lam trên ĐOẠN THẲNG GỐC: sau khi gộp thành tuyến thì cần và lưỡi dao
+     đã dính vào đường dây, không còn nhận ra hình được nữa. */
+  const segIn = flat.segs.filter((s) => keep(s.layer));
+  const circleIn = flat.circles.filter((c) => keep(c.layer));
+  const nd = opt.nhanDang
+    ? nhanDangBlock(segIn, circleIn, tol)
+    : { devices: [], boSeg: new Set<number>(), boCircle: new Set<number>(), thongKe: {} };
+
+  const chains = chain(
+    segIn.filter((_, i) => !nd.boSeg.has(i)),
+    tol,
+  );
+  for (const ch of chains) {
     layerSet.add(ch.layer);
     let kv = kvFromLayer(ch.layer);
     if (kv === null && opt.inferKv) {
@@ -697,6 +759,37 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
     entities.push(dev);
   }
 
+  /* --- Dat cac block thay cho ky hieu ve bang net roi --- */
+  for (const r of nd.devices) {
+    layerSet.add(r.layer);
+    let kv = kvFromLayer(r.layer);
+    if (kv === null && opt.inferKv) {
+      const g = hints.nearest(r.p, hintRadius);
+      if (g !== null) {
+        kv = g;
+        suyTuKyHieu++;
+      }
+    }
+    if (kv === null) kv = opt.defaultKv;
+    const p = tx(r.p);
+    growBox(box, p);
+    const def = getBlock(r.block);
+    const dev: DeviceEntity = {
+      id: newId('d'),
+      kind: 'device',
+      layer: opt.keepLayers ? r.layer : layerOf(kv),
+      kv,
+      block: r.block,
+      p,
+      rot: r.rot,
+      scale: Math.max(0.001, r.scale * opt.scale),
+      state: def?.switching ? 'dong' : undefined,
+      srcLayer: r.layer,
+    };
+    if (r.mirror) dev.mirror = true;
+    entities.push(dev);
+  }
+
   if (opt.importText) {
     for (const t of flat.texts) {
       if (!keep(t.layer)) continue;
@@ -724,8 +817,9 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
 
   // Hinh tron roi trong CAD (cuon day MBA, vong tron TU/TI...) giu nguyen la
   // hinh tron - truoc day bien thanh ky hieu "cot" to dac nen sai hoan toan.
-  for (const c of flat.circles) {
-    if (!keep(c.layer)) continue;
+  for (let ci = 0; ci < circleIn.length; ci++) {
+    if (nd.boCircle.has(ci)) continue;
+    const c = circleIn[ci];
     layerSet.add(c.layer);
     let kv = kvFromLayer(c.layer);
     if (kv === null && opt.inferKv) {
@@ -761,6 +855,7 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
       hinhTron: entities.filter((e) => e.kind === 'circle').length,
       lop: [...layerSet].sort(),
       suyTuKyHieu,
+      nhanDang: nd.thongKe,
     },
   };
 }

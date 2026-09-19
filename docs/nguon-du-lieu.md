@@ -234,3 +234,64 @@ Kết quả: **4.518 đối tượng** trong tờ A0 được suy cấp điện 
 Để tờ này kéo/phóng mượt, bộ vẽ dùng chỉ mục không gian dạng lưới (`src/render/index2d.ts`)
 và bỏ qua đối tượng nhỏ hơn 1 pixel khi thu nhỏ: ~4 ms/khung khi phóng vào một trạm,
 ~36 ms/khung khi xem toàn tờ.
+
+---
+
+# 7. Rà soát ký hiệu (bản cập nhật)
+
+## 7.1 Lỗi nối nhầm đầu mút — nguyên nhân gốc của nhiều hiện tượng lạ
+
+Bước gộp các đoạn thẳng liền nhau thành tuyến dùng dung sai `span / 5000`. Với tờ
+A0 cao 14.871 đơn vị thì dung sai là **≈3 đơn vị CAD**, trong khi chi tiết nhỏ nhất
+của một ngăn lộ chỉ khoảng 3-4 đơn vị. Hậu quả: hai đầu mút khác nhau bị coi là
+một, polyline nối tắt qua khoảng trống và **vẽ thêm nét không có trong bản gốc**.
+
+Ví dụ tại dao cách ly 172-7 của E6.13, bản CAD có:
+
+```
+(745799.81, 987.39)-(745799.81, 1033.62)   thanh dẫn phía trên khe
+(745799.81, 971.24)-(745799.81,  953.05)   thanh dẫn phía dưới khe
+(745796.19, 987.39)-(745799.81,  987.39)   mấu tiếp điểm trên
+(745796.19, 966.71)-(745799.81,  966.71)   mấu tiếp điểm dưới
+(745799.81, 971.24)-(745802.84,  980.10)   lưỡi dao
+```
+
+Phần mềm nối nhầm các mấu tiếp điểm thành một hình thang kín → trông như dao cách
+ly có dao tiếp địa liên động. Dung sai nay là `span * 2e-6` (≈0,03 đơn vị) và khi
+nối còn kiểm tra khoảng cách thật giữa hai đầu mút, không chỉ dựa vào ô lưới.
+
+## 7.2 Ba lỗi đặt block đã sửa
+
+Xem mục 6.2. Bổ sung: hình tròn rời (cuộn dây MBA, vòng tròn TU/TI) giữ nguyên là
+hình tròn; máy cắt vẽ rỗng đúng bản CAD.
+
+## 7.3 Nhận dạng ký hiệu vẽ bằng nét rời
+
+`src/io/nhanDangBlock.ts` chạy trên **đoạn thẳng gốc**, trước bước gộp tuyến — nếu
+chạy sau thì cần và lưỡi dao đã dính vào đường dây, không còn nhận ra hình được.
+
+| Dạng | Dấu hiệu | Kết quả |
+|---|---|---|
+| Máy cắt | 4 đoạn khép kín thành hình chữ nhật, tỷ lệ cạnh 0,3-1,0, hai cạnh ngắn có dây nối | 377 |
+| Biến dòng TI | vòng tròn bán kính 0,4-6 đơn vị nằm cạnh đầu mút một đoạn dây | 800 |
+| Dao cách ly | khe hở 6-24 đơn vị trên đường dây + lưỡi chéo ở mép khe | **tắt** |
+| Dao tiếp địa | 3 vạch song song ngắn dần + cần + lưỡi dao | **tắt** |
+
+Hai dạng sau đã thử và **bị tắt lại**: dao cách ly / dao tiếp địa vẽ tay có tỷ lệ
+khác hẳn block (khe hở 16 đơn vị trong khi block chỉ 4,8), quy về block thì ký hiệu
+to gấp 3 lần và đè lên các chi tiết xung quanh. Bật lại bằng `macDinhNhanDang()`
+trong `src/io/nhanDangBlock.ts` nếu muốn thử nghiệm tiếp.
+
+## 7.4 Khung bản vẽ A0
+
+`src/data/khungA0.ts` sinh khung theo TCVN 7285 (ISO 5457): mép giấy 841x1189mm,
+lề trái 20mm, ba lề còn lại 10mm, khung tên 300x120mm ở góc dưới phải. Tỷ lệ quy
+đổi chọn sao cho toàn bộ nội dung nằm gọn trong vùng vẽ, nên khung luôn bao trọn
+sơ đồ. Khung nằm trên lớp riêng "Khung bản vẽ".
+
+## 7.5 Sơ đồ địa lý không còn chồng lấn
+
+`buildDefaultDrawing()` chạy sẵn `declutterSubstations(store, 1200, 18)`: đẩy các
+khối trạm ra cho tới khi không cặp nào giao nhau, đồng thời giới hạn độ lệch tối đa
+18 km so với toạ độ địa lý đã khai. Kiểm thử tự động (`tools/smoke-test.mjs`) xác
+nhận 0 cặp chồng lấn.

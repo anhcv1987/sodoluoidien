@@ -192,6 +192,8 @@ export interface BoundaryEntity extends EntityBase {
   /** Ten vung: "Ranh gioi tinh", "Ho Nui Coc". */
   name?: string;
   fill?: string;
+  /** Ve net dut (mac dinh) hay net lien (khung ban ve, khung ten). */
+  dashed?: boolean;
 }
 
 /**
