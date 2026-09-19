@@ -108,6 +108,7 @@ for (const item of index) {
   const b = [];
   const d = [];
   const t = [];
+  const c = [];
   for (const e of res.entities) {
     if (e.kind === 'branch') {
       const pts = [];
@@ -130,6 +131,15 @@ for (const item of index) {
         Math.max(0, STATES.indexOf(e.state ?? 'dong')),
         idx(srcTable, e.srcLayer ?? ''),
       ]);
+    } else if (e.kind === 'circle') {
+      c.push([
+        idx(layerTable, e.layer),
+        e.kv,
+        r2(e.c.x),
+        r2(e.c.y),
+        r2(e.r),
+        idx(srcTable, e.srcLayer ?? ''),
+      ]);
     } else if (e.kind === 'text') {
       t.push([
         idx(layerTable, e.layer),
@@ -144,12 +154,26 @@ for (const item of index) {
       ]);
     }
   }
-  totalEntities += b.length + d.length + t.length;
+  totalEntities += b.length + d.length + t.length + c.length;
 
-  sheets.push({ code: item.code, title: item.title, b, d, t });
+  const sheet = { code: item.code, title: item.title, b, d, t, c };
+  // Tờ tổng: kèm vị trí từng trạm (đã quy đổi toạ độ) để phần mềm nhảy tới đúng chỗ
+  if (item.stations?.length) {
+    const px = (v) => r2(v * opt.scale + opt.offset.x);
+    const py = (v) => r2(v * opt.scale + opt.offset.y);
+    sheet.st = item.stations.map((x) => [
+      x.code,
+      x.title,
+      px(x.x),
+      py(x.y),
+      ...(x.box ? [px(x.box[0]), py(x.box[1]), px(x.box[2]), py(x.box[3])] : []),
+    ]);
+  }
+  sheets.push(sheet);
   console.log(
-    `  ${item.code.padEnd(8)} ${String(b.length).padStart(4)} tuyến  ` +
-      `${String(d.length).padStart(4)} thiết bị  ${String(t.length).padStart(4)} chữ`,
+    `  ${item.code.padEnd(8)} ${String(b.length).padStart(5)} tuyến  ` +
+      `${String(d.length).padStart(5)} thiết bị  ${String(c.length).padStart(4)} hình tròn  ${String(t.length).padStart(5)} chữ` +
+      (res.stats.suyTuKyHieu ? `  (${res.stats.suyTuKyHieu} suy từ ký hiệu ngăn lộ)` : ''),
   );
 }
 

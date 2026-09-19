@@ -228,14 +228,16 @@ export class Editor {
       text: 1,
       substation: 2,
       node: 3,
+      circle: 4,
       branch: 4,
       boundary: 5,
     };
     let best: Entity | null = null;
     let bestKey = [99, Infinity];
-    // Loại nhanh bằng hộp bao đã lưu sẵn rồi mới tính khoảng cách chính xác,
-    // nếu không thì các tờ sơ đồ trạm hàng chục nghìn đối tượng sẽ rất chậm.
-    for (const { e, box } of this.renderer.visibleList()) {
+    // Chỉ xét các đối tượng quanh con trỏ (qua chỉ mục không gian) rồi mới tính
+    // khoảng cách chính xác - nếu không, tờ sơ đồ tổng sẽ rất chậm.
+    const near = { minX: w.x - r, minY: w.y - r, maxX: w.x + r, maxY: w.y + r };
+    for (const { e, box } of this.renderer.queryBox(near)) {
       if (!this.store.isEditable(e)) continue;
       if (w.x < box.minX - r || w.x > box.maxX + r || w.y < box.minY - r || w.y > box.maxY + r) continue;
       const d = distToEntity(this.store, e, w);
@@ -251,7 +253,7 @@ export class Editor {
 
   private pickBox(box: Box, crossing: boolean): Entity[] {
     const out: Entity[] = [];
-    for (const { e, box: eb } of this.renderer.visibleList()) {
+    for (const { e, box: eb } of this.renderer.queryBox(box)) {
       if (!this.store.isEditable(e)) continue;
       if (crossing) {
         if (!boxIntersects(eb, box)) continue;
@@ -404,6 +406,9 @@ export class Editor {
           if (x.kind === 'node' || x.kind === 'device' || x.kind === 'substation' || x.kind === 'text') {
             x.p.x += dx;
             x.p.y += dy;
+          } else if (x.kind === 'circle') {
+            x.c.x += dx;
+            x.c.y += dy;
           } else if (x.kind === 'boundary') {
             for (const p of x.pts) {
               p.x += dx;
@@ -464,6 +469,10 @@ export class Editor {
           if ('p' in c) {
             c.p.x += dx;
             c.p.y += dy;
+          }
+          if (c.kind === 'circle') {
+            c.c.x += dx;
+            c.c.y += dy;
           }
           if (c.kind === 'boundary') for (const p of c.pts) {
             p.x += dx;

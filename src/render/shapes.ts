@@ -22,12 +22,13 @@ export function branchPoints(store: DocStore, b: BranchEntity): Pt[] {
 }
 
 /** Bien doi hinh ve cua block theo vi tri / goc quay / ty le cua thiet bi. */
-export function deviceOps(d: DeviceEntity): WOp[] {
+export function deviceOps(d: DeviceEntity, fillClosedBreaker = false): WOp[] {
   const def = getBlock(d.block);
   if (!def) return [];
   const s = d.scale || 1;
+  const m = d.mirror ? -1 : 1;
   const tx = (x: number, y: number): Pt => {
-    const r = rotate({ x: x * s, y: y * s }, d.rot);
+    const r = rotate({ x: x * m * s, y: y * s }, d.rot);
     return { x: r.x + d.p.x, y: r.y + d.p.y };
   };
   const ops: WOp[] = [];
@@ -45,15 +46,21 @@ export function deviceOps(d: DeviceEntity): WOp[] {
         ops.push({ t: 'circle', c: tx(p.c[0], p.c[1]), r: p.r * s, fill: p.fill });
         break;
       case 'arc':
-        ops.push({ t: 'arc', c: tx(p.c[0], p.c[1]), r: p.r * s, a0: p.a0 + d.rot, a1: p.a1 + d.rot });
+        // Lat guong doi chieu quet cua cung tron: goc a -> 180 - a, va dao dau/cuoi.
+        ops.push(
+          m < 0
+            ? { t: 'arc', c: tx(p.c[0], p.c[1]), r: p.r * s, a0: 180 - p.a1 + d.rot, a1: 180 - p.a0 + d.rot }
+            : { t: 'arc', c: tx(p.c[0], p.c[1]), r: p.r * s, a0: p.a0 + d.rot, a1: p.a1 + d.rot },
+        );
         break;
       case 'text':
+        // Chu trong block luon ve xuoi chieu, khong lat guong.
         ops.push({ t: 'text', p: tx(p.p[0], p.p[1]), s: p.s, h: p.h * s, align: 'left', rot: 0 });
         break;
     }
   }
-  // May cat dang dong: to dac than may cat cho de nhin khi dieu do.
-  if (def.fillWhenClosed && d.state === 'dong') {
+  // May cat dang dong: to dac than may cat cho de nhin khi dieu do (tuy chon).
+  if (fillClosedBreaker && def.fillWhenClosed && d.state === 'dong') {
     for (const op of ops) if (op.t === 'path' && op.close) op.fill = true;
   }
   return ops;
@@ -78,14 +85,14 @@ export function substationOps(s: SubstationEntity): WOp[] {
 }
 
 /** Sinh cac thao tac ve cho mot doi tuong bat ky. */
-export function entityOps(store: DocStore, e: Entity): WOp[] {
+export function entityOps(store: DocStore, e: Entity, fillClosedBreaker = false): WOp[] {
   switch (e.kind) {
     case 'branch': {
       const pts = branchPoints(store, e);
       return pts.length >= 2 ? [{ t: 'path', pts }] : [];
     }
     case 'device':
-      return deviceOps(e);
+      return deviceOps(e, fillClosedBreaker);
     case 'substation':
       return substationOps(e);
     case 'node':
@@ -94,6 +101,8 @@ export function entityOps(store: DocStore, e: Entity): WOp[] {
       return [{ t: 'text', p: e.p, s: e.text, h: e.height, align: e.align, rot: e.rot }];
     case 'boundary':
       return e.pts.length >= 2 ? [{ t: 'path', pts: e.pts, close: e.closed }] : [];
+    case 'circle':
+      return [{ t: 'circle', c: e.c, r: e.r, fill: e.filled }];
   }
 }
 
@@ -183,6 +192,9 @@ export function snapPoints(store: DocStore, e: Entity): { p: Pt; kind: string }[
       break;
     case 'text':
       out.push({ p: e.p, kind: 'Điểm chèn' });
+      break;
+    case 'circle':
+      out.push({ p: e.c, kind: 'Tâm đường tròn' });
       break;
   }
   return out;

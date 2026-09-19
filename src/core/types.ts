@@ -42,7 +42,14 @@ export interface Layer {
 /* Cac thuc the tren ban ve                                            */
 /* ------------------------------------------------------------------ */
 
-export type EntityKind = 'node' | 'branch' | 'device' | 'substation' | 'text' | 'boundary';
+export type EntityKind =
+  | 'node'
+  | 'branch'
+  | 'device'
+  | 'substation'
+  | 'text'
+  | 'boundary'
+  | 'circle';
 
 export interface EntityBase {
   id: Id;
@@ -116,6 +123,8 @@ export interface DeviceEntity extends EntityBase {
   rot: number;
   /** He so phong to block. */
   scale: number;
+  /** Lat guong theo truc doc cua block (CAD dung he so ty le am). */
+  mirror?: boolean;
   /** Nhan thiet bi: "131", "471-7", "DCL 371-7". */
   label?: string;
   /** Trang thai dong/mo (chi co y nghia voi thiet bi dong cat). */
@@ -185,8 +194,20 @@ export interface BoundaryEntity extends EntityBase {
   fill?: string;
 }
 
+/**
+ * Hinh tron roi - chu yeu sinh ra khi nhap tu CAD: cuon day may bien ap, vong
+ * tron TU/TI... duoc ve bang CIRCLE chu khong nam trong block nao.
+ */
+export interface CircleEntity extends EntityBase {
+  kind: 'circle';
+  c: Pt;
+  r: number;
+  filled?: boolean;
+}
+
 export type Entity =
   | NodeEntity
+  | CircleEntity
   | BranchEntity
   | DeviceEntity
   | SubstationEntity

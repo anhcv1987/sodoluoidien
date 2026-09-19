@@ -1,7 +1,8 @@
 import type { DocStore } from '../core/doc';
 import type { Entity, Pt, SubstationEntity, BranchEntity } from '../core/types';
 import { colorOf, styleOf } from '../core/voltage';
-import { boxIntersects, type Box } from '../core/geom';
+import type { Box } from '../core/geom';
+import { Index2D, type Indexed } from './index2d';
 import { branchPoints, entityBox, entityOps, type WOp } from './shapes';
 import type { Viewport } from './viewport';
 
@@ -19,6 +20,11 @@ export interface RenderOptions {
   showPlaces: boolean;
   /** Danh dau doi tuong "so bo - can ra soat". */
   markDraft: boolean;
+  /**
+   * To dac than may cat dang dong. Ban ve CAD goc ve may cat RONG nen mac dinh
+   * TAT de giong het ban mau; bat len khi muon nhin nhanh trang thai khi dieu do.
+   */
+  fillClosedBreaker: boolean;
 }
 
 export const defaultRenderOptions = (): RenderOptions => ({
@@ -29,6 +35,7 @@ export const defaultRenderOptions = (): RenderOptions => ({
   showDeviceLabels: true,
   showPlaces: true,
   markDraft: true,
+  fillClosedBreaker: false,
 });
 
 export interface RenderState {
@@ -48,8 +55,17 @@ export interface RenderState {
 const FONT = '"Segoe UI", "Times New Roman", system-ui, sans-serif';
 
 export class Renderer {
-  /** Bộ nhớ đệm danh sách đối tượng đã sắp xếp + hộp bao, làm mới khi bản vẽ đổi. */
-  private cache: { version: number; sheet: string; list: { e: Entity; box: Box }[] } | null = null;
+  /**
+   * Bộ nhớ đệm: danh sách đối tượng kèm hộp bao, chia theo lớp thứ tự vẽ và
+   * lập chỉ mục không gian. Chỉ dựng lại khi bản vẽ thay đổi.
+   */
+  private cache: {
+    version: number;
+    sheet: string;
+    list: Indexed[];
+    /** Chỉ mục riêng cho từng lớp thứ tự vẽ (nền → đường dây → … → chữ). */
+    layers: Index2D[];
+  } | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -93,16 +109,29 @@ export class Renderer {
     if (this.opt.showGrid) this.drawGrid(ctx);
 
     const view = this.vp.viewBox(80);
-    const list = this.entityList();
-    const ents = list.map((x) => x.e);
+    const cache = this.buildCache();
 
-    for (const { e, box } of list) {
-      if (!boxIntersects(box, view)) continue;
-      this.drawEntity(ctx, e, state);
+    // Bỏ qua đối tượng nhỏ hơn ~1 pixel khi thu nhỏ: mắt không thấy được mà lại
+    // chiếm phần lớn thời gian vẽ của tờ sơ đồ tổng.
+    const minPx = 1.0 / this.vp.scale;
+
+    const visible: Entity[] = [];
+    for (const idx of cache.layers) {
+      for (const { e, box } of idx.query(view)) {
+        visible.push(e);
+        if (
+          e.kind !== 'substation' &&
+          box.maxX - box.minX < minPx &&
+          box.maxY - box.minY < minPx
+        ) {
+          continue;
+        }
+        this.drawEntity(ctx, e, state);
+      }
     }
 
-    if (this.opt.showConductor) this.drawConductorLabels(ctx, ents, view);
-    if (this.opt.showLabels) this.drawSubstationLabels(ctx, ents, view);
+    if (this.opt.showConductor) this.drawConductorLabels(ctx, visible, view);
+    if (this.opt.showLabels) this.drawSubstationLabels(ctx, visible, view);
 
     if (state.preview) this.drawPreview(ctx, state.preview);
     if (state.marquee) this.drawMarquee(ctx, state.marquee);
@@ -118,30 +147,47 @@ export class Renderer {
    * đối tượng vẫn kéo/phóng mượt.
    */
   /** Danh sách đối tượng đang hiện kèm hộp bao (dùng chung cho vẽ và bắt chọn). */
-  visibleList(): { e: Entity; box: Box }[] {
-    return this.entityList();
+  visibleList(): Indexed[] {
+    return this.buildCache().list;
   }
 
-  private entityList(): { e: Entity; box: Box }[] {
+  /** Các đối tượng đang hiện nằm trong một vùng - dùng khi bắt chọn. */
+  queryBox(box: Box): Indexed[] {
+    const out: Indexed[] = [];
+    for (const idx of this.buildCache().layers) out.push(...idx.query(box));
+    return out;
+  }
+
+  private buildCache(): NonNullable<Renderer['cache']> {
     const sheetId = this.store.sheet.id;
     if (this.cache && this.cache.version === this.store.version && this.cache.sheet === sheetId) {
-      return this.cache.list;
+      return this.cache;
     }
     // Thứ tự vẽ: nền -> đường dây -> nút -> trạm -> thiết bị -> chữ
     const order: Record<Entity['kind'], number> = {
       boundary: 0,
       branch: 1,
+      circle: 1,
       node: 2,
       substation: 3,
       device: 4,
       text: 5,
     };
-    const list = this.store.entities
-      .filter((e) => this.store.isVisible(e))
-      .sort((a, b) => order[a.kind] - order[b.kind])
-      .map((e) => ({ e, box: entityBox(this.store, e) }));
-    this.cache = { version: this.store.version, sheet: sheetId, list };
-    return list;
+    const buckets: Indexed[][] = [[], [], [], [], [], []];
+    const list: Indexed[] = [];
+    for (const e of this.store.entities) {
+      if (!this.store.isVisible(e)) continue;
+      const item = { e, box: entityBox(this.store, e) };
+      list.push(item);
+      buckets[order[e.kind]].push(item);
+    }
+    this.cache = {
+      version: this.store.version,
+      sheet: sheetId,
+      list,
+      layers: buckets.map((b) => new Index2D(b)),
+    };
+    return this.cache;
   }
 
   /* -------------------------- luoi toa do -------------------------- */
@@ -226,7 +272,7 @@ export class Renderer {
     }
 
     const st = this.strokeStyleFor(e, state);
-    const ops = entityOps(this.store, e);
+    const ops = entityOps(this.store, e, this.opt.fillClosedBreaker);
     ctx.save();
     ctx.strokeStyle = st.color;
     ctx.fillStyle = st.color;

@@ -227,6 +227,14 @@ def main() -> int:
     ap.add_argument("out", help="thư mục kết quả")
     ap.add_argument("--min-x", type=float, default=0.0, help="chỉ xét phần bản vẽ có X lớn hơn giá trị này")
     ap.add_argument(
+        "--to-tong",
+        default=None,
+        help=(
+            "Trích NGUYÊN CẢ tờ bản vẽ tổng (khổ A0, tất cả các trạm trên một tờ) "
+            "chứa tiêu đề khớp mẫu này, VD --to-tong 'KẾT DÂY LƯỚI ĐIỆN'"
+        ),
+    )
+    ap.add_argument(
         "--them-to",
         action="append",
         default=[],
@@ -251,6 +259,129 @@ def main() -> int:
         t["floor"] = (nxt["y"] + 150) if nxt else (t["y"] - 5000)
 
     index, seen = [], {}
+
+    # ---- Tờ tổng khổ A0: lấy nguyên cả tờ, giữ đúng bố trí gốc ----
+    if args.to_tong:
+        all_items = entity_boxes(msp, -1e18)
+        title = None
+        for e in msp:
+            t = e.dxftype()
+            if t == "TEXT":
+                p, h, txt = e.dxf.insert, e.dxf.height, clean(e.dxf.text)
+            elif t == "MTEXT":
+                p, h, txt = e.dxf.insert, e.dxf.char_height, clean(e.text)
+            else:
+                continue
+            if h >= 20 and re.search(args.to_tong, txt, re.I):
+                if title is None or h > title["h"]:
+                    title = {"x": p.x, "y": p.y, "h": h, "text": txt}
+        if title is None:
+            print(f"  Không tìm thấy tiêu đề khớp {args.to_tong!r}")
+        else:
+            # Tờ tổng tách biệt hẳn với phần còn lại theo trục X -> gom cụm theo X
+            xs = sorted({round(it[1]) for it in all_items})
+            groups, cur = [], [xs[0]]
+            for x in xs[1:]:
+                if x - cur[-1] > 1500:
+                    groups.append(cur)
+                    cur = [x]
+                else:
+                    cur.append(x)
+            groups.append(cur)
+            g = next((q for q in groups if q[0] - 1500 <= title["x"] <= q[-1] + 1500), None)
+            if g:
+                sel = [it for it in all_items if g[0] - 10 <= it[1] and it[3] <= g[-1] + 3000]
+                bx0 = min(it[1] for it in sel)
+                by0 = min(it[2] for it in sel)
+                bx1 = max(it[3] for it in sel)
+                by1 = max(it[4] for it in sel)
+                # Vị trí từng trạm trong tờ tổng, để phần mềm nhảy tới đúng chỗ.
+                # Tờ A0 xếp các trạm so le nên không dùng được cách chia cột ở trên.
+                stations = []
+                for e in msp:
+                    t = e.dxftype()
+                    if t == "TEXT":
+                        p2, h2, s2 = e.dxf.insert, e.dxf.height, clean(e.dxf.text)
+                    elif t == "MTEXT":
+                        p2, h2, s2 = e.dxf.insert, e.dxf.char_height, clean(e.text)
+                    else:
+                        continue
+                    if not (bx0 <= p2.x <= bx1 and by0 <= p2.y <= by1):
+                        continue
+                    if h2 < 10 or len(s2) > 80 or not TITLE.search(s2):
+                        continue
+                    m2 = CODE.search(s2)
+                    if not m2:
+                        continue
+                    if any(
+                        abs(u["x"] - p2.x) < 400 and abs(u["y"] - p2.y) < 400 for u in stations
+                    ):
+                        continue
+                    stations.append(
+                        {"code": m2.group(1), "title": s2, "x": round(p2.x, 1), "y": round(p2.y, 1), "h": round(h2, 1)}
+                    )
+                stations.sort(key=lambda r: (-r["y"], r["x"]))
+                # Phạm vi từng trạm trong tờ tổng: gom cụm đối tượng liền nhau
+                # quanh tiêu đề, để phần mềm phóng tới vừa khít.
+                for st in stations:
+                    cl = extract_cluster(st["x"], st["y"] - 60, sel)
+                    if not cl:
+                        cl = extract_cluster(st["x"], st["y"], sel)
+                    if cl:
+                        st["box"] = [
+                            round(min(it[1] for it in cl), 1),
+                            round(min(it[2] for it in cl), 1),
+                            round(max(it[3] for it in cl), 1),
+                            round(max(it[4] for it in cl), 1),
+                        ]
+                # Hai trạm vẽ sát nhau có thể rơi vào cùng một cụm -> cắt đôi
+                # phạm vi tại điểm giữa hai tiêu đề để phóng tới không bị lẫn.
+                for st in stations:
+                    b = st.get("box")
+                    if not b:
+                        continue
+                    for other in stations:
+                        if other is st or not (b[0] <= other["x"] <= b[2] and b[1] <= other["y"] <= b[3]):
+                            continue
+                        dx = other["x"] - st["x"]
+                        dy = other["y"] - st["y"]
+                        if abs(dx) >= abs(dy):
+                            mid = (st["x"] + other["x"]) / 2
+                            if dx > 0:
+                                b[2] = min(b[2], mid)
+                            else:
+                                b[0] = max(b[0], mid)
+                        else:
+                            mid = (st["y"] + other["y"]) / 2
+                            if dy > 0:
+                                b[3] = min(b[3], mid)
+                            else:
+                                b[1] = max(b[1], mid)
+                    # Luôn chừa đủ chỗ quanh tiêu đề
+                    b[0] = round(min(b[0], st["x"] - 120), 1)
+                    b[2] = round(max(b[2], st["x"] + 120), 1)
+                    b[1] = round(min(b[1], st["y"] - 180), 1)
+                    b[3] = round(max(b[3], st["y"] + 60), 1)
+                tgt = ezdxf.new("R2000", setup=True)
+                imp = Importer(src, tgt)
+                imp.import_entities([it[0] for it in sel])
+                imp.finalize()
+                tgt.saveas(os.path.join(args.out, "to-tong.dxf"))
+                index.append(
+                    {
+                        "code": "TONG",
+                        "title": title["text"],
+                        "file": "to-tong.dxf",
+                        "entities": len(sel),
+                        "box": [round(bx0, 1), round(by0, 1), round(bx1, 1), round(by1, 1)],
+                        "stations": stations,
+                    }
+                )
+                print(
+                    f"  TỜ TỔNG {len(sel):6d} đối tượng  {bx1 - bx0:7.0f} x {by1 - by0:7.0f}"
+                    f"  {len(stations)} trạm  ->  to-tong.dxf   {title['text'][:40]}"
+                )
+
     for t in titles:
         col_x0, col_x1 = t["x"] - 6000, t["x"] + 9000
         y0, y1 = band_y(t, items, col_x0, col_x1, t["floor"])

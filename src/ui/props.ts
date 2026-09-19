@@ -78,6 +78,7 @@ export function buildProps(ed: Editor, sel: Entity[]): HTMLElement {
     substation: 'Trạm biến áp',
     text: 'Ghi chú',
     boundary: 'Nền bản đồ',
+    circle: 'Hình tròn',
   };
   root.append(el('div', { class: 'props-title', text: kindName[e.kind] }));
 
@@ -268,6 +269,14 @@ export function buildProps(ed: Editor, sel: Entity[]): HTMLElement {
       ),
     );
     root.append(labeled('Góc quay (độ)', input(String(e.rot), (v) => upd((x) => void ((x as typeof e).rot = Number(v) || 0), 'Quay chữ'), { type: 'number', step: '15' })));
+  }
+
+  /* ---------------------------- hinh tron -------------------------- */
+  if (e.kind === 'circle') {
+    root.append(
+      labeled('Bán kính', input(String(e.r), (v) => upd((x) => void ((x as typeof e).r = Math.max(0.001, Number(v) || 1)), 'Đổi bán kính'), { type: 'number', step: '0.1' })),
+    );
+    root.append(checkbox('Tô đặc', !!e.filled, (v) => upd((x) => void ((x as typeof e).filled = v || undefined), 'Đổi kiểu tô')));
   }
 
   /* ----------------------------- ghi chu --------------------------- */

@@ -31,6 +31,13 @@ export interface BlockDef {
   inline: boolean;
   /** Chieu dai theo truc Y (don vi block) - dung de chua cho tren duong day. */
   span: number;
+  /**
+   * Goc (do) da quay hinh hoc CAD goc khi chuan hoa ve truc +Y.
+   * Khi nhap tu DXF phai TRU lai goc nay de thiet bi nam dung huong nhu ban CAD.
+   */
+  normRot: number;
+  /** Vi tri (he toa do block) ung voi diem chen cua block CAD goc. */
+  origin: [number, number];
   /** Co to dac khi dang dong hay khong (may cat). */
   fillWhenClosed?: boolean;
   /** Nguon goc hinh ve. */
@@ -202,6 +209,7 @@ const CAD_REC: Prim[] = [
   P(true, false, 0, -7.452, 0, 7.452, 39.834, 7.452, 39.834, -7.452),
   L(-6, 0, 0, 0),
   L(39.834, 0, 45.834, 0),
+  T(13.766, -6.404, 'R', 13.813),
 ];
 
 /** LBS: dao cat co tai = dao cach ly nam trong hop. */
@@ -266,21 +274,23 @@ function make(
     source: string;
   },
 ): BlockDef {
-  const prims = normalizeCad(cad, opts.rot ?? 0, K);
-  const b = primBounds(prims);
+  const norm = normalizeCad(cad, opts.rot ?? 0, K);
+  const b = primBounds(norm.prims);
   const def: BlockDef = {
     id,
     name,
     abbr,
     group,
-    prims,
+    prims: norm.prims,
     switching: opts.switching ?? false,
     inline: opts.inline ?? true,
     span: Math.max(0.1, b.maxY - b.minY),
+    normRot: opts.rot ?? 0,
+    origin: norm.origin,
     source: opts.source,
   };
   if (opts.fillWhenClosed) def.fillWhenClosed = true;
-  if (opts.open) def.primsOpen = normalizeCad(opts.open, opts.openRot ?? opts.rot ?? 0, K);
+  if (opts.open) def.primsOpen = normalizeCad(opts.open, opts.openRot ?? opts.rot ?? 0, K).prims;
   return def;
 }
 
@@ -400,5 +410,3 @@ export function primsFor(def: BlockDef, state?: string): Prim[] {
   return def.prims;
 }
 
-/** Nhan chu "R" ve rieng cho recloser de luon doc xuoi. */
-export const REC_LABEL: Prim = T(-0.18, -0.18, 'R', 0.36);

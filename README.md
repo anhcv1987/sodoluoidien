@@ -93,11 +93,13 @@ theo hướng tuyến**.
 
 ---
 
-## 5. Sơ đồ tỉnh có sẵn
+## 5. Trang phụ: sơ đồ 220-110kV theo vị trí địa lý
 
-Khi mở lần đầu, phần mềm dựng sẵn sơ đồ lưới 220/110kV toàn tỉnh: 28 trạm/nút
-nguồn (26 trong tỉnh + 220kV Tuyên Quang và 220kV Sóc Sơn để thể hiện liên kết),
-ranh giới tỉnh sơ hoạ, địa danh tham chiếu và 29 đường dây 110/220kV.
+Ngoài tờ sơ đồ kết dây (mục 6), phần mềm còn một trang đặt các trạm **gần đúng vị trí
+địa lý**: 28 trạm/nút nguồn (26 trong tỉnh + 220kV Tuyên Quang và 220kV Sóc Sơn để
+thể hiện liên kết), ranh giới tỉnh sơ hoạ, địa danh tham chiếu và 29 đường dây
+110/220kV. Trang này để hình dung không gian lưới; nhấn đúp vào một khối trạm sẽ
+nhảy sang đúng trạm đó trên sơ đồ kết dây.
 
 **Mức độ tin cậy của dữ liệu — cần đọc kỹ:**
 
@@ -127,37 +129,64 @@ dùng chung cho cả phòng.
 
 ---
 
-## 6. Sơ đồ nguyên lý bên trong từng trạm (đầy đủ thiết bị 110/35/22/6kV)
+## 6. Sơ đồ kết dây toàn tỉnh — tất cả trạm trên MỘT tờ
 
-Phần mềm mang sẵn **27 tờ sơ đồ trích xuất trực tiếp từ file CAD của Phòng Điều độ**:
-25 tờ sơ đồ nguyên lý trạm (E6.2 … E26.3), tờ sơ đồ liên thông lưới 220-110kV toàn
-tỉnh và tờ sơ đồ các đường dây trung áp 372+373 E6.2 / 371-375 E6.5 / 472 E6.2 —
-tổng cộng hơn **25.000 đối tượng**: thanh cái, máy cắt, máy cắt hợp bộ, dao cách ly,
-dao tiếp địa, TI, TU, TUC, chống sét van, máy biến áp, các lộ xuất tuyến, nhãn ngăn
-lộ và mã hiệu cáp — đúng hình học và đúng cấp điện áp như bản CAD.
+Trang mở ra đầu tiên là **"Sơ đồ kết dây lưới điện tỉnh Thái Nguyên"** — nguyên tờ
+khổ A0 lấy từ bản vẽ CAD của Phòng Điều độ, **tất cả 25 trạm nằm trên một sơ đồ duy
+nhất, giữ đúng bố trí bản gốc** (đối chiếu với file PDF xuất từ AutoCAD).
 
-Cách mở:
+Trên tờ này có hơn **19.300 đối tượng**: thanh cái, máy cắt, máy cắt hợp bộ, dao cách
+ly, dao tiếp địa, TI, TU, TUC, chống sét van, cầu chì, máy biến áp, tụ bù, các lộ xuất
+tuyến, nhãn ngăn lộ và mã hiệu cáp ở đủ các cấp **220 / 110 / 35 / 22 / 10 / 6 / 0,4kV**.
 
-* **Nhấn đúp chuột** vào khối trạm trên sơ đồ tỉnh, hoặc
-* bấm nút **Sơ đồ** bên cạnh tên trạm trong bảng **Danh mục trạm**, hoặc
-* **Dữ liệu → Mở sơ đồ nguyên lý trạm (từ CAD)…** để xem cả danh sách.
+Đi lại trên tờ:
 
-Mỗi tờ mở ra là một trang bản vẽ bình thường: sửa, thêm thiết bị, đổi trạng thái
-đóng/cắt, xuất DXF/SVG/PNG như mọi trang khác. Trang chỉ được dựng khi thực sự mở
-nên phần mềm vẫn khởi động trong khoảng 1 giây.
+* Bấm tên trạm trong bảng **Danh mục trạm** (bên phải) để phóng tới đúng trạm đó.
+* Hoặc **Dữ liệu → Danh mục trạm trên sơ đồ kết dây…**
+* Trang thứ hai — **"Lưới 220-110kV theo vị trí địa lý"** — đặt các trạm gần đúng vị
+  trí thật; nhấn đúp vào khối trạm ở đó sẽ nhảy sang đúng trạm trên sơ đồ kết dây.
 
-**Cấp điện áp của thiết bị** được lấy từ tên block trong CAD ("110-MC", "35-DCL",
-"22-MCHB", "MBA 110-35-22"…) nên chính xác. **Cấp điện áp của đường dây** lấy từ tên
-lớp; ba tờ vẽ bởi đơn vị khác dùng tên lớp không có cấp điện áp (E26.1 Bắc Kạn:
-`DUONGCHINH`/`DMANH`/`THANHCAI`; E6.13 Yên Bình: `LINE`) nên phần mềm phải để mặc
-định 22kV. Sửa cả lớp một lần bằng **Dữ liệu → Gán cấp điện áp theo lớp CAD gốc…**
+### Ký hiệu thiết bị dựng lại đúng bản CAD
 
-Muốn dựng lại bộ dữ liệu này từ một file CAD mới:
+* **Góc xoay**: hình học block trong phần mềm được xoay về trục dọc để tiện vẽ tay,
+  nên khi nhập từ CAD phải trừ lại đúng góc đó; thiếu bước này thì mọi dao cách ly,
+  dao tiếp địa, chống sét van, recloser đều lệch 90°.
+* **Lật gương**: CAD dùng hệ số tỷ lệ âm để lật thiết bị (ngăn lộ bên trái / bên phải
+  thanh cái) — phần mềm giữ lại bằng thuộc tính riêng.
+* **Điểm chèn**: block CAD lấy điểm chèn làm gốc, block trong phần mềm lấy tâm hình
+  làm gốc, nên vị trí được bù lại theo góc xoay và tỷ lệ của từng thiết bị.
+* **Máy cắt vẽ rỗng** đúng như bản CAD. Muốn tô đặc máy cắt đang đóng cho dễ nhìn khi
+  điều độ thì bật **Xem → Tô đặc máy cắt đang đóng**.
+* **Cuộn dây máy biến áp** trong CAD là hình tròn rời (không nằm trong block) nên phần
+  mềm có kiểu đối tượng hình tròn riêng, không quy về ký hiệu cột như trước.
+
+### Cấp điện áp suy từ ký hiệu ngăn lộ
+
+Nhiều tờ trong bản vẽ đặt tên lớp không có cấp điện áp (`DUONGCHINH`, `LINE`,
+`THANHCAI`…). Với những chỗ đó, phần mềm đọc **chữ số đầu của ký hiệu ngăn lộ** theo
+quy ước đặt tên thiết bị (Thông tư 06/2025/TT-BCT) rồi gán cho các đối tượng gần nhất:
+
+| Ký hiệu | Cấp | | Ký hiệu | Cấp |
+|---|---|---|---|---|
+| 1xx (171, 131) | 110kV | | 5xx | 500kV |
+| 2xx (271) | 220kV | | 6xx (641, 612) | 6kV |
+| 3xx (331, 301) | 35kV | | 7xx | 10kV |
+| 4xx (431, 471) | 22kV | | 9xx | 0,4kV |
+
+Thanh cái cũng theo quy ước này: C11/C12 là 110kV, C31/C32 là 35kV, C41/C42 là 22kV,
+C61/C62 là 6kV. Nhờ vậy **E26.1 Bắc Kạn** ra đúng 110/35/22kV, **E26.2 Chợ Đồn** ra
+110/35kV và **E6.13 Yên Bình** ra 110/22kV.
+
+Nếu còn chỗ nào sai, sửa cả lớp một lần bằng **Dữ liệu → Gán cấp điện áp theo lớp CAD
+gốc…** (tên lớp CAD gốc được giữ lại trong từng đối tượng).
+
+### Dựng lại bộ dữ liệu từ file CAD mới
 
 ```bash
 dwg2dxf -o tong.dxf "So do luoi dien lien thong tinh Thai Nguyen.dwg"
 pip install ezdxf
-python3 tools/tach-so-do-tram.py tong.dxf tram/ --min-x 800000 \
+python3 tools/tach-so-do-tram.py tong.dxf tram/ --min-x 999999999 \
+        --to-tong 'KẾT DÂY LƯỚI ĐIỆN' \
         --them-to 'LƯỚI ĐIỆN 220KV' --them-to 'ĐƯỜNG DÂY'
 node tools/dung-du-lieu-tram.mjs tram/ src/data/tram-sld.json
 npm run build
@@ -222,9 +251,10 @@ src/
 ├── symbols/     prims.ts (nguyên thuỷ hình học) · blocks.ts (22 ký hiệu thiết bị)
 ├── data/        geo.ts (phép chiếu, ranh giới, địa danh)
 │                grid110.ts (danh mục trạm + đường dây + mã hiệu dây)
-│                seed.ts (dựng sơ đồ tỉnh ban đầu)
-│                tram-sld.json + tramSheets.ts (27 tờ sơ đồ trích từ file CAD)
+│                seed.ts (dựng bản vẽ mặc định)
+│                tram-sld.json + tramSheets.ts (sơ đồ kết dây trích từ file CAD)
 ├── render/      viewport.ts · shapes.ts (sinh hình + bắt điểm) · renderer.ts (canvas)
+│                index2d.ts (chỉ mục không gian cho tờ hàng chục nghìn đối tượng)
 ├── editor/      editor.ts (công cụ vẽ) · snap.ts (bắt điểm) · declutter.ts (giãn trạm)
 ├── io/          dxfExport.ts · dxfImport.ts · file.ts
 └── ui/          app.ts (khung giao diện) · palette.ts · props.ts · dom.ts
@@ -243,6 +273,6 @@ Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và s�
 * Rà soát toạ độ thực tế của 28 trạm và kết lưới 110/220kV (mục 5).
 * Bổ sung công suất MBA cho E6.22 Định Hoá, E6.23 Yên Bình 8, E6.24 Đa Phúc,
   E6.25 Phú Bình 2 và ba trạm khu vực Bắc Kạn (E26.1–E26.3) — file CAD gốc chưa ghi.
-* Gán lại cấp điện áp cho đường dây ở ba tờ dùng tên lớp CAD không chuẩn
-  (E26.1 Bắc Kạn, E26.2 Chợ Đồn, E6.13 Yên Bình) — xem mục 6.
+* Rà lại vài chỗ lẻ còn suy sai cấp điện áp (E6.13 Yên Bình còn 14 đoạn nằm trên lớp
+  `35-DZ 35` của bản gốc dù trạm chỉ có 110/22kV) — sửa bằng công cụ ở mục 6.
 * Nhập lần lượt các sơ đồ lộ trung áp rời rạc và đấu nối về trạm 110kV tương ứng.

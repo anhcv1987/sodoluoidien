@@ -111,11 +111,24 @@ const round = (v: number): number => Math.round(v * 10000) / 10000;
  *  - quay `rot` do (de dua truc thiet bi ve phuong thang dung +Y),
  *  - nhan he so `k`,
  *  - tinh tien sao cho tam hop bao nam tai goc toa do.
+ *
+ * Tra ve kem `origin` = vi tri (trong he toa do block moi) ung voi DIEM CHEN
+ * cua block CAD goc. Can gia tri nay de khi nhap tu DXF dat thiet bi dung cho:
+ * block CAD lay diem chen lam goc, con block o day lay TAM hinh lam goc.
  */
-export function normalizeCad(prims: Prim[], rot = 0, k = 1 / 18.669): Prim[] {
+export function normalizeCad(
+  prims: Prim[],
+  rot = 0,
+  k = 1 / 18.669,
+): { prims: Prim[]; origin: [number, number] } {
   const rotated = xformPrims(prims, { rot, k });
   const b = primBounds(rotated);
-  return xformPrims(rotated, { dx: -(b.minX + b.maxX) / 2, dy: -(b.minY + b.maxY) / 2 });
+  const dx = -(b.minX + b.maxX) / 2;
+  const dy = -(b.minY + b.maxY) / 2;
+  return {
+    prims: xformPrims(rotated, { dx, dy }),
+    origin: [round(dx), round(dy)],
+  };
 }
 
 /* -------------------- ham tien ich dung khi dinh nghia block ------------- */

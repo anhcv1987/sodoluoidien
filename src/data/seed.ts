@@ -5,6 +5,7 @@ import { layerOf } from '../core/voltage';
 import { DIA_DANH, HO_BA_BE, HO_NUI_COC, RANH_GIOI_TINH, project } from './geo';
 import { DUONG_DAY, TRAM_220_110, type TramData } from './grid110';
 import { dist, norm, sub } from '../core/geom';
+import { MA_TO_TONG, buildCadSheet, cadLayerNames, cadSheetInfo } from './tramSheets';
 
 /** Tach chuoi cong suat kieu "2x40 MVA" thanh danh sach may bien ap. */
 function parseMba(s: string, kvList: VoltageKv[]): TransformerInfo[] {
@@ -201,6 +202,29 @@ export function buildProvinceDrawing(): Drawing {
   });
   store.clearHistory();
   return drawing;
+}
+
+/**
+ * Ban ve mac dinh khi mo phan mem lan dau:
+ *   Trang 1 - SO DO KET DAY toan tinh (kho A0): tat ca cac tram tren MOT to,
+ *             giu nguyen bo cuc cua ban ve CAD do Phong Dieu do lap.
+ *   Trang 2 - So do 220-110kV dat theo vi tri dia ly (de hinh dung khong gian).
+ */
+export function buildDefaultDrawing(): Drawing {
+  const d = buildProvinceDrawing();
+  d.sheets[0].name = 'Lưới 220-110kV theo vị trí địa lý';
+
+  const info = cadSheetInfo(MA_TO_TONG);
+  const tong = buildCadSheet(MA_TO_TONG, 'Sơ đồ kết dây lưới điện tỉnh Thái Nguyên');
+  if (tong && info) {
+    tong.cadCode = MA_TO_TONG;
+    for (const l of cadLayerNames()) {
+      if (!d.layers[l]) d.layers[l] = { name: l, visible: true, locked: false };
+    }
+    d.sheets.unshift(tong);
+    d.activeSheet = tong.id;
+  }
+  return d;
 }
 
 /**

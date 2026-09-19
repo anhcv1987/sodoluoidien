@@ -1,7 +1,8 @@
 import type { BranchEntity, DeviceEntity, Entity, LineKind, Pt, TextEntity, VoltageKv } from '../core/types';
 import { newId } from '../core/doc';
 import { layerOf } from '../core/voltage';
-import { emptyBox, growBox, type Box } from '../core/geom';
+import { emptyBox, growBox, rotate, type Box } from '../core/geom';
+import { getBlock } from '../symbols/blocks';
 
 /**
  * NHAP FILE DXF TU CAD.
@@ -75,7 +76,8 @@ interface Txt {
 interface Dev {
   p: Pt;
   rot: number;
-  scale: number;
+  /** Hệ số tỷ lệ CÓ DẤU (âm = lật gương như trong CAD). */
+  sx: number;
   block: string;
   layer: string;
   /** Tên block gốc trong CAD - dùng để đoán cấp điện áp. */
@@ -217,6 +219,98 @@ export function blockFromName(name: string): { block: string; state?: 'dong' | '
   return null;
 }
 
+/* ------------------- suy cap dien ap tu ky hieu ngan lo ---------------- */
+
+/**
+ * Chữ số đầu của tên thiết bị cho biết cấp điện áp (quy ước đặt tên thiết bị
+ * trong Quy trình Điều độ hệ thống điện quốc gia — Thông tư 06/2025/TT-BCT):
+ *   171 → 110kV · 271 → 220kV · 331 → 35kV · 431 → 22kV · 571 → 500kV
+ *   671 → 6kV  · 771 → 10kV  · 971 → 0,4kV
+ * Thanh cái cũng theo quy ước này: C11/C12 là 110kV, C31/C32 là 35kV,
+ * C41/C42 là 22kV, C61/C62 là 6kV.
+ */
+export const KV_THEO_CHU_SO_DAU: Record<string, VoltageKv> = {
+  '1': 110,
+  '2': 220,
+  '3': 35,
+  '4': 22,
+  '5': 500,
+  '6': 6,
+  '7': 10,
+  '9': 0.4,
+};
+
+/**
+ * Đọc cấp điện áp từ ký hiệu ngăn lộ / thiết bị trên bản vẽ.
+ * Chỉ nhận các dạng thật sự là tên thiết bị (171, 171-7, TU171, TI131, C41,
+ * 431-1…) và bỏ qua mọi thứ trông giống số nhưng không phải (AC-240, 250kVA,
+ * 115/38,5/6,3 kV, 2x40 MVA…), nếu không sẽ đoán sai hàng loạt.
+ */
+export function kvFromDesignation(text: string): VoltageKv | null {
+  const s = text.trim();
+  if (!s || s.length > 16) return null;
+  // Loại các chuỗi có đơn vị đo hoặc mã hiệu dây dẫn
+  if (/kv|kva|mva|mvar|km|mm|ac-|acsr|tacsr|cu\/|al\/|xlpe|abc|axv|\d,\d|\d\/\d/i.test(s)) return null;
+
+  // Thanh cái: C11, C31, C41, C62…
+  let m = s.match(/^C\s?([1-9])[1-9]$/i);
+  if (m) return KV_THEO_CHU_SO_DAU[m[1]] ?? null;
+
+  // Ngăn lộ / thiết bị: 171, 171-7, 431-15, TU171, TI131, MC 371, CS-1T1…
+  m = s.match(/^(?:TU|TI|TUC|MC|DCL|DTD|LBS|REC|R|CC|CS)?[-\s]?([1-9])\d{2}(?:[-\s]?\d{1,2})?$/i);
+  if (m) return KV_THEO_CHU_SO_DAU[m[1]] ?? null;
+  return null;
+}
+
+/** Chỉ mục lưới đơn giản để tìm gợi ý cấp điện áp gần nhất cho nhanh. */
+class HintGrid {
+  private cells = new Map<string, { p: Pt; kv: VoltageKv }[]>();
+
+  constructor(private cell: number) {}
+
+  add(p: Pt, kv: VoltageKv): void {
+    const k = `${Math.floor(p.x / this.cell)}|${Math.floor(p.y / this.cell)}`;
+    const a = this.cells.get(k);
+    if (a) a.push({ p, kv });
+    else this.cells.set(k, [{ p, kv }]);
+  }
+
+  get size(): number {
+    let n = 0;
+    for (const a of this.cells.values()) n += a.length;
+    return n;
+  }
+
+  /** Cấp điện áp của gợi ý gần nhất trong bán kính `maxR`, hoặc null. */
+  nearest(p: Pt, maxR: number): VoltageKv | null {
+    const cx = Math.floor(p.x / this.cell);
+    const cy = Math.floor(p.y / this.cell);
+    const maxRing = Math.ceil(maxR / this.cell);
+    let best: VoltageKv | null = null;
+    let bestD = maxR;
+    for (let r = 0; r <= maxRing; r++) {
+      for (let i = cx - r; i <= cx + r; i++) {
+        for (let j = cy - r; j <= cy + r; j++) {
+          // chỉ quét viền của vòng r
+          if (r > 0 && i !== cx - r && i !== cx + r && j !== cy - r && j !== cy + r) continue;
+          const a = this.cells.get(`${i}|${j}`);
+          if (!a) continue;
+          for (const h of a) {
+            const d = Math.hypot(h.p.x - p.x, h.p.y - p.y);
+            if (d < bestD) {
+              bestD = d;
+              best = h.kv;
+            }
+          }
+        }
+      }
+      // Đã tìm được trong vòng r thì vòng ngoài không thể gần hơn (r-1) ô
+      if (best !== null && bestD <= r * this.cell) break;
+    }
+    return best;
+  }
+}
+
 /* ------------------------------ lam phang ----------------------------- */
 
 function flatten(recs: Rec[]): Flat {
@@ -355,7 +449,7 @@ function flatten(recs: Rec[]): Flat {
             out.devices.push({
               p: { x: world.x, y: world.y },
               rot: world.rot,
-              scale: Math.abs(world.sx),
+              sx: world.sx,
               block: known.block,
               layer,
               cadName: name,
@@ -449,6 +543,12 @@ export interface ImportOptions {
   skipLayers: string[];
   /** Giu nguyen ten lop goc cua CAD thay vi gom theo cap dien ap. */
   keepLayers: boolean;
+  /**
+   * Khi ten lop khong cho biet cap dien ap, suy ra tu ky hieu ngan lo gan nhat
+   * (171 -> 110kV, 331 -> 35kV, 431 -> 22kV...). Rat can cho cac ban ve do don vi
+   * khac lap, dat ten lop kieu "DUONGCHINH" / "LINE".
+   */
+  inferKv: boolean;
 }
 
 export const defaultImportOptions = (): ImportOptions => ({
@@ -458,13 +558,14 @@ export const defaultImportOptions = (): ImportOptions => ({
   importText: true,
   skipLayers: ['Defpoints', 'KHUNG', 'Khung ten', 'Viền KT', 'Đường Viền'],
   keepLayers: false,
+  inferKv: true,
 });
 
 export interface ImportResult {
   entities: Entity[];
   box: Box;
   /** Thong ke de bao cao cho nguoi dung. */
-  stats: { tuyen: number; thietBi: number; chu: number; lop: string[] };
+  stats: { tuyen: number; thietBi: number; chu: number; hinhTron: number; lop: string[]; suyTuKyHieu: number };
 }
 
 export function importDxf(text: string, opt: ImportOptions): ImportResult {
@@ -487,9 +588,36 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
   const span = Math.max(raw.maxX - raw.minX, raw.maxY - raw.minY, 1);
   const tol = span / 5000;
 
+  /* --- Gợi ý cấp điện áp từ ký hiệu ngăn lộ và từ tên block thiết bị --- */
+  const hints = new HintGrid(Math.max(span / 120, 1e-6));
+  const hintRadius = span / 25;
+  if (opt.inferKv) {
+    for (const t of flat.texts) {
+      if (!keep(t.layer)) continue;
+      const kv = kvFromDesignation(t.s);
+      if (kv !== null) hints.add(t.p, kv);
+    }
+    for (const d of flat.devices) {
+      if (!keep(d.layer)) continue;
+      const kv = kvFromBlockName(d.cadName);
+      if (kv !== null) hints.add(d.p, kv);
+    }
+  }
+  let suyTuKyHieu = 0;
+
   for (const ch of chain(flat.segs.filter((s) => keep(s.layer)), tol)) {
     layerSet.add(ch.layer);
-    const kv = kvFromLayer(ch.layer) ?? opt.defaultKv;
+    let kv = kvFromLayer(ch.layer);
+    if (kv === null && opt.inferKv) {
+      // Lấy điểm giữa tuyến rồi tìm ký hiệu ngăn lộ gần nhất
+      const mid = ch.pts[Math.floor(ch.pts.length / 2)];
+      const g = hints.nearest(mid, hintRadius);
+      if (g !== null) {
+        kv = g;
+        suyTuKyHieu++;
+      }
+    }
+    if (kv === null) kv = opt.defaultKv;
     const lineKind = lineKindFromLayer(ch.layer);
     const pts = ch.pts.map(tx);
     if (pts.length < 2) continue;
@@ -524,9 +652,34 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
     if (!keep(d.layer)) continue;
     layerSet.add(d.layer);
     // Tên block đáng tin hơn tên lớp -> ưu tiên trước
-    const kv = kvFromBlockName(d.cadName) ?? kvFromLayer(d.layer) ?? opt.defaultKv;
-    const p = tx(d.p);
+    let kv = kvFromBlockName(d.cadName) ?? kvFromLayer(d.layer);
+    if (kv === null && opt.inferKv) {
+      const g = hints.nearest(d.p, hintRadius);
+      if (g !== null) {
+        kv = g;
+        suyTuKyHieu++;
+      }
+    }
+    if (kv === null) kv = opt.defaultKv;
+    const def = getBlock(d.block);
+
+    // Hình học block trong phần mềm đã được xoay `normRot` để trục thiết bị nằm dọc,
+    // nên phải TRỪ lại góc đó thì hướng mới trùng bản vẽ CAD. Tỷ lệ âm trong CAD
+    // nghĩa là lật gương -> giữ lại bằng cờ `mirror` (khi lật, góc chuẩn hoá đổi dấu).
+    const mirror = d.sx < 0;
+    const m = mirror ? -1 : 1;
+    const normRot = def?.normRot ?? 0;
+    const rot = d.rot - m * normRot;
+
+    // Block CAD lấy ĐIỂM CHÈN làm gốc, block ở đây lấy TÂM hình làm gốc
+    // -> dời tâm đi một đoạn bằng `origin` đã quay/thu phóng theo thiết bị.
+    const scale = Math.max(0.001, Math.abs(d.sx) * opt.scale * 18.669);
+    const o = def?.origin ?? [0, 0];
+    const off = rotate({ x: o[0] * m * scale, y: o[1] * scale }, rot);
+    const ins = tx(d.p);
+    const p = { x: ins.x - off.x, y: ins.y - off.y };
     growBox(box, p);
+
     const dev: DeviceEntity = {
       id: newId('d'),
       kind: 'device',
@@ -534,12 +687,13 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
       kv,
       block: d.block,
       p,
-      rot: d.rot,
-      scale: Math.max(0.05, d.scale * opt.scale * 18.669),
+      rot,
+      scale,
       state: d.state ?? 'dong',
       srcLayer: d.layer,
       note: `Nhập từ DXF - lớp "${d.layer}"`,
     };
+    if (mirror) dev.mirror = true;
     entities.push(dev);
   }
 
@@ -547,7 +701,9 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
     for (const t of flat.texts) {
       if (!keep(t.layer)) continue;
       layerSet.add(t.layer);
-      const kv = kvFromLayer(t.layer) ?? opt.defaultKv;
+      let kv = kvFromLayer(t.layer) ?? kvFromDesignation(t.s);
+      if (kv === null && opt.inferKv) kv = hints.nearest(t.p, hintRadius);
+      if (kv === null) kv = opt.defaultKv;
       const p = tx(t.p);
       growBox(box, p);
       const te: TextEntity = {
@@ -566,21 +722,32 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
     }
   }
 
+  // Hinh tron roi trong CAD (cuon day MBA, vong tron TU/TI...) giu nguyen la
+  // hinh tron - truoc day bien thanh ky hieu "cot" to dac nen sai hoan toan.
   for (const c of flat.circles) {
     if (!keep(c.layer)) continue;
-    const kv = kvFromLayer(c.layer) ?? opt.defaultKv;
+    layerSet.add(c.layer);
+    let kv = kvFromLayer(c.layer);
+    if (kv === null && opt.inferKv) {
+      const g = hints.nearest(c.c, hintRadius);
+      if (g !== null) {
+        kv = g;
+        suyTuKyHieu++;
+      }
+    }
+    if (kv === null) kv = opt.defaultKv;
     const p = tx(c.c);
-    growBox(box, p);
+    growBox(box, { x: p.x - c.r * opt.scale, y: p.y - c.r * opt.scale });
+    growBox(box, { x: p.x + c.r * opt.scale, y: p.y + c.r * opt.scale });
     entities.push({
-      id: newId('d'),
-      kind: 'device',
+      id: newId('c'),
+      kind: 'circle',
       layer: opt.keepLayers ? c.layer : layerOf(kv),
       kv,
-      block: 'COT',
-      p,
-      rot: 0,
-      scale: Math.max(0.05, c.r * opt.scale * 6),
-      note: `Nhập từ DXF - hình tròn lớp "${c.layer}"`,
+      c: p,
+      r: Math.max(1e-4, c.r * opt.scale),
+      srcLayer: c.layer,
+      note: `Nhập từ DXF - lớp "${c.layer}"`,
     });
   }
 
@@ -591,7 +758,9 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
       tuyen: entities.filter((e) => e.kind === 'branch').length,
       thietBi: entities.filter((e) => e.kind === 'device').length,
       chu: entities.filter((e) => e.kind === 'text').length,
+      hinhTron: entities.filter((e) => e.kind === 'circle').length,
       lop: [...layerSet].sort(),
+      suyTuKyHieu,
     },
   };
 }

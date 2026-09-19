@@ -175,3 +175,62 @@ Thiết bị của TBA 110kV Lưu Xá (E6.5) sau khi phân loại — khớp v�
 * **110kV**: 5 MC, 10 DCL, 16 dao tiếp địa, 5 CSV, 5 TI, 4 TUC, 2 MBA 3 cuộn
 * **35kV**: 2 MC, 10 MCHB, 12 TI, 11 dao tiếp địa, 2 CSV, 2 TUC
 * **22kV**: 3 MC, 11 MCHB, 11 TI, 15 dao tiếp địa, 2 CSV, 2 TU, 1 MBA phân phối
+
+---
+
+# 6. Sơ đồ kết dây khổ A0 (bản dựng hiện hành)
+
+## 6.1 Vùng lấy dữ liệu
+
+File CAD tổng chứa **ba bản** của cùng bộ sơ đồ trạm:
+
+| Vùng X | Nội dung |
+|---|---|
+| ~717.000 | Tờ "Lưới điện 220kV-110kV khu vực tỉnh Thái Nguyên" (sơ đồ liên thông) |
+| ~725.000 – 735.000 | Hai tờ sơ đồ đường dây trung áp (372+373 E6.2, 371-375 E6.5, 472 E6.2) |
+| **741.100 – 750.700** | **Tờ A0 "Sơ đồ kết dây lưới điện tỉnh Thái Nguyên"** — bản đã ghép, đúng với file PDF xuất từ AutoCAD |
+| > 800.000 | Bản xếp theo cột, mỗi trạm một tờ (dùng để in rời) |
+
+Bản dùng cho phần mềm là **tờ A0** (9.632 × 14.871 đơn vị bản vẽ, 23.811 đối tượng CAD),
+vì đây chính là bố cục Phòng Điều độ đang dùng. Vị trí 25 trạm trong tờ được xác định
+bằng cách gom cụm đối tượng liền nhau quanh từng tiêu đề, rồi cắt đôi phạm vi tại điểm
+giữa hai tiêu đề với các trạm vẽ sát nhau.
+
+## 6.2 Ba lỗi đã sửa khi dựng lại ký hiệu
+
+| Lỗi | Nguyên nhân | Cách sửa |
+|---|---|---|
+| Thiết bị lệch 90° | Hình học block trong phần mềm được xoay về trục dọc (`normRot`) nhưng khi nhập không trừ lại | `rot = rot_CAD − mirror × normRot` |
+| Thiết bị không lật | CAD lật thiết bị bằng hệ số tỷ lệ âm, phần mềm lấy trị tuyệt đối | Thêm thuộc tính `mirror` cho thiết bị |
+| Thiết bị lệch vị trí | Block CAD lấy điểm chèn làm gốc, block phần mềm lấy tâm hình | Lưu `origin` của từng block và bù lại theo góc xoay, tỷ lệ, lật gương |
+
+Ngoài ra: máy cắt vẽ **rỗng** đúng như bản CAD (tô đặc là tuỳ chọn), và hình tròn rời
+trong CAD (cuộn dây máy biến áp) được giữ nguyên là hình tròn thay vì quy về ký hiệu cột.
+
+## 6.3 Suy cấp điện áp từ ký hiệu ngăn lộ
+
+Quy ước chữ số đầu (Thông tư 06/2025/TT-BCT): 1→110kV, 2→220kV, 3→35kV, 4→22kV,
+5→500kV, 6→6kV, 7→10kV, 9→0,4kV. Áp dụng cho cả tên thanh cái (C11, C31, C41, C61).
+
+Bộ nhập chỉ nhận các chuỗi thật sự là tên thiết bị (171, 171-7, TU171, TI131, C41…) và
+loại bỏ những thứ trông giống số nhưng không phải (AC-240, 250kVA, 115/38,5/6,3 kV,
+2x40 MVA). Gợi ý được lập chỉ mục lưới rồi gán cho đối tượng gần nhất trong bán kính
+bằng 1/25 kích thước tờ.
+
+Kết quả: **4.518 đối tượng** trong tờ A0 được suy cấp điện áp theo cách này, trong đó:
+
+| Trạm | Trước | Sau |
+|---|---|---|
+| E26.1 Bắc Kạn | tất cả 22kV | 110kV (402) · 35kV (442) · 22kV (278) |
+| E26.2 Chợ Đồn | tất cả 22kV | 110kV (118) · 35kV (180) |
+| E6.13 Yên Bình | hầu hết 22kV | 110kV (288) · 22kV (926) |
+
+## 6.4 Thống kê tờ A0 sau khi dựng
+
+19.316 đối tượng: 10.628 tuyến · 3.052 thiết bị · 881 hình tròn · 4.755 dòng chữ
+(chưa kể ~28.000 nút của các tuyến). Phân bố theo cấp điện áp:
+220kV 883 · 110kV 6.392 · 35kV 3.725 · 22kV 7.401 · 10kV 248 · 6kV 510 · 0,4kV 156.
+
+Để tờ này kéo/phóng mượt, bộ vẽ dùng chỉ mục không gian dạng lưới (`src/render/index2d.ts`)
+và bỏ qua đối tượng nhỏ hơn 1 pixel khi thu nhỏ: ~4 ms/khung khi phóng vào một trạm,
+~36 ms/khung khi xem toàn tờ.

@@ -1,7 +1,15 @@
 import { DocStore } from '../core/doc';
 import { Editor, type ToolName } from '../editor/editor';
-import { buildProvinceDrawing, createSubstationSheet } from '../data/seed';
-import { buildCadSheet, cadLayerNames, cadSheetName, listCadSheets } from '../data/tramSheets';
+import { buildDefaultDrawing, buildProvinceDrawing, createSubstationSheet } from '../data/seed';
+import {
+  MA_TO_TONG,
+  buildCadSheet,
+  cadLayerNames,
+  cadSheetName,
+  listCadSheets,
+  stationsOf,
+  type CadStation,
+} from '../data/tramSheets';
 import type { Entity, SubstationEntity, VoltageKv } from '../core/types';
 import { allStyles, colorOf } from '../core/voltage';
 import { exportDxf, exportSvg } from '../io/dxfExport';
@@ -50,10 +58,12 @@ export class App {
   private tabs = el('div', { class: 'tabs' });
   private paletteApi!: { root: HTMLElement; refresh: () => void };
   private autosaveTimer = 0;
+  /** Bản vẽ quá lớn để lưu tạm -> chỉ nhắc một lần, không nhắc lại mỗi lần sửa. */
+  private autosaveOff = false;
 
   constructor(private root: HTMLElement) {
     const saved = loadAutosave();
-    this.store = new DocStore(saved ?? buildProvinceDrawing());
+    this.store = new DocStore(saved ?? buildDefaultDrawing());
     this.canvas = el('canvas', { class: 'canvas' });
     this.ed = new Editor(this.canvas, this.store, {
       onStatus: (m) => {
@@ -63,7 +73,9 @@ export class App {
       onPrompt: (m) => (this.statusPrompt.textContent = m),
       onSelection: () => this.refreshProps(),
       onOpenEntity: (e) => {
-        if (e.kind === 'substation' && e.code) this.openCadSheet(e.code, e.id);
+        // Nhấn đúp vào khối trạm trên sơ đồ địa lý -> nhảy tới đúng trạm đó
+        // trên tờ sơ đồ kết dây tổng.
+        if (e.kind === 'substation' && e.code) this.gotoStation(e.code);
       },
       onChange: () => this.refreshChrome(),
     });
@@ -71,7 +83,8 @@ export class App {
     if (saved) this.setMsg('Đã khôi phục bản vẽ từ lần làm việc trước');
     requestAnimationFrame(() => {
       this.ed.resize();
-      this.zoomProvince();
+      if (this.store.sheet.cadCode === MA_TO_TONG) this.ed.zoomExtents();
+      else this.zoomProvince();
     });
     window.addEventListener('resize', () => this.ed.resize());
     window.addEventListener('keydown', (e) => this.onKey(e));
@@ -164,6 +177,7 @@ export class App {
         ['Bật/tắt tên trạm', () => this.toggleOpt('showLabels')],
         ['Bật/tắt tên thiết bị', () => this.toggleOpt('showDeviceLabels')],
         ['—', () => undefined],
+        ['Tô đặc máy cắt đang đóng', () => this.toggleOpt('fillClosedBreaker')],
         ['Chế độ in (nền trắng)', () => this.toggleOpt('printMode')],
         ['Bật/tắt con trỏ chữ thập', () => {
           this.ed.crosshair = !this.ed.crosshair;
@@ -173,8 +187,8 @@ export class App {
     );
     menu.append(
       this.dropdown('Dữ liệu', [
-        ['Mở sơ đồ nguyên lý trạm (từ CAD)…', () => this.showCadSheetList()],
-        ['Nạp tất cả các tờ sơ đồ từ CAD', () => this.loadAllCadSheets()],
+        ['Danh mục trạm trên sơ đồ kết dây…', () => this.showStationIndex()],
+        ['Mở tờ bản vẽ khác từ CAD…', () => this.showCadSheetList()],
         ['—', () => undefined],
         ['Gán cấp điện áp theo lớp CAD gốc…', () => this.showSrcLayerDialog()],
         ['—', () => undefined],
@@ -398,41 +412,51 @@ export class App {
 
   refreshTram(): void {
     const list = el('div', { class: 'tram-list' });
+    const cad: CadStation[] = stationsOf(MA_TO_TONG);
     const subs = this.store.entities.filter((e): e is SubstationEntity => e.kind === 'substation');
-    if (subs.length) {
+    const viTri = new Map(subs.map((s) => [s.code, s.id]));
+
+    if (cad.length) {
       list.append(
         el('p', {
           class: 'muted small hint',
-          text: 'Bấm tên trạm để phóng tới; bấm "Sơ đồ" (hoặc nhấn đúp vào khối trạm) để mở sơ đồ nguyên lý trong trạm.',
+          text: 'Bấm tên trạm để phóng tới trạm đó trên sơ đồ kết dây. Nút "Bản đồ" chuyển sang trang đặt theo vị trí địa lý.',
         }),
       );
-    }
-    subs.sort((a, b) => a.code.localeCompare(b.code, 'vi', { numeric: true }));
-    if (!subs.length) list.append(el('p', { class: 'muted', text: 'Trang này chưa có trạm nào.' }));
-    const coSoDo = new Set(listCadSheets().map((c) => c.code));
-    for (const s of subs) {
-      const wrap = el('div', { class: 'tram-item' });
-      const row = el('button', { class: 'tram-row', type: 'button', title: 'Phóng tới trạm trên sơ đồ tỉnh' }, [
-        el('span', { class: 'tram-code', text: s.code }),
-        el('span', { class: 'tram-name', text: s.name.replace(/^TBA\s*/i, '') }),
-      ]);
-      (row.firstChild as HTMLElement).style.color = colorOf(s.kv);
-      row.addEventListener('click', () => {
-        this.ed.select([s.id]);
-        this.ed.zoomToEntity(s.id);
-      });
-      wrap.append(row);
-      if (coSoDo.has(s.code)) {
-        const open = el('button', {
-          class: 'tram-open',
-          type: 'button',
-          title: `Mở sơ đồ nguyên lý ${s.code} (trích từ file CAD)`,
-          text: 'Sơ đồ',
-        });
-        open.addEventListener('click', () => this.openCadSheet(s.code, s.id));
-        wrap.append(open);
+      for (const st of cad) {
+        const wrap = el('div', { class: 'tram-item' });
+        const ten = st.title
+          .replace(/^(SƠ ĐỒ\s*)?TRẠM\s*\d+\s*KV\s*/i, '')
+          .replace(/\s*\(?[EA]\d+\.\d+\)?\s*$/i, '')
+          .trim();
+        const row = el('button', { class: 'tram-row', type: 'button', title: st.title }, [
+          el('span', { class: 'tram-code', text: st.code }),
+          el('span', { class: 'tram-name', text: ten || st.title }),
+        ]);
+        (row.firstChild as HTMLElement).style.color = colorOf(/220/.test(st.title) ? 220 : 110);
+        row.addEventListener('click', () => this.gotoStation(st.code));
+        wrap.append(row);
+        const id = viTri.get(st.code);
+        if (id) {
+          const map = el('button', {
+            class: 'tram-open',
+            type: 'button',
+            title: `Xem vị trí địa lý của ${st.code}`,
+            text: 'Bản đồ',
+          });
+          map.addEventListener('click', () => {
+            const geo = this.store.drawing.sheets.find((x) => x.type === 'tinh');
+            if (geo) this.store.setActiveSheet(geo.id);
+            this.ed.select([id]);
+            this.ed.zoomToEntity(id);
+            this.refreshTabs();
+          });
+          wrap.append(map);
+        }
+        list.append(wrap);
       }
-      list.append(wrap);
+    } else if (!subs.length) {
+      list.append(el('p', { class: 'muted', text: 'Trang này chưa có trạm nào.' }));
     }
     this.tramHost.replaceChildren(list);
   }
@@ -457,10 +481,19 @@ export class App {
   }
 
   private scheduleAutosave(): void {
+    if (this.autosaveOff) return;
     window.clearTimeout(this.autosaveTimer);
     this.autosaveTimer = window.setTimeout(() => {
-      if (!autosave(this.store.drawing)) {
-        this.setMsg('Bản vẽ quá lớn để lưu tạm trong trình duyệt — hãy lưu ra file .sld');
+      // Sơ đồ kết dây toàn tỉnh có hàng chục nghìn đối tượng, vượt dung lượng
+      // lưu tạm của trình duyệt -> bỏ qua thay vì thử đi thử lại mỗi lần sửa.
+      let n = 0;
+      for (const sh of this.store.drawing.sheets) n += Object.keys(sh.entities).length;
+      if (n > 20000 || !autosave(this.store.drawing)) {
+        this.autosaveOff = true;
+        toast(
+          'Bản vẽ lớn nên không lưu tạm được trong trình duyệt. Nhớ dùng Tệp → Lưu bản vẽ (.sld) trước khi đóng.',
+          'warn',
+        );
       }
     }, 1500);
   }
@@ -753,43 +786,77 @@ export class App {
     );
   }
 
-  private loadAllCadSheets(): void {
-    const list = listCadSheets();
-    const chua = list.filter((s) => !this.store.drawing.sheets.some((x) => x.cadCode === s.code));
-    if (!chua.length) {
-      toast('Tất cả các tờ sơ đồ CAD đã được nạp.');
-      return;
+  /** Đưa khung nhìn tới một trạm trên tờ sơ đồ kết dây tổng. */
+  gotoStation(code: string): boolean {
+    const sheet =
+      this.store.drawing.sheets.find((x) => x.cadCode === MA_TO_TONG) ??
+      (() => {
+        const n = buildCadSheet(MA_TO_TONG, 'Sơ đồ kết dây lưới điện tỉnh Thái Nguyên');
+        if (!n) return undefined;
+        n.cadCode = MA_TO_TONG;
+        for (const l of cadLayerNames()) this.store.ensureLayer(l);
+        this.store.addSheet(n);
+        return n;
+      })();
+    if (!sheet) {
+      toast('Không có dữ liệu sơ đồ kết dây kèm theo phần mềm.', 'warn');
+      return false;
     }
-    if (
-      !confirm(
-        `Nạp ${chua.length} tờ sơ đồ (khoảng ${chua.reduce((a, s) => a + s.soTuyen + s.soThietBi + s.soChu, 0).toLocaleString('vi-VN')} đối tượng)?\n` +
-          'Bản vẽ sẽ nặng hơn và không lưu tạm được trong trình duyệt — nhớ lưu ra file .sld.',
-      )
-    ) {
-      return;
+    const st = stationsOf(MA_TO_TONG).find((x) => x.code === code);
+    this.store.setActiveSheet(sheet.id);
+    this.ed.clearSelection();
+    if (st?.box) {
+      this.ed.vp.fit(st.box, 0.05);
+    } else if (st) {
+      this.ed.vp.cx = st.x;
+      this.ed.vp.cy = st.y - 400;
+      this.ed.vp.scale = 0.7;
+    } else {
+      this.ed.zoomExtents();
     }
-    for (const s of chua) {
-      const sub = this.store.entities.find(
-        (e): e is SubstationEntity => e.kind === 'substation' && e.code === s.code,
-      );
-      const sheet = buildCadSheet(s.code, cadSheetName(s.code, sub?.name), sub?.id);
-      if (!sheet) continue;
-      sheet.cadCode = s.code;
-      this.store.addSheet(sheet);
-    }
-    for (const l of cadLayerNames()) this.store.ensureLayer(l);
     this.refreshTabs();
-    this.refreshChrome();
-    toast(`Đã nạp ${chua.length} tờ sơ đồ. Chọn trang ở thanh thẻ phía trên bản vẽ.`);
+    this.refreshTram();
+    this.ed.requestDraw();
+    if (!st) toast(`Không tìm thấy trạm ${code} trên sơ đồ kết dây.`, 'warn');
+    return !!st;
   }
 
-  /**
-   * Gán lại cấp điện áp theo LỚP CAD GỐC của trang đang mở.
-   *
-   * Vài tờ trong file CAD (Bắc Kạn, Yên Bình...) dùng tên lớp không có cấp điện áp
-   * ("DUONGCHINH", "LINE", "THANHCAI"...) nên khi nhập, phần mềm phải để mặc định.
-   * Bảng này cho sửa cả lớp một lần thay vì chọn từng đối tượng.
-   */
+  /** Danh mục 25 trạm có trên tờ sơ đồ kết dây. */
+  private showStationIndex(): void {
+    const list = stationsOf(MA_TO_TONG);
+    if (!list.length) {
+      toast('Không có dữ liệu sơ đồ kết dây kèm theo phần mềm.', 'warn');
+      return;
+    }
+    const t = el('table', { class: 'table' });
+    t.append(
+      el('thead', {}, [
+        el('tr', {}, [el('th', { text: 'Mã' }), el('th', { text: 'Tên trạm trên bản vẽ' })]),
+      ]),
+    );
+    const tb = el('tbody');
+    for (const st of list) {
+      const tr = el('tr', {}, [el('td', { text: st.code }), el('td', { text: st.title })]);
+      tr.addEventListener('click', () => {
+        close();
+        this.gotoStation(st.code);
+      });
+      tb.append(tr);
+    }
+    t.append(tb);
+    const close = dialog(
+      `Các trạm trên sơ đồ kết dây (${list.length})`,
+      el('div', {}, [
+        el('p', {
+          class: 'muted small',
+          text: 'Bấm một dòng để phóng tới trạm đó ngay trên tờ sơ đồ kết dây (không mở trang riêng).',
+        }),
+        el('div', { class: 'table-wrap' }, [t]),
+      ]),
+      [button('Đóng', () => close())],
+    );
+  }
+
   private showSrcLayerDialog(): void {
     const groups = new Map<string, { n: number; kvs: Map<number, number> }>();
     for (const e of this.store.entities) {
@@ -1100,14 +1167,16 @@ export class App {
         <li><b>110kV — đỏ</b> · <b>35kV — vàng</b> · <b>22kV — xanh</b> (220kV tím, 10kV cam, 6kV lục, 0,4kV xám)</li>
         <li>Cáp ngầm vẽ nét đứt, ĐDK vẽ nét liền, thanh cái vẽ nét đậm.</li>
       </ul>
-      <h4>Xem sơ đồ nguyên lý bên trong trạm</h4>
-      <ol>
-        <li><b>Nhấn đúp chuột</b> vào khối trạm trên sơ đồ tỉnh — phần mềm mở trang sơ đồ
-            nguyên lý của trạm đó với đầy đủ thiết bị 110 / 35 / 22 / 6kV lấy từ file CAD.</li>
-        <li>Hoặc bấm nút <b>Sơ đồ</b> bên cạnh tên trạm trong bảng <b>Danh mục trạm</b>.</li>
-        <li>Hoặc vào <b>Dữ liệu → Mở sơ đồ nguyên lý trạm (từ CAD)…</b> để xem cả danh sách.</li>
-        <li>Chuyển qua lại giữa các trang bằng thanh thẻ phía trên vùng vẽ.</li>
-      </ol>
+      <h4>Sơ đồ kết dây toàn tỉnh</h4>
+      <p>Trang <b>"Sơ đồ kết dây lưới điện tỉnh Thái Nguyên"</b> là nguyên tờ A0 lấy từ bản vẽ
+         CAD của Phòng Điều độ: <b>tất cả 25 trạm nằm trên một sơ đồ duy nhất</b>, đầy đủ
+         thiết bị các cấp 110 / 35 / 22 / 6kV, giữ nguyên bố trí bản gốc.</p>
+      <ul>
+        <li>Bấm tên trạm trong bảng <b>Danh mục trạm</b> để phóng tới trạm đó.</li>
+        <li>Hoặc <b>Dữ liệu → Danh mục trạm trên sơ đồ kết dây…</b></li>
+        <li>Trang <b>"Lưới 220-110kV theo vị trí địa lý"</b> đặt các trạm gần đúng vị trí thật;
+            nhấn đúp vào khối trạm ở đó sẽ nhảy sang đúng trạm trên sơ đồ kết dây.</li>
+      </ul>
 
       <h4>Đưa sơ đồ trung áp từ CAD vào</h4>
       <ol>

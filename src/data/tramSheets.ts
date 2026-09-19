@@ -2,6 +2,7 @@ import raw from './tram-sld.json';
 import { newId } from '../core/doc';
 import type {
   BranchEntity,
+  CircleEntity,
   DeviceEntity,
   Entity,
   Id,
@@ -37,6 +38,10 @@ interface CompactSheet {
   d: number[][];
   /** Chữ: [lớp, kV, x, y, cao, góc, căn lề, lớp CAD gốc, nội dung] */
   t: (number | string)[][];
+  /** Hình tròn: [lớp, kV, x, y, bán kính, lớp CAD gốc] */
+  c?: number[][];
+  /** Trạm trong tờ tổng: [mã, tiêu đề, x, y, x0, y0, x1, y1] */
+  st?: (number | string)[][];
 }
 
 interface CompactData {
@@ -60,6 +65,7 @@ export interface CadSheetInfo {
   soTuyen: number;
   soThietBi: number;
   soChu: number;
+  soHinhTron: number;
   /** Là sơ đồ một trạm cụ thể (mã dạng E6.x / E26.x). */
   laTram: boolean;
 }
@@ -71,6 +77,7 @@ function info(s: CompactSheet): CadSheetInfo {
     soTuyen: s.b.length,
     soThietBi: s.d.length,
     soChu: s.t.length,
+    soHinhTron: s.c?.length ?? 0,
     laTram: /^[EA]\d+\.\d+/.test(s.code),
   };
 }
@@ -144,6 +151,20 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
     put(d);
   }
 
+  for (const row of s.c ?? []) {
+    const ce: CircleEntity = {
+      id: newId('c'),
+      kind: 'circle',
+      layer: data.layers[row[0]] ?? '0',
+      kv: row[1] as VoltageKv,
+      c: { x: row[2], y: row[3] },
+      r: row[4],
+    };
+    const sl3 = data.srcLayers[row[5]];
+    if (sl3) ce.srcLayer = sl3;
+    put(ce);
+  }
+
   for (const row of s.t) {
     const t: TextEntity = {
       id: newId('t'),
@@ -170,6 +191,43 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
   if (substationId) sheet.substationId = substationId;
   return sheet;
 }
+
+/** Một trạm nằm trong tờ sơ đồ tổng. */
+export interface CadStation {
+  code: string;
+  title: string;
+  /** Vị trí tiêu đề trạm trên tờ tổng. */
+  x: number;
+  y: number;
+  /** Phạm vi bản vẽ của trạm trên tờ tổng (để phóng tới vừa khít). */
+  box?: { minX: number; minY: number; maxX: number; maxY: number };
+}
+
+/** Danh sách trạm nằm trong một tờ (chỉ tờ tổng mới có). */
+export function stationsOf(code: string): CadStation[] {
+  const s = data.sheets.find((x) => x.code === code);
+  if (!s?.st) return [];
+  return s.st.map((r) => {
+    const st: CadStation = {
+      code: String(r[0]),
+      title: String(r[1]),
+      x: r[2] as number,
+      y: r[3] as number,
+    };
+    if (r.length >= 8) {
+      st.box = {
+        minX: r[4] as number,
+        minY: r[5] as number,
+        maxX: r[6] as number,
+        maxY: r[7] as number,
+      };
+    }
+    return st;
+  });
+}
+
+/** Mã tờ sơ đồ tổng (tất cả các trạm trên một tờ khổ A0). */
+export const MA_TO_TONG = 'TONG';
 
 /** Các lớp (layer) mà dữ liệu CAD kèm theo sử dụng — để tạo sẵn trong bản vẽ. */
 export function cadLayerNames(): string[] {
