@@ -38,6 +38,8 @@ export interface BlockDef {
   normRot: number;
   /** Vi tri (he toa do block) ung voi diem chen cua block CAD goc. */
   origin: [number, number];
+  /** Kich thuoc hop bao cua ky hieu (don vi block): [rong, cao]. */
+  bbox: [number, number];
   /** Co to dac khi dang dong hay khong (may cat). */
   fillWhenClosed?: boolean;
   /** Nguon goc hinh ve. */
@@ -166,6 +168,26 @@ const CAD_TUC: Prim[] = [
   L(22.335, 23.026, 21.04, 26.748),
   L(21.04, 26.748, 23.395, 27.064),
 ];
+/** Ba cuon day TU thanh cai - theo block "22-TUC" / "6-TUC" / "35-TUC" trong CAD. */
+const CAD_TU3P: Prim[] = [
+  C(0, -5.781, 5.781),
+  C(6.781, -9.561, 5.781),
+  C(-0.025, -13.311, 5.781),
+  L(0, -5.781, -3.538, -7.7),
+  L(0, -5.781, 2.906, -7.41),
+  L(0, -5.781, -0.084, -3.292),
+  L(-0.025, -13.311, -3.563, -15.23),
+  L(-0.025, -13.311, 2.881, -14.941),
+  L(-0.025, -13.311, -0.109, -10.822),
+  L(7.969, -7.573, 4.707, -9.925),
+  L(4.707, -9.925, 8.429, -11.22),
+  L(8.429, -11.22, 8.745, -8.864),
+  L(0, -5.781, -4.032, -5.091),
+  C(-4.032, -5.091, 0.5),
+  L(-0.025, -13.311, -4.047, -12.621),
+  C(-4.047, -12.621, 0.5),
+];
+
 
 /** MBA 110-35-22: ba cuon day (110 dau Y, 35 dau tam giac, 22 dau Y). */
 const CAD_MBA3: Prim[] = [
@@ -287,6 +309,7 @@ function make(
     span: Math.max(0.1, b.maxY - b.minY),
     normRot: opts.rot ?? 0,
     origin: norm.origin,
+    bbox: [Math.max(1e-6, b.maxX - b.minX), Math.max(1e-6, b.maxY - b.minY)],
     source: opts.source,
   };
   if (opts.fillWhenClosed) def.fillWhenClosed = true;
@@ -352,6 +375,10 @@ export const BLOCKS: BlockDef[] = [
   make('TUC', 'TU thanh cái 3 pha', 'TUC', 'Đo lường - Bảo vệ', CAD_TUC, {
     inline: false,
     source: 'CAD: block "110-TUC"',
+  }),
+  make('TU3P', 'TU 3 pha (3 cuộn)', 'TU3', 'Đo lường - Bảo vệ', CAD_TU3P, {
+    inline: false,
+    source: 'CAD: block "22-TUC" / "6-TUC" / "35-TUC"',
   }),
   make('CSV', 'Chống sét van', 'CSV', 'Đo lường - Bảo vệ', CAD_CSV, {
     rot: 90,

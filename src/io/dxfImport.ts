@@ -85,6 +85,12 @@ interface Dev {
   cadName: string;
   /** Trạng thái đóng/mở suy ra từ tên block ("22-DCL Mo" -> mở). */
   state?: 'dong' | 'mo';
+  /**
+   * Hộp bao hình học CỦA CHÍNH BLOCK TRONG CAD, theo toạ độ block (gốc toạ độ là
+   * điểm chèn). Nhờ nó mà ký hiệu trong phần mềm đặt đúng chỗ, đúng cỡ và đúng
+   * hướng như bản CAD, không phụ thuộc ký hiệu mẫu dựng sẵn.
+   */
+  cadBox?: { cx: number; cy: number; w: number; h: number };
 }
 
 interface Flat {
@@ -175,9 +181,12 @@ const BLOCK_RULES: [RegExp, string, 'dong' | 'mo' | undefined][] = [
   [/mchb|mc\s*h[ơo]p\s*b[ộo]/i, 'MCHB', 'dong'],
   [/recloser|(^|[^a-z])r(ec)?($|[^a-z])/i, 'REC', 'dong'],
   [/dclhb|dclh\s*b[ộo]/i, 'DCLHB', 'dong'],
+  // Tiep dia phai xet TRUOC dao cach ly: "22-Tiep dia ko DCL" co chua chu "DCL"
+  // nen neu xet sau se bi nhan nham thanh dao cach ly.
+  [/ti[eế]p\s*[dđ][ịi]a.*(ko|kh[oô]ng)\s*dcl|tiep\s*dia.*(ko|khong)\s*dcl/i, 'TD', undefined],
+  [/ti[eế]p\s*[dđ][ịi]a|tiep\s*dia|earth/i, 'DTD', 'mo'],
   [/dcl.*(mo|m[ởo]|c[aắ]t|open)/i, 'DCL', 'mo'],
   [/dao\s*c[aá]ch\s*ly|dcl/i, 'DCL', 'dong'],
-  [/ti[eế]p\s*[dđ][ịi]a|tiep\s*dia|earth/i, 'DTD', 'mo'],
   [/csv|ch[oố]ng\s*s[eé]t/i, 'CSV', undefined],
   [/lbs/i, 'LBS', 'dong'],
   [/c[aầ]u\s*ch[iì]|fco|\bcc\b/i, 'FCO', 'dong'],
@@ -188,6 +197,9 @@ const BLOCK_RULES: [RegExp, string, 'dong' | 'mo' | undefined][] = [
   // Khong dung \b vi ky tu tieng Viet co dau khong phai ky tu tu (word char),
   // nen "Tụ 22" se khong khop \b nhu mong doi.
   [/(^|[^a-z])t[uụ]\s*b[uù]|(^|[^a-z])tb([^a-z]|$)|(^|[^a-z])t[uụ]\s+\d/i, 'TUBU', undefined],
+  // TU thanh cai: ban CAD co hai kieu ve khac han nhau. "110-TUC"/"TUC 110" gom
+  // ca chong ket dien dung; "6/22/35-TUC" chi co ba vong day.
+  [/(^|[^0-9])(6|10|22|35)\s*-\s*tuc|tuc\s*1($|[^0-9])/i, 'TU3P', undefined],
   [/tuc/i, 'TUC', undefined],
   [/(^|[^a-z])tu([^a-z]|$)|tu\d|bi[eế]n\s*[dđ]i[eệ]n\s*[aá]p/i, 'TU', undefined],
   [/(^|[^a-z])ti([^a-z]|$)|ti\d|bi[eế]n\s*d[oò]ng/i, 'TI', undefined],
@@ -618,6 +630,54 @@ function flatten(recs: Rec[]): Flat {
   }
 
   const out: Flat = { segs: [], circles: [], texts: [], devices: [] };
+  // `walk` ghi vao `sink`; khi do hop bao cua mot block thi tam doi sink sang cho khac
+  let sink: Flat = out;
+  let noBung = false;
+
+  /**
+   * Hop bao hinh hoc cua mot block trong CAD, tinh theo toa do block (goc toa do
+   * la DIEM CHEN). Dung de dat ky hieu dung cho / dung co / dung huong.
+   */
+  const hopCache = new Map<string, Dev['cadBox']>();
+  const hopBlock = (name: string): Dev['cadBox'] => {
+    const key = name.toUpperCase();
+    if (hopCache.has(key)) return hopCache.get(key);
+    hopCache.set(key, undefined); // chan de quy
+    const def = blocks.get(key);
+    if (!def) return undefined;
+    const tmp: Flat = { segs: [], circles: [], texts: [], devices: [] };
+    const luuSink = sink;
+    const luuBung = noBung;
+    sink = tmp;
+    noBung = true;
+    walk(def.recs, { x: -def.base.x, y: -def.base.y, sx: 1, sy: 1, rot: 0 }, 1);
+    sink = luuSink;
+    noBung = luuBung;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    const an = (x: number, y: number): void => {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    };
+    for (const sg of tmp.segs) {
+      an(sg.a.x, sg.a.y);
+      an(sg.b.x, sg.b.y);
+    }
+    for (const c of tmp.circles) {
+      an(c.c.x - c.r, c.c.y - c.r);
+      an(c.c.x + c.r, c.c.y + c.r);
+    }
+    const box =
+      minX <= maxX
+        ? { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY }
+        : undefined;
+    hopCache.set(key, box);
+    return box;
+  };
 
   const walk = (list: Rec[], m: Mat, depth: number, inheritLayer?: string): void => {
     if (depth > 6) return;
@@ -626,7 +686,7 @@ function flatten(recs: Rec[]): Flat {
       const layer = strU(r, 8, inheritLayer ?? '0') || inheritLayer || '0';
       switch (r.type) {
         case 'LINE':
-          out.segs.push({
+          sink.segs.push({
             a: apply(m, { x: num(r, 10), y: num(r, 20) }),
             b: apply(m, { x: num(r, 11), y: num(r, 21) }),
             layer,
@@ -640,8 +700,8 @@ function flatten(recs: Rec[]): Flat {
           for (let k = 0; k < Math.min(xs.length, ys.length); k++) {
             pts.push(apply(m, { x: Number(xs[k]), y: Number(ys[k]) }));
           }
-          for (let k = 1; k < pts.length; k++) out.segs.push({ a: pts[k - 1], b: pts[k], layer });
-          if (closed && pts.length > 2) out.segs.push({ a: pts[pts.length - 1], b: pts[0], layer });
+          for (let k = 1; k < pts.length; k++) sink.segs.push({ a: pts[k - 1], b: pts[k], layer });
+          if (closed && pts.length > 2) sink.segs.push({ a: pts[pts.length - 1], b: pts[0], layer });
           break;
         }
         case 'POLYLINE': {
@@ -653,12 +713,12 @@ function flatten(recs: Rec[]): Flat {
           if (j < list.length && list[j].type === 'SEQEND') j++;
           i = j - 1;
           const closed = (num(r, 70) & 1) === 1;
-          for (let k = 1; k < pts.length; k++) out.segs.push({ a: pts[k - 1], b: pts[k], layer });
-          if (closed && pts.length > 2) out.segs.push({ a: pts[pts.length - 1], b: pts[0], layer });
+          for (let k = 1; k < pts.length; k++) sink.segs.push({ a: pts[k - 1], b: pts[k], layer });
+          if (closed && pts.length > 2) sink.segs.push({ a: pts[pts.length - 1], b: pts[0], layer });
           break;
         }
         case 'CIRCLE':
-          out.circles.push({
+          sink.circles.push({
             c: apply(m, { x: num(r, 10), y: num(r, 20) }),
             r: num(r, 40) * Math.abs(m.sx),
             layer,
@@ -676,7 +736,7 @@ function flatten(recs: Rec[]): Flat {
           for (let k = 0; k <= n; k++) {
             const t = ((a0 + ((a1 - a0) * k) / n) * Math.PI) / 180;
             const p = apply(m, { x: c.x + rad * Math.cos(t), y: c.y + rad * Math.sin(t) });
-            if (prev) out.segs.push({ a: prev, b: p, layer });
+            if (prev) sink.segs.push({ a: prev, b: p, layer });
             prev = p;
           }
           break;
@@ -684,7 +744,7 @@ function flatten(recs: Rec[]): Flat {
         case 'TEXT': {
           const s = cleanMText(str(r, 1));
           if (s) {
-            out.texts.push({
+            sink.texts.push({
               p: apply(m, { x: num(r, 10), y: num(r, 20) }),
               s,
               h: num(r, 40, 0, 1) * Math.abs(m.sx),
@@ -698,7 +758,7 @@ function flatten(recs: Rec[]): Flat {
           const parts = (r.p.get(3) ?? []).join('') + (r.p.get(1)?.[0] ?? '');
           const s = cleanMText(parts);
           if (s) {
-            out.texts.push({
+            sink.texts.push({
               p: apply(m, { x: num(r, 10), y: num(r, 20) }),
               s,
               h: num(r, 40, 0, 1) * Math.abs(m.sx),
@@ -718,9 +778,9 @@ function flatten(recs: Rec[]): Flat {
             rot: num(r, 50),
           };
           const world = compose(m, im);
-          const known = blockFromName(name);
+          const known = noBung ? null : blockFromName(name);
           if (known) {
-            out.devices.push({
+            sink.devices.push({
               p: { x: world.x, y: world.y },
               rot: world.rot,
               sx: world.sx,
@@ -728,6 +788,7 @@ function flatten(recs: Rec[]): Flat {
               layer,
               cadName: name,
               state: known.state,
+              cadBox: hopBlock(name),
             });
             break;
           }
@@ -1059,21 +1120,52 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
     }
     if (kv === null) kv = opt.defaultKv;
 
-    // Hình học block trong phần mềm đã được xoay `normRot` để trục thiết bị nằm dọc,
-    // nên phải TRỪ lại góc đó thì hướng mới trùng bản vẽ CAD. Tỷ lệ âm trong CAD
-    // nghĩa là lật gương -> giữ lại bằng cờ `mirror` (khi lật, góc chuẩn hoá đổi dấu).
+    // Tỷ lệ âm trong CAD nghĩa là lật gương -> giữ lại bằng cờ `mirror`.
     const mirror = d.sx < 0;
     const m = mirror ? -1 : 1;
-    const normRot = def?.normRot ?? 0;
-    const rot = d.rot - m * normRot;
-
-    // Block CAD lấy ĐIỂM CHÈN làm gốc, block ở đây lấy TÂM hình làm gốc
-    // -> dời tâm đi một đoạn bằng `origin` đã quay/thu phóng theo thiết bị.
-    const scale = Math.max(0.001, Math.abs(d.sx) * opt.scale * 18.669);
     const o = def?.origin ?? [0, 0];
-    const off = rotate({ x: o[0] * m * scale, y: o[1] * scale }, rot);
+    const bb = def?.bbox ?? [1, 1];
     const ins = tx(d.p);
-    const p = { x: ins.x - off.x, y: ins.y - off.y };
+
+    // Đặt ký hiệu theo ĐÚNG HỘP BAO CỦA BLOCK TRONG CAD: tâm hình trùng tâm hộp
+    // bao, cỡ bằng cỡ thật của block, hướng suy từ véc-tơ "điểm chèn -> tâm hình".
+    // Nhờ vậy dao tiếp địa, chống sét van, TU... bám đúng vào đường dây thay vì
+    // lệch đi vài đơn vị như khi suy theo ký hiệu mẫu dựng sẵn.
+    const cb = d.cadBox;
+    const cCad = cb ? Math.max(cb.w, cb.h) : 0;
+    const lech = cb ? Math.hypot(cb.cx, cb.cy) : 0;
+    const cMe = Math.max(bb[0], bb[1]);
+    const lechMe = Math.hypot(o[0], o[1]);
+    const heSo = Math.abs(d.sx) * opt.scale;
+
+    let rot: number;
+    let scale: number;
+    let p: Pt;
+    if (cb && cCad > 1e-6) {
+      scale = Math.max(0.001, (cCad * heSo) / cMe);
+      // Hướng: so véc-tơ (điểm chèn -> tâm) của block CAD với véc-tơ tương ứng của
+      // ký hiệu mẫu. Ký hiệu đối xứng (tâm trùng điểm chèn) thì không suy được
+      // hướng kiểu này nên quay về cách cũ: trừ đi góc chuẩn hoá.
+      let g: number | null = null;
+      if (lech > 0.12 * cCad && lechMe > 0.12 * cMe) {
+        const gCad = (Math.atan2(cb.cy, m * cb.cx) * 180) / Math.PI;
+        const gMe = (Math.atan2(-o[1], -m * o[0]) * 180) / Math.PI;
+        // Ký hiệu trong bản vẽ điện chỉ đặt theo bội số 90 độ. Nếu góc suy ra lệch
+        // xa bội số 90 thì nghĩa là hai ký hiệu không cùng một kiểu vẽ (ví dụ bản
+        // CAD lật gương) - khi đó tin vào góc chuẩn hoá của ký hiệu mẫu hơn.
+        const tho = gCad - gMe;
+        const tron = Math.round(tho / 90) * 90;
+        if (Math.abs(tho - tron) <= 25) g = tron;
+      }
+      rot = g !== null ? d.rot + g : d.rot - m * (def?.normRot ?? 0);
+      const t = rotate({ x: m * cb.cx * heSo, y: cb.cy * heSo }, d.rot);
+      p = { x: ins.x + t.x, y: ins.y + t.y };
+    } else {
+      rot = d.rot - m * (def?.normRot ?? 0);
+      scale = Math.max(0.001, heSo * 18.669);
+      const off = rotate({ x: o[0] * m * scale, y: o[1] * scale }, rot);
+      p = { x: ins.x - off.x, y: ins.y - off.y };
+    }
     growBox(box, p);
 
     const dev: DeviceEntity = {
@@ -1117,7 +1209,7 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
       p,
       rot: r.rot,
       scale: Math.max(0.001, r.scale * opt.scale),
-      state: def?.switching ? 'dong' : undefined,
+      state: def?.switching ? (r.state ?? 'dong') : undefined,
       srcLayer: r.layer,
     };
     if (r.mirror) dev.mirror = true;

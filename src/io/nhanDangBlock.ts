@@ -46,6 +46,8 @@ export interface NhanDang {
   scale: number;
   mirror: boolean;
   layer: string;
+  /** Trạng thái đóng/mở đọc được từ chính hình vẽ (lưỡi dao chéo = mở). */
+  state?: 'dong' | 'mo';
 }
 
 export interface KetQuaNhanDang {
@@ -64,6 +66,7 @@ const sub = (a: Pt, b: Pt): Pt => ({ x: a.x - b.x, y: a.y - b.y });
 const add = (a: Pt, b: Pt): Pt => ({ x: a.x + b.x, y: a.y + b.y });
 const mul = (a: Pt, k: number): Pt => ({ x: a.x * k, y: a.y * k });
 const mid = (a: Pt, b: Pt): Pt => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+const tam0 = mid;
 const dot = (a: Pt, b: Pt): number => a.x * b.x + a.y * b.y;
 const cross = (a: Pt, b: Pt): number => a.x * b.y - a.y * b.x;
 const degOf = (v: Pt): number => (Math.atan2(v.y, v.x) * 180) / Math.PI;
@@ -144,17 +147,115 @@ export interface TuyChonNhanDang {
 export const macDinhNhanDang = (): TuyChonNhanDang => ({
   mayCat: true,
   ti: true,
-  daoCachLy: false,
-  daoTiepDia: false,
+  daoCachLy: true,
+  daoTiepDia: true,
   boLienDong: false,
 });
 
+/**
+ * Nối các đoạn THẲNG HÀNG nối tiếp nhau thành một đoạn.
+ *
+ * Bản vẽ vẽ tay hay cắt một nét thành hai nửa: ba vạch của ký hiệu đất ở E26.1
+ * Bắc Kạn mỗi vạch là hai nửa trên/dưới trục. Không nối lại thì không nhận ra
+ * được ký hiệu nào cả. Chỉ nối khi tại điểm chung CHỈ CÓ MỘT đoạn cùng phương,
+ * để không nuốt mất lưỡi dao hay nhánh rẽ.
+ */
+function gopThangHang(segs: SegIn[]): { segs: SegIn[]; goc: number[][] } {
+  const n = segs.length;
+  const huong = segs.map((s) => norm(sub(s.b, s.a)));
+  const dai0 = segs.map((s) => len(s.a, s.b));
+  const cell = 0.4;
+  const luoi = new Map<string, number[]>();
+  const them = (p: Pt, i: number): void => {
+    const k = `${Math.floor(p.x / cell)}|${Math.floor(p.y / cell)}`;
+    const a = luoi.get(k);
+    if (a) a.push(i);
+    else luoi.set(k, [i]);
+  };
+  for (let i = 0; i < n; i++) {
+    if (dai0[i] < 1e-9) continue;
+    them(segs[i].a, i);
+    them(segs[i].b, i);
+  }
+  const quanh = (p: Pt): number[] => {
+    const out: number[] = [];
+    const gx = Math.floor(p.x / cell);
+    const gy = Math.floor(p.y / cell);
+    for (let i = -1; i <= 1; i++) {
+      for (let j = -1; j <= 1; j++) {
+        for (const k of luoi.get(`${gx + i}|${gy + j}`) ?? []) {
+          if (len(segs[k].a, p) < 0.08 || len(segs[k].b, p) < 0.08) out.push(k);
+        }
+      }
+    }
+    return out;
+  };
+  const cha = new Int32Array(n);
+  for (let i = 0; i < n; i++) cha[i] = i;
+  const tim = (x: number): number => {
+    while (cha[x] !== x) x = cha[x] = cha[cha[x]];
+    return x;
+  };
+  for (let i = 0; i < n; i++) {
+    if (dai0[i] < 1e-9) continue;
+    for (const p of [segs[i].a, segs[i].b]) {
+      const cung = quanh(p).filter(
+        (j) => j !== i && segs[j].layer === segs[i].layer && lechPhuong(huong[j], huong[i]) < 4,
+      );
+      if (cung.length !== 1) continue;
+      const j = cung[0];
+      const a = tim(i);
+      const b = tim(j);
+      if (a !== b) cha[a] = b;
+    }
+  }
+  const nhom = new Map<number, number[]>();
+  for (let i = 0; i < n; i++) {
+    const g = tim(i);
+    const a = nhom.get(g);
+    if (a) a.push(i);
+    else nhom.set(g, [i]);
+  }
+  const ra: SegIn[] = [];
+  const goc: number[][] = [];
+  for (const list of nhom.values()) {
+    if (list.length === 1) {
+      ra.push(segs[list[0]]);
+      goc.push(list);
+      continue;
+    }
+    // Hai đầu xa nhau nhất của cả nhóm
+    const pts: Pt[] = [];
+    for (const i of list) {
+      pts.push(segs[i].a);
+      pts.push(segs[i].b);
+    }
+    let A = pts[0];
+    let B = pts[0];
+    let d = -1;
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const l = len(pts[i], pts[j]);
+        if (l > d) {
+          d = l;
+          A = pts[i];
+          B = pts[j];
+        }
+      }
+    }
+    ra.push({ a: A, b: B, layer: segs[list[0]].layer });
+    goc.push(list);
+  }
+  return { segs: ra, goc };
+}
+
 export function nhanDangBlock(
-  segs: SegIn[],
+  segsGoc: SegIn[],
   circles: CircleIn[],
   tol: number,
   chon: TuyChonNhanDang = macDinhNhanDang(),
 ): KetQuaNhanDang {
+  const { segs, goc } = gopThangHang(segsGoc);
   const devices: NhanDang[] = [];
   const boSeg = new Set<number>();
   const boCircle = new Set<number>();
@@ -242,7 +343,16 @@ export function nhanDangBlock(
     // Vòng tròn của TI trong bản vẽ chỉ khoảng 1,5-2,5 đơn vị và RỖNG.
     // Vòng tròn to hơn, hoặc có nét vẽ bên trong (tụ bù, TU, máy biến áp,
     // thiết bị bù) thì không phải TI - giữ nguyên là hình tròn.
-    if (c.r < 0.4 || c.r > 3.5) return;
+    if (c.r < 0.4 || c.r > 5.2) return;
+    // Cuộn dây TU / TUC / máy biến áp vẽ thành CỤM vòng tròn chồng nhau, còn TI
+    // thì đứng một mình trên đường dây.
+    const cum = circles.some(
+      (o, k) =>
+        k !== i &&
+        Math.abs(o.r - c.r) < c.r * 0.35 &&
+        len(o.c, c.c) < c.r * 2.5,
+    );
+    if (cum) return;
     if (!mut.quanh(c.c, Math.max(c.r * 3.5, hut * 4)).length) return;
     // Đoạn dây đi XUYÊN QUA vòng tròn là bình thường; nhưng đoạn nằm GỌN bên
     // trong (nét chữ thập của tụ bù, nét cuộn dây của TU) thì đây không phải TI.
@@ -333,6 +443,7 @@ export function nhanDangBlock(
     boSeg.add(luoi);
     devices.push({
       block: 'DTD',
+      state: 'mo',
       p: add(tamSeg[i1], mul(d, (L_DTD_CHEN / L_DTD) * L)),
       rot: degOf(d),
       scale: (L / L_DTD) * 18.669,
@@ -378,6 +489,23 @@ export function nhanDangBlock(
       if (lechPhuong(truc, A.vao) > 6 || lechPhuong(truc, B.vao) > 6) continue;
       if (dot(A.vao, truc) > 0 || dot(B.vao, truc) < 0) continue;
 
+      // Trong khe KHÔNG được có nét vẽ nào khác. Thiếu điều kiện này thì hai
+      // đầu dây cách nhau khá xa cũng bị ghép thành một dao cách ly, sinh ra ký
+      // hiệu to gấp mấy lần thật (đã gặp ở E26.1 Bắc Kạn).
+      const ngang0 = { x: -truc.y, y: truc.x };
+      let vuong = true;
+      for (const e2 of mut.quanh(tam0(A.p, B.p), G)) {
+        const k = e2.v;
+        if (k === A.seg || k === B.seg || boSeg.has(k)) continue;
+        const q = e2.p;
+        const u = dot(sub(q, A.p), truc);
+        if (u > G * 0.12 && u < G * 0.88 && Math.abs(dot(sub(q, A.p), ngang0)) < G * 0.35) {
+          vuong = false;
+          break;
+        }
+      }
+      if (!vuong) continue;
+
       // Lưỡi dao: đoạn chéo bắt đầu ở một trong hai mép khe
       let luoi: number | undefined;
       for (const mep of [A.p, B.p]) {
@@ -396,6 +524,7 @@ export function nhanDangBlock(
       daDung.add(j);
       devices.push({
         block: 'DCL',
+        state: 'mo',
         p: tam,
         rot: degOf(truc) - 90,
         scale: G / H_DCL,
@@ -429,5 +558,8 @@ export function nhanDangBlock(
     }
   }
 
-  return { devices, boSeg, boCircle, thongKe };
+  // Đổi chỉ số đoạn đã gộp về chỉ số đoạn gốc
+  const boGoc = new Set<number>();
+  for (const i of boSeg) for (const k of goc[i] ?? []) boGoc.add(k);
+  return { devices, boSeg: boGoc, boCircle, thongKe };
 }
