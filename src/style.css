@@ -379,3 +379,18 @@ body {
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .toast-warn { border-left-color: var(--yellow); }
 .toast-error { border-left-color: var(--danger); }
+
+.tram-item { display: flex; align-items: center; gap: 4px; }
+.tram-item .tram-row { flex: 1; min-width: 0; }
+.tram-open {
+  flex: 0 0 auto;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  color: var(--fg-dim);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.tram-open:hover { border-color: var(--accent); color: var(--fg); }
+.hint { margin: 0 0 8px; line-height: 1.45; }

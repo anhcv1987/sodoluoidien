@@ -1,0 +1,177 @@
+import raw from './tram-sld.json';
+import { newId } from '../core/doc';
+import type {
+  BranchEntity,
+  DeviceEntity,
+  Entity,
+  Id,
+  LineKind,
+  Sheet,
+  SwitchState,
+  TextEntity,
+  VoltageKv,
+} from '../core/types';
+
+/**
+ * SƠ ĐỒ NGUYÊN LÝ TỪNG TRẠM, TRÍCH TỪ FILE CAD CỦA PHÒNG ĐIỀU ĐỘ.
+ *
+ * Dữ liệu trong `tram-sld.json` do tools/tach-so-do-tram.py +
+ * tools/dung-du-lieu-tram.mjs dựng ra từ file
+ * "Sơ đồ lưới điện liên thông tỉnh Thái Nguyên.dwg", dùng đúng bộ nhập DXF của
+ * phần mềm nên hình học, cấp điện áp và ký hiệu thiết bị giống hệt bản CAD gốc.
+ *
+ * Dữ liệu lưu ở dạng NÉN (bảng tra tên lớp / tên block + mảng số) và chỉ được
+ * "bung" ra thành đối tượng bản vẽ khi người dùng thực sự mở tờ đó, để phần mềm
+ * khởi động nhanh và không tốn bộ nhớ cho 27 tờ cùng lúc.
+ *
+ * Toạ độ giữ nguyên đơn vị của bản vẽ CAD gốc (1 đơn vị phần mềm = 1 đơn vị CAD),
+ * tâm mỗi tờ được đưa về gốc toạ độ.
+ */
+
+interface CompactSheet {
+  code: string;
+  title: string;
+  /** Tuyến: [lớp, kV, loại tuyến, lớp CAD gốc, x0,y0, x1,y1, ...] */
+  b: number[][];
+  /** Thiết bị: [lớp, kV, block, x, y, góc, cỡ, trạng thái, lớp CAD gốc] */
+  d: number[][];
+  /** Chữ: [lớp, kV, x, y, cao, góc, căn lề, lớp CAD gốc, nội dung] */
+  t: (number | string)[][];
+}
+
+interface CompactData {
+  version: number;
+  lineKinds: LineKind[];
+  states: SwitchState[];
+  aligns: ('left' | 'center' | 'right')[];
+  layers: string[];
+  blocks: string[];
+  srcLayers: string[];
+  sheets: CompactSheet[];
+}
+
+const data = raw as unknown as CompactData;
+
+export interface CadSheetInfo {
+  /** Mã trạm (E6.5) hoặc "TỜn" với các tờ bản vẽ khác. */
+  code: string;
+  /** Tiêu đề như ghi trên bản vẽ CAD. */
+  title: string;
+  soTuyen: number;
+  soThietBi: number;
+  soChu: number;
+  /** Là sơ đồ một trạm cụ thể (mã dạng E6.x / E26.x). */
+  laTram: boolean;
+}
+
+function info(s: CompactSheet): CadSheetInfo {
+  return {
+    code: s.code,
+    title: s.title,
+    soTuyen: s.b.length,
+    soThietBi: s.d.length,
+    soChu: s.t.length,
+    laTram: /^[EA]\d+\.\d+/.test(s.code),
+  };
+}
+
+/** Danh sách các tờ sơ đồ có sẵn trong phần mềm. */
+export function listCadSheets(): CadSheetInfo[] {
+  return data.sheets.map(info);
+}
+
+export function cadSheetInfo(code: string): CadSheetInfo | undefined {
+  const s = data.sheets.find((x) => x.code === code);
+  return s ? info(s) : undefined;
+}
+
+/** Tên trang hiển thị trên thanh thẻ. */
+export function cadSheetName(code: string, tenTram?: string): string {
+  if (/^[EA]\d+\.\d+/.test(code)) return tenTram ? `${code} - ${tenTram}` : code;
+  const s = data.sheets.find((x) => x.code === code);
+  return s ? s.title : code;
+}
+
+/**
+ * Bung một tờ sơ đồ ra thành trang bản vẽ đầy đủ.
+ * Trả về undefined nếu không có tờ đó trong dữ liệu kèm theo.
+ */
+export function buildCadSheet(code: string, name: string, substationId?: Id): Sheet | undefined {
+  const s = data.sheets.find((x) => x.code === code);
+  if (!s) return undefined;
+
+  const entities: Record<Id, Entity> = {};
+  const put = (e: Entity): void => void (entities[e.id] = e);
+
+  for (const row of s.b) {
+    const layer = data.layers[row[0]] ?? '0';
+    const kv = row[1] as VoltageKv;
+    const lineKind = data.lineKinds[row[2]] ?? 'ĐDK';
+    const srcLayer = data.srcLayers[row[3]] || undefined;
+    const nodes: Id[] = [];
+    for (let i = 4; i + 1 < row.length; i += 2) {
+      const id = newId('n');
+      nodes.push(id);
+      put({
+        id,
+        kind: 'node',
+        layer,
+        kv,
+        p: { x: row[i], y: row[i + 1] },
+        nodeType: i === 4 || i + 3 >= row.length ? 'dau-cuoi' : 'cot',
+      });
+    }
+    if (nodes.length < 2) continue;
+    const b: BranchEntity = { id: newId('b'), kind: 'branch', layer, kv, nodes, lineKind };
+    if (srcLayer) b.srcLayer = srcLayer;
+    put(b);
+  }
+
+  for (const row of s.d) {
+    const d: DeviceEntity = {
+      id: newId('d'),
+      kind: 'device',
+      layer: data.layers[row[0]] ?? '0',
+      kv: row[1] as VoltageKv,
+      block: data.blocks[row[2]] ?? 'MC',
+      p: { x: row[3], y: row[4] },
+      rot: row[5],
+      scale: row[6],
+      state: data.states[row[7]] ?? 'dong',
+    };
+    const sl = data.srcLayers[row[8]];
+    if (sl) d.srcLayer = sl;
+    put(d);
+  }
+
+  for (const row of s.t) {
+    const t: TextEntity = {
+      id: newId('t'),
+      kind: 'text',
+      layer: (data.layers[row[0] as number] ?? 'Ghi chú') as string,
+      kv: row[1] as VoltageKv,
+      p: { x: row[2] as number, y: row[3] as number },
+      text: String(row[8]),
+      height: row[4] as number,
+      rot: row[5] as number,
+      align: data.aligns[row[6] as number] ?? 'left',
+    };
+    const sl2 = data.srcLayers[row[7] as number];
+    if (sl2) t.srcLayer = sl2;
+    put(t);
+  }
+
+  const sheet: Sheet = {
+    id: newId('sh'),
+    name,
+    type: /^[EA]\d+\.\d+/.test(code) ? 'tram' : 'trung-ap',
+    entities,
+  };
+  if (substationId) sheet.substationId = substationId;
+  return sheet;
+}
+
+/** Các lớp (layer) mà dữ liệu CAD kèm theo sử dụng — để tạo sẵn trong bản vẽ. */
+export function cadLayerNames(): string[] {
+  return [...data.layers];
+}

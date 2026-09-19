@@ -127,7 +127,45 @@ dùng chung cho cả phòng.
 
 ---
 
-## 6. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 2)
+## 6. Sơ đồ nguyên lý bên trong từng trạm (đầy đủ thiết bị 110/35/22/6kV)
+
+Phần mềm mang sẵn **27 tờ sơ đồ trích xuất trực tiếp từ file CAD của Phòng Điều độ**:
+25 tờ sơ đồ nguyên lý trạm (E6.2 … E26.3), tờ sơ đồ liên thông lưới 220-110kV toàn
+tỉnh và tờ sơ đồ các đường dây trung áp 372+373 E6.2 / 371-375 E6.5 / 472 E6.2 —
+tổng cộng hơn **25.000 đối tượng**: thanh cái, máy cắt, máy cắt hợp bộ, dao cách ly,
+dao tiếp địa, TI, TU, TUC, chống sét van, máy biến áp, các lộ xuất tuyến, nhãn ngăn
+lộ và mã hiệu cáp — đúng hình học và đúng cấp điện áp như bản CAD.
+
+Cách mở:
+
+* **Nhấn đúp chuột** vào khối trạm trên sơ đồ tỉnh, hoặc
+* bấm nút **Sơ đồ** bên cạnh tên trạm trong bảng **Danh mục trạm**, hoặc
+* **Dữ liệu → Mở sơ đồ nguyên lý trạm (từ CAD)…** để xem cả danh sách.
+
+Mỗi tờ mở ra là một trang bản vẽ bình thường: sửa, thêm thiết bị, đổi trạng thái
+đóng/cắt, xuất DXF/SVG/PNG như mọi trang khác. Trang chỉ được dựng khi thực sự mở
+nên phần mềm vẫn khởi động trong khoảng 1 giây.
+
+**Cấp điện áp của thiết bị** được lấy từ tên block trong CAD ("110-MC", "35-DCL",
+"22-MCHB", "MBA 110-35-22"…) nên chính xác. **Cấp điện áp của đường dây** lấy từ tên
+lớp; ba tờ vẽ bởi đơn vị khác dùng tên lớp không có cấp điện áp (E26.1 Bắc Kạn:
+`DUONGCHINH`/`DMANH`/`THANHCAI`; E6.13 Yên Bình: `LINE`) nên phần mềm phải để mặc
+định 22kV. Sửa cả lớp một lần bằng **Dữ liệu → Gán cấp điện áp theo lớp CAD gốc…**
+
+Muốn dựng lại bộ dữ liệu này từ một file CAD mới:
+
+```bash
+dwg2dxf -o tong.dxf "So do luoi dien lien thong tinh Thai Nguyen.dwg"
+pip install ezdxf
+python3 tools/tach-so-do-tram.py tong.dxf tram/ --min-x 800000 \
+        --them-to 'LƯỚI ĐIỆN 220KV' --them-to 'ĐƯỜNG DÂY'
+node tools/dung-du-lieu-tram.mjs tram/ src/data/tram-sld.json
+npm run build
+```
+
+---
+
+## 7. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)
 
 1. Trong CAD (AutoCAD / GstarCAD / VinaCAD…) mở bản vẽ lộ trung áp, dùng **SAVEAS →
    AutoCAD ASCII DXF**.
@@ -156,7 +194,7 @@ Sau khi nhập, chọn từng tuyến để điền **mã hiệu dây** (`AC-120
 
 ---
 
-## 7. Lưu và xuất
+## 8. Lưu và xuất
 
 | Định dạng | Dùng để |
 |---|---|
@@ -175,7 +213,7 @@ mở lại. Vẫn nên lưu ra file `.sld` để giữ lâu dài và chia sẻ.
 
 ---
 
-## 8. Cấu trúc mã nguồn
+## 9. Cấu trúc mã nguồn
 
 ```
 src/
@@ -185,21 +223,26 @@ src/
 ├── data/        geo.ts (phép chiếu, ranh giới, địa danh)
 │                grid110.ts (danh mục trạm + đường dây + mã hiệu dây)
 │                seed.ts (dựng sơ đồ tỉnh ban đầu)
+│                tram-sld.json + tramSheets.ts (27 tờ sơ đồ trích từ file CAD)
 ├── render/      viewport.ts · shapes.ts (sinh hình + bắt điểm) · renderer.ts (canvas)
 ├── editor/      editor.ts (công cụ vẽ) · snap.ts (bắt điểm) · declutter.ts (giãn trạm)
 ├── io/          dxfExport.ts · dxfImport.ts · file.ts
 └── ui/          app.ts (khung giao diện) · palette.ts · props.ts · dom.ts
 docs/            dữ liệu trích xuất từ file CAD gốc
-tools/           smoke-test.mjs — kiểm thử bằng trình duyệt thật
+tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm từ file CAD tổng
+                 dung-du-lieu-tram.mjs  — dựng src/data/tram-sld.json
+                 smoke-test.mjs         — kiểm thử bằng trình duyệt thật
 ```
 
 Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và sửa trực tiếp được.
 
 ---
 
-## 9. Việc còn phải làm
+## 10. Việc còn phải làm
 
 * Rà soát toạ độ thực tế của 28 trạm và kết lưới 110/220kV (mục 5).
 * Bổ sung công suất MBA cho E6.22 Định Hoá, E6.23 Yên Bình 8, E6.24 Đa Phúc,
   E6.25 Phú Bình 2 và ba trạm khu vực Bắc Kạn (E26.1–E26.3) — file CAD gốc chưa ghi.
+* Gán lại cấp điện áp cho đường dây ở ba tờ dùng tên lớp CAD không chuẩn
+  (E26.1 Bắc Kạn, E26.2 Chợ Đồn, E6.13 Yên Bình) — xem mục 6.
 * Nhập lần lượt các sơ đồ lộ trung áp rời rạc và đấu nối về trạm 110kV tương ứng.

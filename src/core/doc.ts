@@ -55,6 +55,8 @@ export function emptyDrawing(title = 'Sơ đồ lưới điện tỉnh Thái Ngu
  */
 export class DocStore {
   drawing: Drawing;
+  /** Tăng sau mỗi thay đổi - dùng làm khoá cho bộ nhớ đệm khi vẽ. */
+  version = 0;
   private undoStack: Patch[] = [];
   private redoStack: Patch[] = [];
   private listeners = new Set<Listener>();
@@ -74,6 +76,7 @@ export class DocStore {
   }
 
   emit(): void {
+    this.version += 1;
     for (const fn of this.listeners) fn();
   }
 

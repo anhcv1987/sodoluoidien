@@ -48,6 +48,9 @@ export interface RenderState {
 const FONT = '"Segoe UI", "Times New Roman", system-ui, sans-serif';
 
 export class Renderer {
+  /** Bộ nhớ đệm danh sách đối tượng đã sắp xếp + hộp bao, làm mới khi bản vẽ đổi. */
+  private cache: { version: number; sheet: string; list: { e: Entity; box: Box }[] } | null = null;
+
   constructor(
     private canvas: HTMLCanvasElement,
     private store: DocStore,
@@ -90,21 +93,10 @@ export class Renderer {
     if (this.opt.showGrid) this.drawGrid(ctx);
 
     const view = this.vp.viewBox(80);
-    const ents = this.store.entities.filter((e) => this.store.isVisible(e));
+    const list = this.entityList();
+    const ents = list.map((x) => x.e);
 
-    // Thu tu ve: nen -> duong day -> tram -> thiet bi -> chu
-    const order: Record<Entity['kind'], number> = {
-      boundary: 0,
-      branch: 1,
-      node: 2,
-      substation: 3,
-      device: 4,
-      text: 5,
-    };
-    ents.sort((a, b) => order[a.kind] - order[b.kind]);
-
-    for (const e of ents) {
-      const box = entityBox(this.store, e);
+    for (const { e, box } of list) {
       if (!boxIntersects(box, view)) continue;
       this.drawEntity(ctx, e, state);
     }
@@ -118,6 +110,38 @@ export class Renderer {
     if (state.crosshair && state.cursor) this.drawCrosshair(ctx, state.cursor);
 
     ctx.restore();
+  }
+
+  /**
+   * Danh sách đối tượng đang hiện, đã sắp theo thứ tự vẽ và kèm hộp bao.
+   * Tính lại chỉ khi bản vẽ thay đổi - nhờ vậy các tờ sơ đồ trạm hàng chục nghìn
+   * đối tượng vẫn kéo/phóng mượt.
+   */
+  /** Danh sách đối tượng đang hiện kèm hộp bao (dùng chung cho vẽ và bắt chọn). */
+  visibleList(): { e: Entity; box: Box }[] {
+    return this.entityList();
+  }
+
+  private entityList(): { e: Entity; box: Box }[] {
+    const sheetId = this.store.sheet.id;
+    if (this.cache && this.cache.version === this.store.version && this.cache.sheet === sheetId) {
+      return this.cache.list;
+    }
+    // Thứ tự vẽ: nền -> đường dây -> nút -> trạm -> thiết bị -> chữ
+    const order: Record<Entity['kind'], number> = {
+      boundary: 0,
+      branch: 1,
+      node: 2,
+      substation: 3,
+      device: 4,
+      text: 5,
+    };
+    const list = this.store.entities
+      .filter((e) => this.store.isVisible(e))
+      .sort((a, b) => order[a.kind] - order[b.kind])
+      .map((e) => ({ e, box: entityBox(this.store, e) }));
+    this.cache = { version: this.store.version, sheet: sheetId, list };
+    return list;
   }
 
   /* -------------------------- luoi toa do -------------------------- */

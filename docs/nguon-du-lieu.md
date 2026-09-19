@@ -109,3 +109,69 @@ E6.25  171→E6.16, 171→E6.18
    sửa tên lộ / mã dây / chiều dài / số mạch, rồi xoá ghi chú "cần rà soát".
 4. Nếu muốn vẽ lại từ đầu: **Dữ liệu → Xoá toàn bộ đường dây sơ bộ**.
 5. Lưu file `.sld` làm bộ dữ liệu dùng chung cho phòng.
+
+---
+
+# 5. Sơ đồ nguyên lý từng trạm (bổ sung)
+
+## 5.1 Cách trích xuất
+
+`tools/tach-so-do-tram.py` tách file DXF tổng thành 27 tờ riêng:
+
+* Tìm tiêu đề dạng "TRẠM 110/220KV …" (chữ cao ≥ 10) trong vùng bản vẽ đã sắp xếp
+  theo thứ tự trạm (X > 800000; vùng X ≈ 740000 là bản nháp trùng lặp nên bỏ).
+* Xếp các tiêu đề thành cột theo X; trong mỗi cột, nhãn phụ nằm cách tiêu đề chính
+  dưới 1000 đơn vị được coi là cùng một tờ.
+* Dải Y của mỗi tờ dò từ tiêu đề đi xuống tới khi gặp khoảng trống > 320 đơn vị,
+  và không bao giờ vượt quá tiêu đề của tờ kế tiếp.
+* Dải X gom theo cụm (khoảng trống > 1200) để loại bảng mục lục nằm cạnh.
+* Ba tờ khác (sơ đồ liên thông 220-110kV, hai tờ đường dây trung áp) lấy bằng cách
+  gom cụm đối tượng liền nhau quanh tiêu đề.
+
+`tools/dung-du-lieu-tram.mjs` chạy **đúng bộ nhập DXF của phần mềm**
+(`src/io/dxfImport.ts`, gói bằng esbuild) để chuyển sang đối tượng bản vẽ, rồi nén
+lại thành `src/data/tram-sld.json` (1,1 MB cho 25.387 đối tượng).
+
+## 5.2 Quy tắc phân loại cấp điện áp
+
+| Đối tượng | Căn cứ | Độ tin cậy |
+|---|---|---|
+| Thiết bị | **Tên block** ("110-MC", "35-DCL", "22-MCHB", "MBA 110-35-22") rồi mới đến tên lớp | Cao |
+| Đường dây | Tên lớp ("110-ĐZ 110", "35-DZ 35", "22-DZ 22", "6-DZ 6") | Cao, trừ các tờ dưới đây |
+| Chữ | Tên lớp | Trung bình |
+
+Ưu tiên tên block là cần thiết: trong file CAD, cùng một máy cắt 110kV có thể được
+chèn trên lớp bất kỳ tuỳ người vẽ. Trước khi sửa, 5 máy cắt 110kV của E6.5 bị nhận
+nhầm thành 220kV và 2 máy biến áp 3 cuộn bị nhận thành 35kV.
+
+**Các tờ cần rà soát cấp điện áp đường dây** (tên lớp CAD không chứa cấp điện áp,
+phần mềm phải để mặc định 22kV):
+
+| Tờ | Lớp CAD gốc | Ghi chú |
+|---|---|---|
+| E26.1 Bắc Kạn | `DUONGCHINH`, `DMANH`, `DTAM`, `THANHCAI`, `DUONGBAO` | Do đơn vị khác vẽ |
+| E26.2 Chợ Đồn | như trên | |
+| E6.13 Yên Bình | `LINE` (1361 đường) | Phần 110kV bị gán nhầm 22kV |
+
+Tên lớp CAD gốc được giữ lại trong từng đối tượng (`srcLayer`), nên sửa bằng
+**Dữ liệu → Gán cấp điện áp theo lớp CAD gốc…** chỉ mất vài giây cho cả tờ.
+
+## 5.3 Thống kê sau khi trích xuất
+
+27 tờ, 25.387 đối tượng. Một số tờ tiêu biểu:
+
+| Tờ | Tuyến | Thiết bị | Chữ |
+|---|---|---|---|
+| E6.2 – 220kV Thái Nguyên | 505 | 758 | 667 |
+| E6.5 – 110kV Lưu Xá | 113 | 136 | 154 |
+| E6.9 – 110kV Gang Thép (có cấp 6kV) | 633 | 352 | 353 |
+| E6.18 – 110kV Yên Bình 3 | 1.718 | 197 | 298 |
+| TỜ1 – Sơ đồ liên thông 220-110kV | 794 | 2 | 536 |
+| TỜ2 – Đường dây trung áp E6.2 / E6.5 | 2.738 | 612 | 1.058 |
+
+Thiết bị của TBA 110kV Lưu Xá (E6.5) sau khi phân loại — khớp với một trạm
+110/35/22kV hai máy biến áp:
+
+* **110kV**: 5 MC, 10 DCL, 16 dao tiếp địa, 5 CSV, 5 TI, 4 TUC, 2 MBA 3 cuộn
+* **35kV**: 2 MC, 10 MCHB, 12 TI, 11 dao tiếp địa, 2 CSV, 2 TUC
+* **22kV**: 3 MC, 11 MCHB, 11 TI, 15 dao tiếp địa, 2 CSV, 2 TU, 1 MBA phân phối

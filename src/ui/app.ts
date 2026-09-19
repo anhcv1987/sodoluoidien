@@ -1,6 +1,7 @@
 import { DocStore } from '../core/doc';
 import { Editor, type ToolName } from '../editor/editor';
 import { buildProvinceDrawing, createSubstationSheet } from '../data/seed';
+import { buildCadSheet, cadLayerNames, cadSheetName, listCadSheets } from '../data/tramSheets';
 import type { Entity, SubstationEntity, VoltageKv } from '../core/types';
 import { allStyles, colorOf } from '../core/voltage';
 import { exportDxf, exportSvg } from '../io/dxfExport';
@@ -61,6 +62,9 @@ export class App {
       },
       onPrompt: (m) => (this.statusPrompt.textContent = m),
       onSelection: () => this.refreshProps(),
+      onOpenEntity: (e) => {
+        if (e.kind === 'substation' && e.code) this.openCadSheet(e.code, e.id);
+      },
       onChange: () => this.refreshChrome(),
     });
     this.build();
@@ -169,6 +173,11 @@ export class App {
     );
     menu.append(
       this.dropdown('Dữ liệu', [
+        ['Mở sơ đồ nguyên lý trạm (từ CAD)…', () => this.showCadSheetList()],
+        ['Nạp tất cả các tờ sơ đồ từ CAD', () => this.loadAllCadSheets()],
+        ['—', () => undefined],
+        ['Gán cấp điện áp theo lớp CAD gốc…', () => this.showSrcLayerDialog()],
+        ['—', () => undefined],
         ['Bảng trạm 110/220kV', () => this.showTramTable()],
         ['Bảng đường dây', () => this.showLineTable()],
         ['Thêm trang sơ đồ trạm…', () => this.addSubstationSheet('tram')],
@@ -390,10 +399,20 @@ export class App {
   refreshTram(): void {
     const list = el('div', { class: 'tram-list' });
     const subs = this.store.entities.filter((e): e is SubstationEntity => e.kind === 'substation');
+    if (subs.length) {
+      list.append(
+        el('p', {
+          class: 'muted small hint',
+          text: 'Bấm tên trạm để phóng tới; bấm "Sơ đồ" (hoặc nhấn đúp vào khối trạm) để mở sơ đồ nguyên lý trong trạm.',
+        }),
+      );
+    }
     subs.sort((a, b) => a.code.localeCompare(b.code, 'vi', { numeric: true }));
     if (!subs.length) list.append(el('p', { class: 'muted', text: 'Trang này chưa có trạm nào.' }));
+    const coSoDo = new Set(listCadSheets().map((c) => c.code));
     for (const s of subs) {
-      const row = el('button', { class: 'tram-row', type: 'button' }, [
+      const wrap = el('div', { class: 'tram-item' });
+      const row = el('button', { class: 'tram-row', type: 'button', title: 'Phóng tới trạm trên sơ đồ tỉnh' }, [
         el('span', { class: 'tram-code', text: s.code }),
         el('span', { class: 'tram-name', text: s.name.replace(/^TBA\s*/i, '') }),
       ]);
@@ -402,7 +421,18 @@ export class App {
         this.ed.select([s.id]);
         this.ed.zoomToEntity(s.id);
       });
-      list.append(row);
+      wrap.append(row);
+      if (coSoDo.has(s.code)) {
+        const open = el('button', {
+          class: 'tram-open',
+          type: 'button',
+          title: `Mở sơ đồ nguyên lý ${s.code} (trích từ file CAD)`,
+          text: 'Sơ đồ',
+        });
+        open.addEventListener('click', () => this.openCadSheet(s.code, s.id));
+        wrap.append(open);
+      }
+      list.append(wrap);
     }
     this.tramHost.replaceChildren(list);
   }
@@ -630,6 +660,234 @@ export class App {
 
   /* ============================== bang bieu =========================== */
 
+  /* ======================= so do trong tram (CAD) ===================== */
+
+  /**
+   * Mở tờ sơ đồ nguyên lý của một trạm, lấy từ bộ dữ liệu trích xuất từ file CAD.
+   * Nếu trang đã mở trước đó thì chỉ chuyển sang trang đó.
+   */
+  openCadSheet(code: string, substationId?: string): boolean {
+    const existing = this.store.drawing.sheets.find((s) => s.cadCode === code);
+    if (existing) {
+      this.store.setActiveSheet(existing.id);
+      this.ed.clearSelection();
+      this.ed.zoomExtents();
+      this.refreshTabs();
+      this.refreshTram();
+      return true;
+    }
+    const sub = substationId ? this.store.getAnywhere(substationId) : undefined;
+    const tenTram = sub && sub.kind === 'substation' ? sub.name : undefined;
+    const sheet = buildCadSheet(code, cadSheetName(code, tenTram), substationId);
+    if (!sheet) {
+      toast(`Chưa có sơ đồ nguyên lý của ${code} trong dữ liệu kèm theo.`, 'warn');
+      return false;
+    }
+    sheet.cadCode = code;
+    for (const l of cadLayerNames()) this.store.ensureLayer(l);
+    this.store.addSheet(sheet);
+    if (substationId && sheet.type === 'tram') {
+      this.store.update(substationId, (x: Entity) => {
+        if (x.kind === 'substation') x.internalSheet = sheet.id;
+      });
+    }
+    this.store.setActiveSheet(sheet.id);
+    this.ed.clearSelection();
+    this.ed.zoomExtents();
+    this.refreshTabs();
+    this.refreshTram();
+    this.refreshChrome();
+    return true;
+  }
+
+  private showCadSheetList(): void {
+    const list = listCadSheets();
+    const body = el('div', {});
+    body.append(
+      el('p', {
+        class: 'muted small',
+        text:
+          `${list.length} tờ sơ đồ trích xuất từ file CAD của Phòng Điều độ. ` +
+          'Bấm vào một dòng để mở; trang mở ra sửa được như mọi trang khác. ' +
+          'Cách nhanh hơn: nhấn đúp chuột vào khối trạm trên sơ đồ tỉnh.',
+      }),
+    );
+    const t = el('table', { class: 'table' });
+    t.append(
+      el('thead', {}, [
+        el('tr', {}, [
+          el('th', { text: 'Mã' }),
+          el('th', { text: 'Tên tờ sơ đồ' }),
+          el('th', { text: 'Tuyến' }),
+          el('th', { text: 'Thiết bị' }),
+          el('th', { text: 'Chữ' }),
+          el('th', { text: '' }),
+        ]),
+      ]),
+    );
+    const tb = el('tbody');
+    for (const s of list) {
+      const opened = this.store.drawing.sheets.some((x) => x.cadCode === s.code);
+      const tr = el('tr', {}, [
+        el('td', { text: s.code }),
+        el('td', { text: s.title }),
+        el('td', { text: String(s.soTuyen) }),
+        el('td', { text: String(s.soThietBi) }),
+        el('td', { text: String(s.soChu) }),
+        el('td', { text: opened ? 'đã mở' : '' }),
+      ]);
+      tr.addEventListener('click', () => {
+        close();
+        const sub = this.store.entities.find(
+          (e): e is SubstationEntity => e.kind === 'substation' && e.code === s.code,
+        );
+        this.openCadSheet(s.code, sub?.id);
+      });
+      tb.append(tr);
+    }
+    t.append(tb);
+    const close = dialog(
+      'Sơ đồ nguyên lý các trạm (trích xuất từ file CAD)',
+      el('div', { class: 'table-wrap' }, [t]),
+      [button('Đóng', () => close())],
+    );
+  }
+
+  private loadAllCadSheets(): void {
+    const list = listCadSheets();
+    const chua = list.filter((s) => !this.store.drawing.sheets.some((x) => x.cadCode === s.code));
+    if (!chua.length) {
+      toast('Tất cả các tờ sơ đồ CAD đã được nạp.');
+      return;
+    }
+    if (
+      !confirm(
+        `Nạp ${chua.length} tờ sơ đồ (khoảng ${chua.reduce((a, s) => a + s.soTuyen + s.soThietBi + s.soChu, 0).toLocaleString('vi-VN')} đối tượng)?\n` +
+          'Bản vẽ sẽ nặng hơn và không lưu tạm được trong trình duyệt — nhớ lưu ra file .sld.',
+      )
+    ) {
+      return;
+    }
+    for (const s of chua) {
+      const sub = this.store.entities.find(
+        (e): e is SubstationEntity => e.kind === 'substation' && e.code === s.code,
+      );
+      const sheet = buildCadSheet(s.code, cadSheetName(s.code, sub?.name), sub?.id);
+      if (!sheet) continue;
+      sheet.cadCode = s.code;
+      this.store.addSheet(sheet);
+    }
+    for (const l of cadLayerNames()) this.store.ensureLayer(l);
+    this.refreshTabs();
+    this.refreshChrome();
+    toast(`Đã nạp ${chua.length} tờ sơ đồ. Chọn trang ở thanh thẻ phía trên bản vẽ.`);
+  }
+
+  /**
+   * Gán lại cấp điện áp theo LỚP CAD GỐC của trang đang mở.
+   *
+   * Vài tờ trong file CAD (Bắc Kạn, Yên Bình...) dùng tên lớp không có cấp điện áp
+   * ("DUONGCHINH", "LINE", "THANHCAI"...) nên khi nhập, phần mềm phải để mặc định.
+   * Bảng này cho sửa cả lớp một lần thay vì chọn từng đối tượng.
+   */
+  private showSrcLayerDialog(): void {
+    const groups = new Map<string, { n: number; kvs: Map<number, number> }>();
+    for (const e of this.store.entities) {
+      if (!e.srcLayer) continue;
+      let g = groups.get(e.srcLayer);
+      if (!g) {
+        g = { n: 0, kvs: new Map() };
+        groups.set(e.srcLayer, g);
+      }
+      g.n++;
+      g.kvs.set(e.kv, (g.kvs.get(e.kv) ?? 0) + 1);
+    }
+    if (!groups.size) {
+      toast('Trang này không có đối tượng nào nhập từ CAD.', 'warn');
+      return;
+    }
+
+    const changes = new Map<string, VoltageKv>();
+    const body = el('div', {});
+    body.append(
+      el('p', {
+        class: 'muted small',
+        text:
+          'Mỗi dòng là một lớp trong file CAD gốc. Chọn cấp điện áp đúng rồi bấm Áp dụng — ' +
+          'toàn bộ đối tượng thuộc lớp đó trong trang này sẽ đổi màu theo quy ước.',
+      }),
+    );
+    const t = el('table', { class: 'table' });
+    t.append(
+      el('thead', {}, [
+        el('tr', {}, [
+          el('th', { text: 'Lớp trong file CAD' }),
+          el('th', { text: 'Số đối tượng' }),
+          el('th', { text: 'Đang là' }),
+          el('th', { text: 'Đổi thành' }),
+          el('th', { text: '' }),
+        ]),
+      ]),
+    );
+    const tb = el('tbody');
+    for (const [name, g] of [...groups].sort((a, b) => b[1].n - a[1].n)) {
+      const cur = [...g.kvs.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      const pick = select(
+        [{ value: '', label: '(giữ nguyên)' }, ...allStyles().map((x) => ({ value: String(x.kv), label: x.name }))],
+        '',
+        (v) => {
+          if (v) changes.set(name, Number(v) as VoltageKv);
+          else changes.delete(name);
+        },
+      );
+      const sel = button('Chọn', () => {
+        close();
+        this.ed.select(
+          this.store.entities.filter((e) => e.srcLayer === name && e.kind !== 'node').map((e) => e.id),
+        );
+        this.refreshProps();
+      }, { title: 'Chọn toàn bộ đối tượng của lớp này trên bản vẽ' });
+      tb.append(
+        el('tr', {}, [
+          el('td', { text: name }),
+          el('td', { text: String(g.n) }),
+          el('td', { text: `${cur} kV` }),
+          el('td', {}, [pick]),
+          el('td', {}, [sel]),
+        ]),
+      );
+    }
+    t.append(tb);
+    body.append(el('div', { class: 'table-wrap' }, [t]));
+
+    const apply = button(
+      'Áp dụng',
+      () => {
+        if (!changes.size) {
+          close();
+          return;
+        }
+        let n = 0;
+        this.store.transact('Gán cấp điện áp theo lớp CAD', () => {
+          for (const e of this.store.entities) {
+            const kv = e.srcLayer ? changes.get(e.srcLayer) : undefined;
+            if (kv === undefined) continue;
+            n++;
+            this.store.update(e.id, (x: Entity) => {
+              x.kv = kv;
+              x.layer = allStyles().find((st) => st.kv === kv)?.layer ?? x.layer;
+            });
+          }
+        });
+        close();
+        this.refreshChrome();
+        toast(`Đã đổi cấp điện áp cho ${n} đối tượng.`);
+      },
+      { class: 'btn primary' },
+    );
+    const close = dialog('Gán cấp điện áp theo lớp CAD gốc', body, [button('Đóng', () => close()), apply]);
+  }
+
   private showTramTable(): void {
     const subs = this.store.entities.filter((e): e is SubstationEntity => e.kind === 'substation');
     subs.sort((a, b) => a.code.localeCompare(b.code, 'vi', { numeric: true }));
@@ -842,6 +1100,15 @@ export class App {
         <li><b>110kV — đỏ</b> · <b>35kV — vàng</b> · <b>22kV — xanh</b> (220kV tím, 10kV cam, 6kV lục, 0,4kV xám)</li>
         <li>Cáp ngầm vẽ nét đứt, ĐDK vẽ nét liền, thanh cái vẽ nét đậm.</li>
       </ul>
+      <h4>Xem sơ đồ nguyên lý bên trong trạm</h4>
+      <ol>
+        <li><b>Nhấn đúp chuột</b> vào khối trạm trên sơ đồ tỉnh — phần mềm mở trang sơ đồ
+            nguyên lý của trạm đó với đầy đủ thiết bị 110 / 35 / 22 / 6kV lấy từ file CAD.</li>
+        <li>Hoặc bấm nút <b>Sơ đồ</b> bên cạnh tên trạm trong bảng <b>Danh mục trạm</b>.</li>
+        <li>Hoặc vào <b>Dữ liệu → Mở sơ đồ nguyên lý trạm (từ CAD)…</b> để xem cả danh sách.</li>
+        <li>Chuyển qua lại giữa các trang bằng thanh thẻ phía trên vùng vẽ.</li>
+      </ol>
+
       <h4>Đưa sơ đồ trung áp từ CAD vào</h4>
       <ol>
         <li>Trong CAD mở bản vẽ lộ trung áp, dùng lệnh <b>SAVEAS</b> → chọn <b>AutoCAD ASCII DXF</b>.</li>

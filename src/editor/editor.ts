@@ -56,6 +56,8 @@ export interface EditorEvents {
   onStatus?: (msg: string) => void;
   onPrompt?: (msg: string) => void;
   onSelection?: (sel: Entity[]) => void;
+  /** Nhấn đúp chuột lên một đối tượng (dùng để mở sơ đồ trạm). */
+  onOpenEntity?: (e: Entity) => void;
 }
 
 interface Tool {
@@ -231,8 +233,11 @@ export class Editor {
     };
     let best: Entity | null = null;
     let bestKey = [99, Infinity];
-    for (const e of this.store.entities) {
+    // Loại nhanh bằng hộp bao đã lưu sẵn rồi mới tính khoảng cách chính xác,
+    // nếu không thì các tờ sơ đồ trạm hàng chục nghìn đối tượng sẽ rất chậm.
+    for (const { e, box } of this.renderer.visibleList()) {
       if (!this.store.isEditable(e)) continue;
+      if (w.x < box.minX - r || w.x > box.maxX + r || w.y < box.minY - r || w.y > box.maxY + r) continue;
       const d = distToEntity(this.store, e, w);
       if (d > r) continue;
       const key = [prio[e.kind], d];
@@ -246,9 +251,8 @@ export class Editor {
 
   private pickBox(box: Box, crossing: boolean): Entity[] {
     const out: Entity[] = [];
-    for (const e of this.store.entities) {
+    for (const { e, box: eb } of this.renderer.visibleList()) {
       if (!this.store.isEditable(e)) continue;
-      const eb = entityBox(this.store, e);
       if (crossing) {
         if (!boxIntersects(eb, box)) continue;
         let hit = boxInside(eb, box);
@@ -729,6 +733,7 @@ export class Editor {
         if (hit) {
           self.select([hit.id]);
           self.events.onSelection?.(self.selectedEntities());
+          self.events.onOpenEntity?.(hit);
         }
       },
       cancel() {

@@ -51,6 +51,8 @@ export interface EntityBase {
   kv: VoltageKv;
   /** Ghi chu tu do cua nguoi dung. */
   note?: string;
+  /** Ten lop goc trong file CAD (khi doi tuong duoc nhap tu DXF). */
+  srcLayer?: string;
 }
 
 /**
@@ -204,6 +206,8 @@ export interface Sheet {
   entities: Record<Id, Entity>;
   /** Neu la sheet tram, tro ve id tram tren so do tinh. */
   substationId?: Id;
+  /** Ma to so do trong bo du lieu CAD kem theo (neu trang duoc nap tu do). */
+  cadCode?: string;
 }
 
 export interface Drawing {

@@ -78,6 +78,10 @@ interface Dev {
   scale: number;
   block: string;
   layer: string;
+  /** Tên block gốc trong CAD - dùng để đoán cấp điện áp. */
+  cadName: string;
+  /** Trạng thái đóng/mở suy ra từ tên block ("22-DCL Mo" -> mở). */
+  state?: 'dong' | 'mo';
 }
 
 interface Flat {
@@ -157,10 +161,10 @@ export function kvFromLayer(layer: string): VoltageKv | null {
 
 /** Suy ra loai duong day tu ten lop (cap ngam / DDK / thanh cai). */
 export function lineKindFromLayer(layer: string): LineKind {
-  const s = layer.toLowerCase();
-  if (/thanh\s*c[aá]i|busbar|\btc\b/.test(s)) return 'Thanh cái';
-  if (/c[aá]p\s*ng[aâ]m|cable|ngam/.test(s)) return 'Cáp ngầm';
-  if (/v[aặ]n\s*xo[aắ]n|abc|axv/.test(s)) return 'Cáp vặn xoắn';
+  const s = layer.toLowerCase().replace(/\s+/g, '');
+  if (/thanhcai|thanhcái|busbar|^tc$|^tc[-_]/.test(s)) return 'Thanh cái';
+  if (/c[aá]png[aâ]m|cable|capngam|ngam/.test(s)) return 'Cáp ngầm';
+  if (/v[aặ]nxo[aắ]n|abc|axv/.test(s)) return 'Cáp vặn xoắn';
   return 'ĐDK';
 }
 
@@ -187,6 +191,22 @@ const BLOCK_RULES: [RegExp, string, 'dong' | 'mo' | undefined][] = [
   [/c[oộ]t/i, 'COT', undefined],
   [/[dđ][aầ]u\s*c[aá]p/i, 'DAUCAP', undefined],
 ];
+
+/**
+ * Đoán cấp điện áp từ TÊN BLOCK.
+ *
+ * Trong bản vẽ của Phòng Điều độ, tên block luôn mang tiền tố cấp điện áp
+ * ("110-MC", "35-DCL", "22-MCHB", "MBA 110-35-22", "MC cơ 22", "TUC 110"...),
+ * nên đây là căn cứ tin cậy hơn nhiều so với tên lớp của đối tượng chèn:
+ * cùng một máy cắt 110kV có thể được chèn trên lớp bất kỳ tuỳ người vẽ.
+ */
+export function kvFromBlockName(name: string): VoltageKv | null {
+  const m = name.match(/(?:^|[^0-9.,])(500|220|110|35|22|10|6|0[.,]4)(?![0-9])/);
+  if (!m) return null;
+  const v = m[1].replace(',', '.');
+  const kv = Number(v);
+  return ([500, 220, 110, 35, 22, 10, 6, 0.4] as number[]).includes(kv) ? (kv as VoltageKv) : null;
+}
 
 export function blockFromName(name: string): { block: string; state?: 'dong' | 'mo' } | null {
   for (const [re, block, state] of BLOCK_RULES) {
@@ -338,6 +358,8 @@ function flatten(recs: Rec[]): Flat {
               scale: Math.abs(world.sx),
               block: known.block,
               layer,
+              cadName: name,
+              state: known.state,
             });
             break;
           }
@@ -492,6 +514,7 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
       kv,
       nodes: nodeIds,
       lineKind,
+      srcLayer: ch.layer,
       note: `Nhập từ DXF - lớp "${ch.layer}"`,
     };
     entities.push(b);
@@ -500,7 +523,8 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
   for (const d of flat.devices) {
     if (!keep(d.layer)) continue;
     layerSet.add(d.layer);
-    const kv = kvFromLayer(d.layer) ?? opt.defaultKv;
+    // Tên block đáng tin hơn tên lớp -> ưu tiên trước
+    const kv = kvFromBlockName(d.cadName) ?? kvFromLayer(d.layer) ?? opt.defaultKv;
     const p = tx(d.p);
     growBox(box, p);
     const dev: DeviceEntity = {
@@ -512,7 +536,8 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
       p,
       rot: d.rot,
       scale: Math.max(0.05, d.scale * opt.scale * 18.669),
-      state: 'dong',
+      state: d.state ?? 'dong',
+      srcLayer: d.layer,
       note: `Nhập từ DXF - lớp "${d.layer}"`,
     };
     entities.push(dev);
@@ -535,6 +560,7 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
         height: Math.max(0.05, t.h * opt.scale),
         rot: t.rot,
         align: 'left',
+        srcLayer: t.layer,
       };
       entities.push(te);
     }
