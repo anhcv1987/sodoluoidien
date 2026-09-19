@@ -230,19 +230,75 @@ lề trái 20mm để đóng tập, ba lề còn lại 10mm, khung tên ở góc
 tên đơn vị, Phòng Điều độ, tên bản vẽ và ngày lập. Khung nằm trên lớp riêng
 **"Khung bản vẽ"**, tắt/bật được trong bảng Lớp và xuất sang DXF cùng bản vẽ.
 
+### Ký hiệu đặt theo đúng block trong bản CAD
+
+Vị trí, cỡ và hướng của mỗi ký hiệu được suy từ **chính block trong file CAD**
+(hộp bao hình học và điểm chèn của nó), không lấy theo ký hiệu mẫu dựng sẵn. Phải
+làm vậy vì bản vẽ dùng nhiều biến thể của cùng một thiết bị:
+
+| Thiết bị | Biến thể trong CAD | Khác nhau |
+|---|---|---|
+| Dao tiếp địa | `110-Tiep Dia` / `22-Tiep dia` / `6-Tiep dia` | dài 19,4 / 16,8 / 21,3 đơn vị |
+| Chống sét van | `110-CSV` / `35-CSV` | nằm ngang / nằm dọc |
+| Máy cắt | `110-MC` / `6-MC` | ký hiệu ở dưới / ở trên điểm chèn |
+| TU thanh cái | `110-TUC` / `22-TUC` | có chống kết điện dung / chỉ ba cuộn dây |
+
+Nhờ vậy dao tiếp địa `-76`, `-24B` bám đúng vào đường dây thay vì lệch đi vài đơn
+vị, chống sét van 35kV xoay đúng chiều, và TU tụ `TUC62B` ở E6.9 không còn vẽ ngược.
+Góc quay suy ra được làm tròn về bội số 90°; lệch quá 25° thì quay về góc chuẩn hoá
+của ký hiệu mẫu.
+
 ### Ký hiệu vẽ bằng nét rời được thay bằng block
 
-9/25 trạm trong bản vẽ gốc (E26.1 Bắc Kạn, E6.17 Phú Bình, E26.2 Chợ Đồn,
-E26.3 Nà Phặc, E6.20 Lưu Xá 220, E6.13 Yên Bình, E6.23, E6.14, E6.18) không dùng
+9/25 trạm trong bản vẽ gốc (E26.1 Bắc Kạn, E26.2 Chợ Đồn, E26.3 Nà Phặc,
+E6.17 Phú Bình, E6.20 Lưu Xá 220, E6.13 Yên Bình, E6.23, E6.14, E6.18) không dùng
 block mà vẽ thẳng bằng LINE/CIRCLE. Phần mềm dò hình rồi thay bằng block:
 
-* **Máy cắt** — bốn đoạn khép kín thành hình chữ nhật, hai cạnh ngắn có dây nối
-  (ví dụ MC 472 E6.13): **377 cái** được thay.
-* **Biến dòng TI** — vòng tròn nhỏ nằm trên đường dây: **800 cái**.
+* **Máy cắt** — bốn đoạn khép kín thành hình chữ nhật, hai cạnh ngắn có dây nối.
+* **Biến dòng TI** — vòng tròn đơn lẻ nằm trên đường dây (loại cụm vòng tròn chồng
+  nhau vì đó là cuộn dây TU/TUC/máy biến áp).
+* **Dao cách ly** — khe hở TRỐNG trên đường dây + lưỡi dao chéo ở một mép khe.
+* **Dao tiếp địa** — ba vạch song song ngắn dần (ký hiệu đất) + cần + lưỡi dao.
 
-Dao cách ly và dao tiếp địa vẽ tay mỗi nơi một tỷ lệ nên quy về block sẽ sai cỡ
-và lệch chỗ; hai dạng này để **tắt** (bật được trong `macDinhNhanDang()` của
-`src/io/nhanDangBlock.ts` nếu muốn thử).
+Trước khi dò hình, các nét **thẳng hàng** nối tiếp nhau được gộp lại: ở E26.1 mỗi
+vạch của ký hiệu đất vẽ thành hai nửa trên/dưới trục nên không gộp thì không nhận
+ra vạch nào. Dao nhận ra từ lưỡi chéo thì mang trạng thái **mở** đúng như hình vẽ.
+
+Riêng E26.1 Bắc Kạn: **26 máy cắt, 33 dao cách ly, 68 dao tiếp địa, 14 TI** — trước
+đây dao tiếp địa và TI không nhận được cái nào.
+
+### Liên kết điện và chiều công suất
+
+Phần mềm dựng sẵn mô hình **liên kết điện** giữa các đối tượng (xem
+`src/core/lienket.ts`), làm nền cho việc hiện chiều công suất 110kV → máy biến áp →
+trung áp sau này:
+
+1. **Nút điện.** Một tuyến dây / thanh cái là vật dẫn liền mạch nên mọi đỉnh của nó
+   là một nút; hai tuyến chạm nhau (kể cả rẽ nhánh chữ T vào giữa thanh cái) nhập
+   làm một nút.
+2. **Cực thiết bị.** Mỗi ký hiệu có các cực ghi trong thư viện block: thiết bị nối
+   tiếp hai cực ở hai đầu trục, thiết bị đấu rẽ xuống đất một cực tại điểm chèn,
+   máy biến áp hai hoặc ba cực tại tâm các cuộn dây. Cực được quay - lật - phóng
+   theo thiết bị rồi bắt vào tuyến gần nhất.
+3. **Mạch.** Nhập các nút nối thông qua thiết bị **đang đóng**. Máy biến áp không
+   nhập chung (hai phía khác cấp điện áp) mà ghi thành "cầu nối qua máy biến áp".
+
+Dùng trong phần mềm:
+
+| Lệnh | Tác dụng |
+|---|---|
+| Chọn một đối tượng rồi **Shift+M** | Tô sáng toàn bộ mạch nối thông với nó |
+| **Dữ liệu → Tô sáng cả chuỗi 110kV - MBA - trung áp** | Như trên nhưng đi xuyên máy biến áp |
+| **Dữ liệu → Kiểm tra liên kết điện…** | Bảng thống kê + chọn nhanh thiết bị chưa đấu vào lưới |
+
+Trên tờ sơ đồ kết dây hiện có: **1.551 nút điện, 861 mạch rời nhau, 98 cầu nối qua
+máy biến áp**; 3.975/4.028 thiết bị (98,7%) đã đấu được vào lưới. Dựng mô hình mất
+khoảng 0,25 giây.
+
+Bước tiếp theo để hiện chiều công suất: đánh dấu ngăn lộ nguồn (110/220kV), duyệt
+cây từ nguồn đi ra - lưới trung áp vận hành hình tia nên chiều công suất trên mỗi
+nhánh chính là chiều đi xa dần nguồn - rồi vẽ mũi tên trên tuyến. Khi có số liệu
+P, Q từ SCADA thì chỉ cần gán thêm trị số vào từng nhánh.
 
 ### Dựng lại bộ dữ liệu từ file CAD mới
 
@@ -318,7 +374,8 @@ mở lại. Vẫn nên lưu ra file `.sld` để giữ lâu dài và chia sẻ.
 src/
 ├── core/        types.ts (mô hình dữ liệu) · doc.ts (kho dữ liệu + Undo/Redo)
 │                voltage.ts (quy ước màu) · geom.ts (hình học)
-├── symbols/     prims.ts (nguyên thuỷ hình học) · blocks.ts (22 ký hiệu thiết bị)
+│                lienket.ts (nút điện - cực thiết bị - mạch, nền cho chiều công suất)
+├── symbols/     prims.ts (nguyên thuỷ hình học) · blocks.ts (23 ký hiệu thiết bị)
 ├── data/        geo.ts (phép chiếu, ranh giới, địa danh)
 │                grid110.ts (danh mục trạm + đường dây + mã hiệu dây)
 │                seed.ts (dựng bản vẽ mặc định)
@@ -347,3 +404,7 @@ Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và s�
 * Rà lại vài chỗ lẻ còn suy sai cấp điện áp (chạy `node tools/kiem-cap-dien-ap.mjs`)
   — sửa bằng công cụ ở mục 6.
 * Nhập lần lượt các sơ đồ lộ trung áp rời rạc và đấu nối về trạm 110kV tương ứng.
+* Hiện **chiều công suất** trên sơ đồ: đánh dấu ngăn lộ nguồn, duyệt cây từ nguồn
+  rồi vẽ mũi tên (mô hình liên kết điện đã có, xem mục 6).
+* Đấu nốt 53 thiết bị còn lơ lửng (`Dữ liệu → Kiểm tra liên kết điện…` để xem danh
+  sách) - phần lớn là chống sét van và TU vẽ tách rời đường dây trong bản CAD gốc.

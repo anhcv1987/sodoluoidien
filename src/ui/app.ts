@@ -14,6 +14,7 @@ import type { Entity, SubstationEntity, VoltageKv } from '../core/types';
 import { allStyles, colorOf } from '../core/voltage';
 import { exportDxf, exportSvg } from '../io/dxfExport';
 import { defaultImportOptions, importDxf, inspectDxf } from '../io/dxfImport';
+import { cungMach, daoCua, dungMangDien, type MangDien } from '../core/lienket';
 import {
   BUILD_ID,
   autosave,
@@ -194,6 +195,10 @@ export class App {
         ['Mở tờ bản vẽ khác từ CAD…', () => this.showCadSheetList()],
         ['—', () => undefined],
         ['Gán cấp điện áp theo lớp CAD gốc…', () => this.showSrcLayerDialog()],
+        ['—', () => undefined],
+        ['Tô sáng mạch điện của đối tượng đang chọn (Shift+M)', () => this.toSangMach(false)],
+        ['Tô sáng cả chuỗi 110kV - MBA - trung áp', () => this.toSangMach(true)],
+        ['Kiểm tra liên kết điện…', () => this.kiemTraLienKet()],
         ['—', () => undefined],
         ['Bảng trạm 110/220kV', () => this.showTramTable()],
         ['Bảng đường dây', () => this.showLineTable()],
@@ -520,7 +525,12 @@ export class App {
       this.saveFile();
       return;
     }
-    if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'm') {
+      e.preventDefault();
+      this.toSangMach(false);
+      return;
+    }
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
       const tool = TOOLS.find((x) => x.key.toLowerCase() === e.key.toLowerCase());
       if (tool) {
         this.ed.setTool(tool.id);
@@ -541,6 +551,77 @@ export class App {
    * Xoá bản vẽ lưu tạm trong trình duyệt rồi tải lại.
    * Dùng khi vừa chép phiên bản phần mềm mới về mà vẫn thấy dữ liệu cũ.
    */
+  /** Mô hình liên kết điện của tờ đang mở (dựng lại khi bản vẽ đổi). */
+  private mang?: { sheet: string; rev: number; m: MangDien };
+
+  private mangDien(): MangDien {
+    const rev = this.store.entities.length;
+    const key = this.store.sheet.id;
+    if (this.mang && this.mang.sheet === key && this.mang.rev === rev) return this.mang.m;
+    const m = dungMangDien(this.store.entities, (id) => {
+      const e = this.store.get(id);
+      return e && 'p' in e ? (e.p as { x: number; y: number }) : undefined;
+    });
+    this.mang = { sheet: key, rev, m };
+    return m;
+  }
+
+  /** Tô sáng toàn bộ đối tượng nối thông với đối tượng đang chọn. */
+  private toSangMach(quaMBA: boolean): void {
+    const goc = this.ed.selectedEntities()[0];
+    if (!goc) {
+      this.setMsg('Hãy chọn một thiết bị hoặc đoạn dây trước.');
+      return;
+    }
+    const m = this.mangDien();
+    const ids = cungMach(this.store.entities, m, goc, quaMBA);
+    if (!ids.length) {
+      this.setMsg('Đối tượng này chưa đấu vào lưới nào.');
+      return;
+    }
+    this.ed.select(ids);
+    this.ed.requestDraw();
+    this.setMsg(
+      `Mạch ${(daoCua(m, goc) ?? 0) + 1}: ${ids.length} đối tượng nối thông` +
+        (quaMBA ? ' (đã đi xuyên máy biến áp)' : ' qua các thiết bị đang đóng'),
+    );
+  }
+
+  /** Bảng kiểm tra liên kết điện - dùng để rà soát sau khi nhập từ CAD. */
+  private kiemTraLienKet(): void {
+    const m = this.mangDien();
+    const tb = this.store.entities.filter((e) => e.kind === 'device').length;
+    const row = (a: string, b: string): string =>
+      `<tr><td style="padding:2px 12px 2px 0">${a}</td><td><b>${b}</b></td></tr>`;
+    const ds = m.chuaNoi
+      .slice(0, 40)
+      .map((id) => {
+        const e = this.store.get(id);
+        return e && e.kind === 'device' ? `${e.block}${e.label ? ' ' + e.label : ''}` : id;
+      })
+      .join(', ');
+    const body = el('div', { class: 'help' });
+    body.innerHTML =
+      `<table>${row('Số nút điện (điểm đẳng thế)', String(m.soNut))}` +
+      `${row('Số mạch rời nhau (qua thiết bị đang đóng)', String(m.soDao))}` +
+      `${row('Cầu nối qua máy biến áp', String(m.cauMBA.length))}` +
+      `${row('Thiết bị', String(tb))}` +
+      `${row('Thiết bị đã đấu vào lưới', String(tb - m.chuaNoi.length))}` +
+      `${row('Thiết bị CHƯA đấu vào lưới', String(m.chuaNoi.length))}` +
+      `${row('Thiết bị đấu thiếu một cực', String(m.noiThieu.length))}</table>` +
+      (ds ? `<p style="margin-top:8px">Chưa đấu: ${ds}${m.chuaNoi.length > 40 ? '…' : ''}</p>` : '') +
+      '<p style="margin-top:8px">Chọn một thiết bị rồi bấm <b>Shift+M</b> để tô sáng toàn bộ mạch nối thông ' +
+      'với nó. Đây là nền để sau này hiện chiều công suất 110kV - máy biến áp - trung áp.</p>';
+    const dong = dialog('Kiểm tra liên kết điện', body, [
+      button('Chọn hết thiết bị chưa đấu', () => {
+        this.ed.select(m.chuaNoi);
+        this.ed.requestDraw();
+        dong();
+      }),
+      button('Đóng', () => dong()),
+    ]);
+  }
+
   private resetLocal(): void {
     if (
       !confirm(

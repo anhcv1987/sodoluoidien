@@ -40,6 +40,13 @@ export interface BlockDef {
   origin: [number, number];
   /** Kich thuoc hop bao cua ky hieu (don vi block): [rong, cao]. */
   bbox: [number, number];
+  /**
+   * CAC CUC DAU NOI cua thiet bi, theo he toa do block (chua quay, chua phong).
+   * Thiet bi noi tiep co hai cuc o hai dau truc; thiet bi dau re nhanh xuong dat
+   * (dao tiep dia, chong set van, TU...) chi co mot cuc tai diem chen; may bien
+   * ap co hai hoac ba cuc theo so cuon day.
+   */
+  cuc: [number, number][];
   /** Co to dac khi dang dong hay khong (may cat). */
   fillWhenClosed?: boolean;
   /** Nguon goc hinh ve. */
@@ -293,6 +300,7 @@ function make(
     open?: Prim[];
     openRot?: number;
     fillWhenClosed?: boolean;
+    cuc?: [number, number][];
     source: string;
   },
 ): BlockDef {
@@ -310,6 +318,14 @@ function make(
     normRot: opts.rot ?? 0,
     origin: norm.origin,
     bbox: [Math.max(1e-6, b.maxX - b.minX), Math.max(1e-6, b.maxY - b.minY)],
+    cuc:
+      opts.cuc ??
+      ((opts.inline ?? true)
+        ? ([
+            [0, b.maxY],
+            [0, b.minY],
+          ] as [number, number][])
+        : ([norm.origin] as [number, number][])),
     source: opts.source,
   };
   if (opts.fillWhenClosed) def.fillWhenClosed = true;
@@ -391,9 +407,21 @@ export const BLOCKS: BlockDef[] = [
 
   /* ----------------------- May bien ap - Bu ------------------------ */
   make('MBA3', 'MBA 3 cuộn dây (110/35/22)', 'MBA', 'Máy biến áp - Bù', CAD_MBA3, {
+    // Ba cực ứng với TÂM ba cuộn dây: cuộn trên (110kV), cuộn phải (35kV), cuộn
+    // dưới (22kV). Bản vẽ CAD kéo đường dây vào tận tâm vòng tròn cuộn dây, nên
+    // lấy tâm chứ không lấy mép.
+    cuc: [
+      [-0.736, 0.919],
+      [0.736, 0.355],
+      [-0.704, -0.919],
+    ],
     source: 'CAD: block "MBA 110-35-22"',
   }),
   make('MBA2', 'MBA 2 cuộn dây', 'MBA', 'Máy biến áp - Bù', CAD_MBA2, {
+    cuc: [
+      [0, 0.919],
+      [0, -0.919],
+    ],
     source: 'Theo tỷ lệ block "MBA 110-35-22"',
   }),
   make('MBAPP', 'MBA phân phối', 'MBA', 'Máy biến áp - Bù', CAD_MBAPP, {

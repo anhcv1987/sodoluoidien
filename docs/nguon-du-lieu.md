@@ -132,6 +132,28 @@ E6.25  171→E6.16, 171→E6.18
 (`src/io/dxfImport.ts`, gói bằng esbuild) để chuyển sang đối tượng bản vẽ, rồi nén
 lại thành `src/data/tram-sld.json` (1,1 MB cho 25.387 đối tượng).
 
+## 5.1b Vị trí - cỡ - hướng ký hiệu
+
+Lấy theo **hộp bao hình học và điểm chèn của chính block trong file CAD**, không
+theo ký hiệu mẫu dựng sẵn trong phần mềm. Bản vẽ dùng nhiều biến thể của cùng một
+thiết bị nên nếu áp một ký hiệu mẫu cho tất cả thì sai vị trí và sai cỡ:
+
+| Thiết bị | Biến thể | Hộp bao (rộng x cao) | Tâm so với điểm chèn |
+|---|---|---|---|
+| Dao tiếp địa | `110-Tiep Dia` | 19,4 x 5,1 | (-5,5; 0) |
+| | `22-Tiep dia` | 16,8 x 6,6 | (-8,4; 0) |
+| | `6-Tiep dia` / `35-Tiep dia` | 21,3 x 7,1 | (-10,7; 0) |
+| Chống sét van | `110-CSV` | 15,5 x 4,9 | (-4,0; -0,4) — nằm ngang |
+| | `35-CSV` | 11,1 x 51,8 | (0; -24,3) — nằm dọc |
+| Máy cắt | `110-MC` | 12,3 x 18,7 | (0; -9,3) — dưới điểm chèn |
+| | `6-MC` / `35-MC` | 9,6 x 25,5 | (0; +12,8) — trên điểm chèn |
+| TU thanh cái | `110-TUC` | 36,4 x 38,2 | có chống kết điện dung |
+| | `6/22/35-TUC` | 18,4 x 19,1 | chỉ ba cuộn dây |
+
+Góc quay suy từ véc-tơ "điểm chèn → tâm hình" của block CAD so với véc-tơ tương
+ứng của ký hiệu mẫu, rồi làm tròn về bội số 90°; lệch quá 25° (ký hiệu lật gương
+như `110-TUC1`, `TUC 110`) thì giữ góc chuẩn hoá của ký hiệu mẫu.
+
 ## 5.2 Quy tắc phân loại cấp điện áp
 
 | Đối tượng | Căn cứ | Độ tin cậy |

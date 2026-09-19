@@ -445,7 +445,10 @@ export function nhanDangBlock(
       block: 'DTD',
       state: 'mo',
       p: add(tamSeg[i1], mul(d, (L_DTD_CHEN / L_DTD) * L)),
-      rot: degOf(d),
+      // Trục của ký hiệu trong thư viện hướng +Y, còn `d` là hướng từ đất ra tiếp
+      // điểm trong toạ độ bản vẽ -> phải trừ 90 độ, nếu không dao tiếp địa sẽ
+      // nằm vuông góc với thực tế và không bắt được vào đường dây.
+      rot: degOf(d) - 90,
       scale: (L / L_DTD) * 18.669,
       mirror: cross(d, sub(dinhLuoi, dauCan)) < 0,
       layer: segs[i1].layer,
