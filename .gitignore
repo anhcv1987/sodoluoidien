@@ -1,0 +1,5 @@
+node_modules/
+.vite/
+*.log
+smoke.png
+anh-kiem-thu.png

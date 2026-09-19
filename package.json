@@ -1,0 +1,19 @@
+{
+  "name": "sodoluoidien",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Phan mem ve so do nguyen ly mot soi luoi dien tinh Thai Nguyen (sau sap nhap) - PC Thai Nguyen / EVNNPC",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vite-plugin-singlefile": "^2.0.3"
+  }
+}
