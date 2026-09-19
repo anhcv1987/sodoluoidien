@@ -109,9 +109,13 @@ export function deserialize(text: string): Drawing {
 
 const LS_KEY = 'sodoluoidien.autosave.v1';
 
+/** Ma phien ban cua ban build hien tai (Vite thay the khi dong goi). */
+export const BUILD_ID: string =
+  typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev';
+
 export function autosave(d: Drawing): boolean {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify(d));
+    localStorage.setItem(LS_KEY, JSON.stringify({ build: BUILD_ID, drawing: d }));
     return true;
   } catch {
     // Het dung luong localStorage (ban ve qua lon) - khong pha vo phien lam viec.
@@ -119,12 +123,27 @@ export function autosave(d: Drawing): boolean {
   }
 }
 
+/**
+ * Doc ban ve luu tam cua LAN LAM VIEC TRUOC.
+ *
+ * Chi khoi phuc khi ban luu tam do CHINH phien ban dang chay tao ra. Neu nguoi
+ * dung chep file phan mem moi ve may, ban luu tam cu van nam trong trinh duyet
+ * va se de len du lieu moi - dung la hien tuong "mo len van thay ban cu, phai
+ * mo cua so an danh moi thay ban moi".
+ */
 export function loadAutosave(): Drawing | null {
   try {
     const s = localStorage.getItem(LS_KEY);
     if (!s) return null;
-    return deserialize(s);
+    const o = JSON.parse(s) as { build?: string; drawing?: Drawing };
+    if (!o || typeof o !== 'object' || !o.drawing || o.build !== BUILD_ID) {
+      // Ban luu tam cua phien ban khac -> bo di de khong che mat du lieu moi
+      clearAutosave();
+      return null;
+    }
+    return deserialize(JSON.stringify(o.drawing));
   } catch {
+    clearAutosave();
     return null;
   }
 }

@@ -239,8 +239,20 @@ export function nhanDangBlock(
 
   circles.forEach((c, i) => {
     if (!chon.ti) return;
-    if (c.r < 0.4 || c.r > 6) return;
+    // Vòng tròn của TI trong bản vẽ chỉ khoảng 1,5-2,5 đơn vị và RỖNG.
+    // Vòng tròn to hơn, hoặc có nét vẽ bên trong (tụ bù, TU, máy biến áp,
+    // thiết bị bù) thì không phải TI - giữ nguyên là hình tròn.
+    if (c.r < 0.4 || c.r > 3.5) return;
     if (!mut.quanh(c.c, Math.max(c.r * 3.5, hut * 4)).length) return;
+    // Đoạn dây đi XUYÊN QUA vòng tròn là bình thường; nhưng đoạn nằm GỌN bên
+    // trong (nét chữ thập của tụ bù, nét cuộn dây của TU) thì đây không phải TI.
+    const trongLong = mut
+      .quanh(c.c, c.r * 0.9)
+      .some((e) => {
+        const s2 = segs[e.v];
+        return len(s2.a, c.c) < c.r * 0.9 && len(s2.b, c.c) < c.r * 0.9;
+      });
+    if (trongLong) return;
     boCircle.add(i);
     devices.push({
       block: 'TI',

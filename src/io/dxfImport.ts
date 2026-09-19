@@ -184,11 +184,14 @@ const BLOCK_RULES: [RegExp, string, 'dong' | 'mo' | undefined][] = [
   [/mba.*ph[aâ]n\s*ph[oố]i|mba\s*\d+\s*-\s*0[.,]4/i, 'MBAPP', undefined],
   [/mba\s*\d+\s*-\s*\d+\s*-\s*\d+|at\b/i, 'MBA3', undefined],
   [/mba/i, 'MBA2', undefined],
+  // Tu bu phai xet TRUOC bien dien ap, neu khong "35-Tu Bu" se bi nhan thanh TU.
+  // Khong dung \b vi ky tu tieng Viet co dau khong phai ky tu tu (word char),
+  // nen "Tụ 22" se khong khop \b nhu mong doi.
+  [/(^|[^a-z])t[uụ]\s*b[uù]|(^|[^a-z])tb([^a-z]|$)|(^|[^a-z])t[uụ]\s+\d/i, 'TUBU', undefined],
   [/tuc/i, 'TUC', undefined],
-  [/\btu\b|tu\d|bi[eế]n\s*[dđ]i[eệ]n\s*[aá]p/i, 'TU', undefined],
-  [/\bti\b|ti\d|bi[eế]n\s*d[oò]ng/i, 'TI', undefined],
+  [/(^|[^a-z])tu([^a-z]|$)|tu\d|bi[eế]n\s*[dđ]i[eệ]n\s*[aá]p/i, 'TU', undefined],
+  [/(^|[^a-z])ti([^a-z]|$)|ti\d|bi[eế]n\s*d[oò]ng/i, 'TI', undefined],
   [/kh[aá]ng/i, 'KHANG', undefined],
-  [/t[uụ]\s*b[uù]|^t[uụ]\b/i, 'TUBU', undefined],
   [/svc/i, 'SVC', undefined],
   [/b[ộo]\s*[dđ]o\s*[dđ][eế]m|bdd/i, 'BDD', undefined],
   [/c[oộ]t/i, 'COT', undefined],
@@ -258,9 +261,268 @@ export function kvFromDesignation(text: string): VoltageKv | null {
   if (m) return KV_THEO_CHU_SO_DAU[m[1]] ?? null;
 
   // Ngăn lộ / thiết bị: 171, 171-7, 431-15, TU171, TI131, MC 371, CS-1T1…
-  m = s.match(/^(?:TU|TI|TUC|MC|DCL|DTD|LBS|REC|R|CC|CS)?[-\s]?([1-9])\d{2}(?:[-\s]?\d{1,2})?$/i);
+  m = s.match(/^(?:TUC|TU|TI|MC|DCL|DTD|LBS|REC|TBN|TB|KH|FCO|LTD|CD|CC|CS|AT|R|T)?[-\s]?([1-9])\d{2}(?:[-\s]?\d{1,2})?$/i);
   if (m) return KV_THEO_CHU_SO_DAU[m[1]] ?? null;
   return null;
+}
+
+/**
+ * XÁC ĐỊNH CẤP ĐIỆN ÁP CHO TỪNG TUYẾN TRONG BẢN VẼ.
+ *
+ * Bản vẽ CAD gốc đặt lớp (layer) không phải lúc nào cũng đúng: có ngăn lộ 22kV
+ * lại vẽ trên lớp "35-DZ 35", có block cầu chì 35kV lại chèn vào lớp 22kV. Căn cứ
+ * đáng tin cậy nhất là KÝ HIỆU THIẾT BỊ theo Thông tư 06/2025/TT-BCT: chữ số đầu
+ * của tên ngăn lộ cho biết cấp điện áp (1xx = 110kV, 3xx = 35kV, 4xx = 22kV...).
+ *
+ * Cách làm:
+ *   1. Gom các đoạn đường dây nối liền nhau thành từng "mảng" (ngăn lộ, thanh cái).
+ *      Các đoạn bị ký hiệu thiết bị (máy cắt, dao cách ly...) cắt rời vẫn được nối
+ *      lại qua chính block thiết bị đó - trừ máy biến áp vì nó nối hai cấp khác nhau.
+ *   2. Mỗi nhãn ngăn lộ (471, C43, CS-1T1...) bỏ phiếu cho mảng gần nó nhất.
+ *   3. Mảng nào có phiếu thì lấy cấp điện áp theo đa số phiếu; không có phiếu thì
+ *      mới lấy theo tên lớp.
+ */
+function capDienApTuyen(
+  chains: { pts: Pt[]; layer: string }[],
+  flat: Flat,
+  span: number,
+  opt: ImportOptions,
+): (VoltageKv | null)[] {
+  const n = chains.length;
+  const kvLop = chains.map((c) => kvFromLayer(c.layer));
+  if (!opt.inferKv) return kvLop;
+
+  /* --- 1. Gom mảng --- */
+  const cha = new Int32Array(n);
+  for (let i = 0; i < n; i++) cha[i] = i;
+  const tim = (x: number): number => {
+    let r = x;
+    while (cha[r] !== r) r = cha[r];
+    while (cha[x] !== r) {
+      const t = cha[x];
+      cha[x] = r;
+      x = t;
+    }
+    return r;
+  };
+  const canh: [number, number][] = [];
+  const hop = (x: number, y: number): void => {
+    if (x !== y) canh.push([x, y]);
+    const a = tim(x);
+    const b = tim(y);
+    if (a !== b) cha[a] = b;
+  };
+
+  // Nối theo đầu mút trùng nhau
+  const oDiem = Math.max(span * 1e-5, 1e-9);
+  const bang = new Map<string, number>();
+  for (let i = 0; i < n; i++) {
+    for (const q of chains[i].pts) {
+      const gx = Math.round(q.x / oDiem);
+      const gy = Math.round(q.y / oDiem);
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const k = `${gx + dx}|${gy + dy}`;
+          const v = bang.get(k);
+          if (v !== undefined) hop(i, v);
+        }
+      }
+      bang.set(`${gx}|${gy}`, i);
+    }
+  }
+
+  // Nối qua ký hiệu thiết bị (máy cắt, dao cách ly... cắt đôi đường dây).
+  // Máy biến áp / tự ngẫu thì KHÔNG nối vì hai phía khác cấp điện áp.
+  /* Nối chữ T: đầu một tuyến chạm vào GIỮA tuyến khác (rẽ nhánh từ thanh cái,
+     đấu nối vào đường trục...). Về điện thì chỗ chạm nhau luôn cùng một cấp. */
+  const oNhanh = Math.max(span / 400, 1e-6);
+  const luoiNhanh = new Map<string, { a: Pt; b: Pt; i: number }[]>();
+  const themNhanh = (a: Pt, b: Pt, i: number): void => {
+    const i0 = Math.floor(Math.min(a.x, b.x) / oNhanh);
+    const i1 = Math.floor(Math.max(a.x, b.x) / oNhanh);
+    const j0 = Math.floor(Math.min(a.y, b.y) / oNhanh);
+    const j1 = Math.floor(Math.max(a.y, b.y) / oNhanh);
+    if ((i1 - i0 + 1) * (j1 - j0 + 1) > 400) return;
+    for (let u = i0; u <= i1; u++) {
+      for (let v = j0; v <= j1; v++) {
+        const k = `${u}|${v}`;
+        const arr = luoiNhanh.get(k);
+        if (arr) arr.push({ a, b, i });
+        else luoiNhanh.set(k, [{ a, b, i }]);
+      }
+    }
+  };
+  for (let i = 0; i < n; i++) {
+    const pts = chains[i].pts;
+    for (let j = 1; j < pts.length; j++) themNhanh(pts[j - 1], pts[j], i);
+  }
+  const saiSoNhanh = Math.max(span * 1e-5, 1e-9);
+  for (let i = 0; i < n; i++) {
+    const pts = chains[i].pts;
+    if (pts.length < 2) continue;
+    for (const q of [pts[0], pts[pts.length - 1]]) {
+      const cx = Math.floor(q.x / oNhanh);
+      const cy = Math.floor(q.y / oNhanh);
+      for (let u = cx - 1; u <= cx + 1; u++) {
+        for (let v = cy - 1; v <= cy + 1; v++) {
+          for (const sgm of luoiNhanh.get(`${u}|${v}`) ?? []) {
+            if (sgm.i === i) continue;
+            if (khoangCachDoan(q, sgm.a, sgm.b) <= saiSoNhanh) hop(i, sgm.i);
+          }
+        }
+      }
+    }
+  }
+
+  /* --- 2. Nhãn ngăn lộ bỏ phiếu cho mảng gần nhất --- */
+  const oDay = Math.max(span / 200, 1e-6);
+  const luoiDoan = new Map<string, { a: Pt; b: Pt; i: number }[]>();
+  for (let i = 0; i < n; i++) {
+    const pts = chains[i].pts;
+    for (let j = 1; j < pts.length; j++) {
+      const a = pts[j - 1];
+      const b = pts[j];
+      const i0 = Math.floor(Math.min(a.x, b.x) / oDay);
+      const i1 = Math.floor(Math.max(a.x, b.x) / oDay);
+      const j0 = Math.floor(Math.min(a.y, b.y) / oDay);
+      const j1 = Math.floor(Math.max(a.y, b.y) / oDay);
+      if ((i1 - i0 + 1) * (j1 - j0 + 1) > 400) continue;
+      for (let u = i0; u <= i1; u++) {
+        for (let v = j0; v <= j1; v++) {
+          const k = `${u}|${v}`;
+          const arr = luoiDoan.get(k);
+          if (arr) arr.push({ a, b, i });
+          else luoiDoan.set(k, [{ a, b, i }]);
+        }
+      }
+    }
+  }
+  /**
+   * Tuyến gần điểm `p` nhất trong bán kính `r`. Nếu trong tầm có tuyến mà tên lớp
+   * đã nói đúng cấp `kvUu` thì ưu tiên tuyến đó - nhãn của ngăn lộ nào thì thường
+   * nằm cạnh đúng ngăn lộ đó, tránh bắt nhầm sang dây khác chạy sát bên.
+   */
+  const tuyenGanNhat = (p: Pt, r: number, kvUu?: VoltageKv): number => {
+    let best = -1;
+    let bd = r;
+    let bestUu = -1;
+    let bdUu = r;
+    const m = Math.max(1, Math.ceil(r / oDay));
+    const cx = Math.floor(p.x / oDay);
+    const cy = Math.floor(p.y / oDay);
+    for (let i = cx - m; i <= cx + m; i++) {
+      for (let j = cy - m; j <= cy + m; j++) {
+        for (const sgm of luoiDoan.get(`${i}|${j}`) ?? []) {
+          const d = khoangCachDoan(p, sgm.a, sgm.b);
+          if (d < bd) {
+            bd = d;
+            best = sgm.i;
+          }
+          if (kvUu !== undefined && d < bdUu && kvLop[sgm.i] === kvUu) {
+            bdUu = d;
+            bestUu = sgm.i;
+          }
+        }
+      }
+    }
+    return bestUu >= 0 ? bestUu : best;
+  };
+
+  const dai = new Array<number>(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    const pts = chains[i].pts;
+    for (let j = 1; j < pts.length; j++) {
+      dai[i] += Math.hypot(pts[j].x - pts[j - 1].x, pts[j].y - pts[j - 1].y);
+    }
+  }
+
+  // Gán mỗi nhãn về tuyến gần nó nhất
+  const nhan: { i: number; kv: VoltageKv; s: string }[] = [];
+  const tuSo = new Set<number>();
+  for (const t of flat.texts) {
+    const s0 = t.s.trim();
+    const soTu = /^C\s?0\d$/i.test(s0) || /^C\s?\d0$/i.test(s0);
+    const kv = kvFromDesignation(s0);
+    if (kv === null && !soTu) continue;
+    const i = tuyenGanNhat(t.p, Math.max(t.h * 5, span / 1200), kv ?? undefined);
+    if (i < 0) continue;
+    // "C09", "C10", "C20"... không phải tên thanh cái hợp lệ -> đó là SỐ THỨ TỰ TỦ
+    // (tủ hợp bộ 6kV/22kV đánh số C09, C10, C11...). Gặp kiểu đánh số này thì bỏ
+    // toàn bộ phiếu dạng "Cxx" của tuyến đó, nếu không cả dãy tủ 6kV sẽ thành 110kV.
+    if (soTu) tuSo.add(i);
+    if (kv !== null) nhan.push({ i, kv, s: s0 });
+  }
+
+  const phieu = new Map<number, Map<VoltageKv, number>>();
+  for (const v of nhan) {
+    const laThanhCai = /^C\s?[1-9][1-9]$/i.test(v.s);
+    if (laThanhCai && (tuSo.has(v.i) || dai[v.i] < span / 2000)) continue;
+    let m = phieu.get(v.i);
+    if (!m) phieu.set(v.i, (m = new Map()));
+    m.set(v.kv, (m.get(v.kv) ?? 0) + 1);
+  }
+
+  /* --- 3. Kết luận cho từng mảng --- */
+  const theoLop = new Map<number, Map<VoltageKv, number>>();
+  for (let i = 0; i < n; i++) {
+    const kv = kvLop[i];
+    if (kv === null) continue;
+    const g = tim(i);
+    let m = theoLop.get(g);
+    if (!m) theoLop.set(g, (m = new Map()));
+    m.set(kv, (m.get(kv) ?? 0) + 1);
+  }
+  const daSo = (m: Map<VoltageKv, number> | undefined): VoltageKv | null => {
+    if (!m) return null;
+    let best: VoltageKv | null = null;
+    let bn = 0;
+    for (const [kv, c] of m) {
+      if (c > bn) {
+        bn = c;
+        best = kv;
+      }
+    }
+    return best;
+  };
+
+  const out: (VoltageKv | null)[] = new Array(n).fill(null);
+  // Tuyến nào có nhãn của chính nó thì lấy theo nhãn - đây là căn cứ đáng tin nhất
+  // vì bản vẽ gốc có nhiều chỗ đặt sai lớp (ngăn 22kV vẽ trên lớp "35-DZ 35",
+  // cả trạm 110kV vẽ trên lớp "10-DZ 10").
+  const hangDoi: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const kv = daSo(phieu.get(i));
+    if (kv !== null) {
+      out[i] = kv;
+      hangDoi.push(i);
+    }
+  }
+
+  // Lan cấp điện áp sang các đoạn nối liền chưa có nhãn (đoạn dây nối giữa hai
+  // thiết bị trong cùng một ngăn lộ), theo số bước nối - gần nhãn nào thì theo nhãn đó.
+  const ke: number[][] = Array.from({ length: n }, () => []);
+  for (const [a, b] of canh) {
+    ke[a].push(b);
+    ke[b].push(a);
+  }
+  const buoc = new Int32Array(n).fill(0);
+  const BUOC_TOI_DA = 4;
+  for (let h = 0; h < hangDoi.length; h++) {
+    const i = hangDoi[h];
+    if (buoc[i] >= BUOC_TOI_DA) continue;
+    for (const j of ke[i]) {
+      if (out[j] !== null) continue;
+      out[j] = out[i];
+      buoc[j] = buoc[i] + 1;
+      hangDoi.push(j);
+    }
+  }
+
+  // Còn lại thì theo tên lớp
+  for (let i = 0; i < n; i++) {
+    if (out[i] === null) out[i] = kvLop[i] ?? daSo(theoLop.get(tim(i)));
+  }
+  return out;
 }
 
 /** Chỉ mục lưới đơn giản để tìm gợi ý cấp điện áp gần nhất cho nhanh. */
@@ -310,6 +572,17 @@ class HintGrid {
     }
     return best;
   }
+}
+
+/** Khoang cach tu diem den doan thang. */
+function khoangCachDoan(p: Pt, a: Pt, b: Pt): number {
+  const vx = b.x - a.x;
+  const vy = b.y - a.y;
+  const l2 = vx * vx + vy * vy;
+  if (l2 < 1e-18) return Math.hypot(p.x - a.x, p.y - a.y);
+  let t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + vx * t), p.y - (a.y + vy * t));
 }
 
 /* ------------------------------ lam phang ----------------------------- */
@@ -639,7 +912,7 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
 
   /* --- Gợi ý cấp điện áp từ ký hiệu ngăn lộ và từ tên block thiết bị --- */
   const hints = new HintGrid(Math.max(span / 120, 1e-6));
-  const hintRadius = span / 25;
+  const hintRadius = span / 100;
   if (opt.inferKv) {
     for (const t of flat.texts) {
       if (!keep(t.layer)) continue;
@@ -667,9 +940,65 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
     segIn.filter((_, i) => !nd.boSeg.has(i)),
     tol,
   );
-  for (const ch of chains) {
+
+  /**
+   * Chi muc cac doan duong day co cap dien ap LAY TU TEN LOP (chac chan).
+   * Thiet bi ve tren duong day nao thi mang cap dien ap cua duong day do -
+   * day la can cu dang tin cay nhat, vi ve dien thi thiet bi va day dan dau
+   * noi voi nhau bat buoc cung mot cap.
+   */
+  const luoiDay = new Map<string, { a: Pt; b: Pt; kv: VoltageKv }[]>();
+  const oDay = Math.max(span / 200, 1e-6);
+  const themDay = (a: Pt, b: Pt, kv: VoltageKv): void => {
+    const i0 = Math.floor(Math.min(a.x, b.x) / oDay);
+    const i1 = Math.floor(Math.max(a.x, b.x) / oDay);
+    const j0 = Math.floor(Math.min(a.y, b.y) / oDay);
+    const j1 = Math.floor(Math.max(a.y, b.y) / oDay);
+    if ((i1 - i0 + 1) * (j1 - j0 + 1) > 400) return;
+    for (let i = i0; i <= i1; i++) {
+      for (let j = j0; j <= j1; j++) {
+        const k = `${i}|${j}`;
+        const arr = luoiDay.get(k);
+        if (arr) arr.push({ a, b, kv });
+        else luoiDay.set(k, [{ a, b, kv }]);
+      }
+    }
+  };
+  /** Cap dien ap cua duong day gan `p` nhat, trong ban kinh `r`. */
+  const kvTheoDay = (p: Pt, r: number): VoltageKv | null => {
+    let best: VoltageKv | null = null;
+    let bd = r;
+    const n = Math.max(1, Math.ceil(r / oDay));
+    const cx = Math.floor(p.x / oDay);
+    const cy = Math.floor(p.y / oDay);
+    for (let i = cx - n; i <= cx + n; i++) {
+      for (let j = cy - n; j <= cy + n; j++) {
+        for (const sgm of luoiDay.get(`${i}|${j}`) ?? []) {
+          const d = khoangCachDoan(p, sgm.a, sgm.b);
+          if (d < bd) {
+            bd = d;
+            best = sgm.kv;
+          }
+        }
+      }
+    }
+    return best;
+  };
+
+  /** Ban kinh bat cap dien ap theo duong day o gan (don vi ban ve CAD). */
+  const rDay = Math.max(span / 1200, 1e-6);
+  const kvTuyen = capDienApTuyen(chains, flat, span, opt);
+  for (let i = 0; i < chains.length; i++) {
+    const kvc = kvTuyen[i];
+    if (kvc === null) continue;
+    const pts = chains[i].pts;
+    for (let j = 1; j < pts.length; j++) themDay(pts[j - 1], pts[j], kvc);
+  }
+
+  for (let iCh = 0; iCh < chains.length; iCh++) {
+    const ch = chains[iCh];
     layerSet.add(ch.layer);
-    let kv = kvFromLayer(ch.layer);
+    let kv: VoltageKv | null = kvTuyen[iCh];
     if (kv === null && opt.inferKv) {
       // Lấy điểm giữa tuyến rồi tìm ký hiệu ngăn lộ gần nhất
       const mid = ch.pts[Math.floor(ch.pts.length / 2)];
@@ -713,8 +1042,14 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
   for (const d of flat.devices) {
     if (!keep(d.layer)) continue;
     layerSet.add(d.layer);
-    // Tên block đáng tin hơn tên lớp -> ưu tiên trước
-    let kv = kvFromBlockName(d.cadName) ?? kvFromLayer(d.layer);
+    const def = getBlock(d.block);
+    // Thiết bị nằm trên đường dây nào thì mang cấp điện áp của đường dây đó.
+    // Bản vẽ gốc có chỗ chèn block sai lớp (cầu chì 35kV đặt trên lớp 22kV),
+    // nên tên block / tên lớp của chính thiết bị không đáng tin bằng đường dây.
+    // Riêng máy biến áp thì không áp dụng: nó nối nhiều cấp cùng lúc.
+    const laMBA = /^(MBA|AT)/.test(d.block);
+    const coDay = laMBA ? null : kvTheoDay(d.p, Math.max(Math.abs(d.sx) * 18.669 * 1.2, span / 400));
+    let kv = coDay ?? kvFromBlockName(d.cadName) ?? kvFromLayer(d.layer);
     if (kv === null && opt.inferKv) {
       const g = hints.nearest(d.p, hintRadius);
       if (g !== null) {
@@ -723,7 +1058,6 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
       }
     }
     if (kv === null) kv = opt.defaultKv;
-    const def = getBlock(d.block);
 
     // Hình học block trong phần mềm đã được xoay `normRot` để trục thiết bị nằm dọc,
     // nên phải TRỪ lại góc đó thì hướng mới trùng bản vẽ CAD. Tỷ lệ âm trong CAD
@@ -762,7 +1096,7 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
   /* --- Dat cac block thay cho ky hieu ve bang net roi --- */
   for (const r of nd.devices) {
     layerSet.add(r.layer);
-    let kv = kvFromLayer(r.layer);
+    let kv = kvTheoDay(r.p, Math.max(r.scale * 1.2, span / 400)) ?? kvFromLayer(r.layer);
     if (kv === null && opt.inferKv) {
       const g = hints.nearest(r.p, hintRadius);
       if (g !== null) {
@@ -794,7 +1128,14 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
     for (const t of flat.texts) {
       if (!keep(t.layer)) continue;
       layerSet.add(t.layer);
-      let kv = kvFromLayer(t.layer) ?? kvFromDesignation(t.s);
+      // Cấp điện áp của tuyến đã được xác định từ chính ký hiệu ngăn lộ, nên chữ
+      // ghi bên cạnh cứ lấy theo tuyến gần nhất là ăn khớp với hình vẽ.
+      let kv = kvFromLayer(t.layer);
+      if (kv === null && opt.inferKv) {
+        kv = kvTheoDay(t.p, Math.max(t.h * 8, rDay));
+        if (kv !== null) suyTuKyHieu++;
+      }
+      if (kv === null) kv = kvFromDesignation(t.s);
       if (kv === null && opt.inferKv) kv = hints.nearest(t.p, hintRadius);
       if (kv === null) kv = opt.defaultKv;
       const p = tx(t.p);
@@ -823,7 +1164,7 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
     layerSet.add(c.layer);
     let kv = kvFromLayer(c.layer);
     if (kv === null && opt.inferKv) {
-      const g = hints.nearest(c.c, hintRadius);
+      const g = kvTheoDay(c.c, Math.max(c.r * 3, rDay)) ?? hints.nearest(c.c, hintRadius);
       if (g !== null) {
         kv = g;
         suyTuKyHieu++;

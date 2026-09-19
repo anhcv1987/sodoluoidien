@@ -15,6 +15,7 @@ import { allStyles, colorOf } from '../core/voltage';
 import { exportDxf, exportSvg } from '../io/dxfExport';
 import { defaultImportOptions, importDxf, inspectDxf } from '../io/dxfImport';
 import {
+  BUILD_ID,
   autosave,
   clearAutosave,
   deserialize,
@@ -155,6 +156,8 @@ export class App {
         ['Xuất ra CAD (.dxf)', () => this.doExportDxf()],
         ['Xuất hình vector (.svg)', () => this.doExportSvg()],
         ['Xuất ảnh (.png)', () => this.doExportPng()],
+        ['—', () => undefined],
+        ['Xoá dữ liệu lưu tạm trong trình duyệt…', () => this.resetLocal()],
       ]),
     );
     menu.append(
@@ -355,6 +358,10 @@ export class App {
     bar.append(this.toggles);
     bar.append(this.statusPrompt);
     bar.append(this.statusMsg);
+    // Hiện mã phiên bản ngay trên thanh trạng thái để biết chắc đang mở bản mới
+    bar.append(
+      el('span', { class: 'status-item', text: `Phiên bản ${BUILD_ID}`, title: 'Mã phiên bản phần mềm' }),
+    );
     return bar;
   }
 
@@ -529,6 +536,24 @@ export class App {
   }
 
   /* ================================ tep =============================== */
+
+  /**
+   * Xoá bản vẽ lưu tạm trong trình duyệt rồi tải lại.
+   * Dùng khi vừa chép phiên bản phần mềm mới về mà vẫn thấy dữ liệu cũ.
+   */
+  private resetLocal(): void {
+    if (
+      !confirm(
+        'Xoá bản vẽ lưu tạm trong trình duyệt và tải lại phần mềm?\n\n' +
+          'Mọi thay đổi chưa lưu ra file .sld sẽ mất. Dùng khi vừa cập nhật phiên bản mới ' +
+          'mà màn hình vẫn hiện dữ liệu cũ.',
+      )
+    ) {
+      return;
+    }
+    clearAutosave();
+    location.reload();
+  }
 
   private newProvince(): void {
     if (!confirm('Tạo sơ đồ tỉnh mẫu mới? Bản vẽ hiện tại sẽ bị thay thế.')) return;
@@ -1185,7 +1210,13 @@ export class App {
         <li>Phần mềm tự nhận cấp điện áp theo tên lớp và nhận dạng block MC / DCL / TI / TU / CSV / Recloser / MBA.</li>
         <li>Nội dung vừa nhập đang được chọn sẵn — kéo chuột để đặt khớp vào trạm 110kV tương ứng.</li>
       </ol>
-      <p class="muted small">Bản vẽ được lưu tạm trong trình duyệt sau mỗi thay đổi. Vẫn nên lưu ra file .sld để giữ lâu dài.</p>
+      <h4>Khi cập nhật phiên bản mới mà vẫn thấy dữ liệu cũ</h4>
+      <p>Phần mềm lưu tạm bản vẽ trong trình duyệt để khôi phục khi mở lại. Bản lưu tạm
+         có gắn mã phiên bản, nên khi chép file mới về thì bản cũ tự bị bỏ. Nếu vẫn thấy
+         dữ liệu cũ, vào <b>Tệp → Xoá dữ liệu lưu tạm trong trình duyệt</b>, hoặc nhấn
+         <b>Ctrl+F5</b>.</p>
+      <p class="muted small">Bản vẽ được lưu tạm trong trình duyệt sau mỗi thay đổi. Vẫn nên lưu ra file .sld để giữ lâu dài.
+         Phiên bản đang chạy: <b>${BUILD_ID}</b>.</p>
     `;
     const close = dialog('Hướng dẫn sử dụng', body, [button('Đóng', () => close())]);
   }

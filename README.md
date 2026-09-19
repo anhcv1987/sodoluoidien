@@ -166,11 +166,13 @@ tuyến, nhãn ngăn lộ và mã hiệu cáp ở đủ các cấp **220 / 110 /
 * **Cuộn dây máy biến áp** trong CAD là hình tròn rời (không nằm trong block) nên phần
   mềm có kiểu đối tượng hình tròn riêng, không quy về ký hiệu cột như trước.
 
-### Cấp điện áp suy từ ký hiệu ngăn lộ
+### Cấp điện áp lấy theo ký hiệu ngăn lộ
 
-Nhiều tờ trong bản vẽ đặt tên lớp không có cấp điện áp (`DUONGCHINH`, `LINE`,
-`THANHCAI`…). Với những chỗ đó, phần mềm đọc **chữ số đầu của ký hiệu ngăn lộ** theo
-quy ước đặt tên thiết bị (Thông tư 06/2025/TT-BCT) rồi gán cho các đối tượng gần nhất:
+Bản vẽ CAD gốc đặt lớp (layer) **không phải chỗ nào cũng đúng**: có ngăn lộ 22kV vẽ
+trên lớp `35-DZ 35`, có cả trạm 110kV vẽ trên lớp `10-DZ 10`, có block cầu chì 35kV
+lại chèn vào lớp 22kV. Vì vậy phần mềm **không tin tên lớp**, mà lấy căn cứ đáng tin
+nhất là **số hiệu ngăn lộ** theo Thông tư 06/2025/TT-BCT — chữ số đầu cho biết cấp
+điện áp:
 
 | Ký hiệu | Cấp | | Ký hiệu | Cấp |
 |---|---|---|---|---|
@@ -180,8 +182,43 @@ quy ước đặt tên thiết bị (Thông tư 06/2025/TT-BCT) rồi gán cho c
 | 4xx (431, 471) | 22kV | | 9xx | 0,4kV |
 
 Thanh cái cũng theo quy ước này: C11/C12 là 110kV, C31/C32 là 35kV, C41/C42 là 22kV,
-C61/C62 là 6kV. Nhờ vậy **E26.1 Bắc Kạn** ra đúng 110/35/22kV, **E26.2 Chợ Đồn** ra
-110/35kV và **E6.13 Yên Bình** ra 110/22kV.
+C61/C62 là 6kV.
+
+Cách phần mềm gán cấp điện áp cho từng đoạn dây:
+
+1. **Gom mạch.** Các đoạn dây chạm nhau (kể cả rẽ nhánh chữ T từ thanh cái) được gom
+   thành một mạch — về điện thì chỗ chạm nhau bắt buộc cùng một cấp.
+2. **Nhãn bỏ phiếu.** Mỗi nhãn ngăn lộ được gán về đoạn dây gần nó nhất; nếu trong tầm
+   có đoạn mà tên lớp đã đúng cấp của nhãn thì ưu tiên đoạn đó (tránh bắt nhầm sang
+   dây khác chạy sát bên, ví dụ nhãn `131-08` cạnh đoạn cáp 22kV của máy biến áp).
+3. **Lan sang đoạn chưa có nhãn.** Đoạn dây nối giữa hai thiết bị trong cùng một ngăn
+   lộ thì không có nhãn riêng, nên lấy theo nhãn gần nhất tính theo số bước nối
+   (tối đa 4 bước).
+4. **Còn lại mới theo tên lớp.**
+
+Thiết bị, chữ ghi và hình tròn thì lấy theo **đường dây gần nhất** — vẽ điện thì thiết
+bị và dây đấu vào nhau bắt buộc cùng một cấp, nên cách này bám đúng hình vẽ.
+
+Hai chỗ dễ nhầm đã được xử lý riêng:
+
+* Dãy **tủ hợp bộ 6kV/22kV** đánh số `C09, C10, C11…` là **số thứ tự tủ**, không phải
+  tên thanh cái (tên thanh cái không bao giờ có chữ số 0). Gặp kiểu đánh số này thì bỏ
+  toàn bộ phiếu dạng `Cxx` của chỗ đó, nếu không cả dãy tủ 6kV sẽ bị tô thành 110kV.
+* **Máy biến áp / máy biến áp tự ngẫu** nối hai cấp khác nhau nên không bao giờ lấy cấp
+  điện áp theo đường dây đấu vào nó.
+
+Nhờ vậy **E26.1 Bắc Kạn** ra đúng 110/35/22kV, **E26.2 Chợ Đồn** ra 110/35kV,
+**E6.13 Yên Bình** ra 110/22kV, và các trạm **E6.24 Đa Phúc**, **E6.7 Sông Công**,
+**E6.5 Lưu Xá**, **E6.8 Xi măng Thái Nguyên** hết cảnh một ngăn lộ hai màu.
+
+Rà soát lại bất cứ lúc nào bằng:
+
+```bash
+npm run build && node tools/kiem-cap-dien-ap.mjs
+```
+
+Công cụ so số hiệu ngăn lộ với màu của dây/thiết bị bên cạnh và in ra chỗ lệch
+(hiện còn 13/2191 nhãn, phần lớn là báo nhầm của chính công cụ — như dãy tủ C09-C14).
 
 Nếu còn chỗ nào sai, sửa cả lớp một lần bằng **Dữ liệu → Gán cấp điện áp theo lớp CAD
 gốc…** (tên lớp CAD gốc được giữ lại trong từng đối tượng).
@@ -263,6 +300,12 @@ Sau khi nhập, chọn từng tuyến để điền **mã hiệu dây** (`AC-120
 Bản vẽ được **lưu tạm tự động** vào trình duyệt sau mỗi thay đổi và khôi phục khi
 mở lại. Vẫn nên lưu ra file `.sld` để giữ lâu dài và chia sẻ.
 
+> **Cập nhật bản mới mà vẫn thấy bản cũ?** Dữ liệu lưu tạm nay được đóng dấu mã phiên
+> bản: mở bản `index.html` mới thì dữ liệu tạm của bản cũ tự bị bỏ, không phải mở cửa
+> sổ ẩn danh nữa. Mã phiên bản đang chạy hiện ở **góc phải thanh trạng thái** và trong
+> **Trợ giúp**; muốn xoá sạch dữ liệu tạm thì vào **Tệp → Xoá dữ liệu lưu tạm trong
+> trình duyệt…**.
+
 > Lưu ý: khi xuất DXF, các ký hiệu thiết bị được "nổ" thành đường và hình tròn (để
 > mọi phần mềm CAD đều mở được). Vì vậy **không nên** xuất DXF rồi nhập lại làm
 > quy trình làm việc chính — hãy dùng file `.sld`.
@@ -289,6 +332,7 @@ docs/            dữ liệu trích xuất từ file CAD gốc
 tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm từ file CAD tổng
                  dung-du-lieu-tram.mjs  — dựng src/data/tram-sld.json
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật
+                 kiem-cap-dien-ap.mjs   — rà soát cấp điện áp theo số hiệu ngăn lộ
 ```
 
 Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và sửa trực tiếp được.
@@ -300,6 +344,6 @@ Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và s�
 * Rà soát toạ độ thực tế của 28 trạm và kết lưới 110/220kV (mục 5).
 * Bổ sung công suất MBA cho E6.22 Định Hoá, E6.23 Yên Bình 8, E6.24 Đa Phúc,
   E6.25 Phú Bình 2 và ba trạm khu vực Bắc Kạn (E26.1–E26.3) — file CAD gốc chưa ghi.
-* Rà lại vài chỗ lẻ còn suy sai cấp điện áp (E6.13 Yên Bình còn 14 đoạn nằm trên lớp
-  `35-DZ 35` của bản gốc dù trạm chỉ có 110/22kV) — sửa bằng công cụ ở mục 6.
+* Rà lại vài chỗ lẻ còn suy sai cấp điện áp (chạy `node tools/kiem-cap-dien-ap.mjs`)
+  — sửa bằng công cụ ở mục 6.
 * Nhập lần lượt các sơ đồ lộ trung áp rời rạc và đấu nối về trạm 110kV tương ứng.

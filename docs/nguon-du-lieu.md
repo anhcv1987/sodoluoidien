@@ -136,25 +136,33 @@ lại thành `src/data/tram-sld.json` (1,1 MB cho 25.387 đối tượng).
 
 | Đối tượng | Căn cứ | Độ tin cậy |
 |---|---|---|
-| Thiết bị | **Tên block** ("110-MC", "35-DCL", "22-MCHB", "MBA 110-35-22") rồi mới đến tên lớp | Cao |
-| Đường dây | Tên lớp ("110-ĐZ 110", "35-DZ 35", "22-DZ 22", "6-DZ 6") | Cao, trừ các tờ dưới đây |
-| Chữ | Tên lớp | Trung bình |
+| Đường dây | **Số hiệu ngăn lộ** ghi cạnh nó (171, 431, C41…) rồi mới đến tên lớp | Cao |
+| Thiết bị | **Đường dây đấu vào nó** (trừ máy biến áp) rồi mới đến tên block / tên lớp | Cao |
+| Chữ | Đường dây gần nhất, rồi mới đến số hiệu của chính nó | Cao |
 
-Ưu tiên tên block là cần thiết: trong file CAD, cùng một máy cắt 110kV có thể được
-chèn trên lớp bất kỳ tuỳ người vẽ. Trước khi sửa, 5 máy cắt 110kV của E6.5 bị nhận
-nhầm thành 220kV và 2 máy biến áp 3 cuộn bị nhận thành 35kV.
+Trước đây phần mềm tin **tên lớp** CAD, nhưng đối chiếu bản vẽ cho thấy tên lớp sai
+khá nhiều chỗ, và mỗi chỗ sai là một ngăn lộ hai màu trên màn hình:
 
-**Các tờ cần rà soát cấp điện áp đường dây** (tên lớp CAD không chứa cấp điện áp,
-phần mềm phải để mặc định 22kV):
+| Chỗ | Tên lớp trong CAD | Thực tế |
+|---|---|---|
+| Ngăn 433/481/483/485/487 của E6.5 Lưu Xá | `35-DZ 35` | 22kV (nối vào thanh cái C43) |
+| Cả trạm E6.25 Phú Bình 2 | `10-DZ 10` | 110kV (ngăn 171-1, 172-1, C11, C12) |
+| Ngăn 231/232 (phía 220kV của AT1) | `110-ĐZ 110` / `220` | 220kV |
+| Cầu chì, chống sét của E6.24 Đa Phúc, E6.7 Sông Công | lẫn lộn 22/35 | theo ngăn lộ |
+
+Vì vậy nay lấy căn cứ theo **số hiệu ngăn lộ** (Thông tư 06/2025/TT-BCT) — xem mục 6.3.
+
+**Các tờ có tên lớp CAD hoàn toàn không chứa cấp điện áp:**
 
 | Tờ | Lớp CAD gốc | Ghi chú |
 |---|---|---|
 | E26.1 Bắc Kạn | `DUONGCHINH`, `DMANH`, `DTAM`, `THANHCAI`, `DUONGBAO` | Do đơn vị khác vẽ |
 | E26.2 Chợ Đồn | như trên | |
-| E6.13 Yên Bình | `LINE` (1361 đường) | Phần 110kV bị gán nhầm 22kV |
+| E6.13 Yên Bình | `LINE` (1361 đường) | |
 
-Tên lớp CAD gốc được giữ lại trong từng đối tượng (`srcLayer`), nên sửa bằng
-**Dữ liệu → Gán cấp điện áp theo lớp CAD gốc…** chỉ mất vài giây cho cả tờ.
+Những tờ này ra đúng cấp điện áp hoàn toàn nhờ số hiệu ngăn lộ. Tên lớp CAD gốc vẫn
+được giữ lại trong từng đối tượng (`srcLayer`), nên nếu còn chỗ nào cần sửa tay thì
+dùng **Dữ liệu → Gán cấp điện áp theo lớp CAD gốc…**.
 
 ## 5.3 Thống kê sau khi trích xuất
 
@@ -207,32 +215,56 @@ giữa hai tiêu đề với các trạm vẽ sát nhau.
 Ngoài ra: máy cắt vẽ **rỗng** đúng như bản CAD (tô đặc là tuỳ chọn), và hình tròn rời
 trong CAD (cuộn dây máy biến áp) được giữ nguyên là hình tròn thay vì quy về ký hiệu cột.
 
-## 6.3 Suy cấp điện áp từ ký hiệu ngăn lộ
+## 6.3 Cấp điện áp lấy theo ký hiệu ngăn lộ
 
 Quy ước chữ số đầu (Thông tư 06/2025/TT-BCT): 1→110kV, 2→220kV, 3→35kV, 4→22kV,
 5→500kV, 6→6kV, 7→10kV, 9→0,4kV. Áp dụng cho cả tên thanh cái (C11, C31, C41, C61).
 
-Bộ nhập chỉ nhận các chuỗi thật sự là tên thiết bị (171, 171-7, TU171, TI131, C41…) và
-loại bỏ những thứ trông giống số nhưng không phải (AC-240, 250kVA, 115/38,5/6,3 kV,
-2x40 MVA). Gợi ý được lập chỉ mục lưới rồi gán cho đối tượng gần nhất trong bán kính
-bằng 1/25 kích thước tờ.
+Bộ nhập chỉ nhận các chuỗi thật sự là tên thiết bị (171, 171-7, TU171, TI131, TBN 401,
+KH401, C41…) và loại bỏ những thứ trông giống số nhưng không phải (AC-240, 250kVA,
+115/38,5/6,3 kV, 2x40 MVA).
 
-Kết quả: **4.518 đối tượng** trong tờ A0 được suy cấp điện áp theo cách này, trong đó:
+Trình tự gán (hàm `capDienApTuyen` trong `src/io/dxfImport.ts`):
 
-| Trạm | Trước | Sau |
-|---|---|---|
-| E26.1 Bắc Kạn | tất cả 22kV | 110kV (402) · 35kV (442) · 22kV (278) |
-| E26.2 Chợ Đồn | tất cả 22kV | 110kV (118) · 35kV (180) |
-| E6.13 Yên Bình | hầu hết 22kV | 110kV (288) · 22kV (926) |
+1. **Gom mạch.** Đoạn dây chạm nhau — kể cả rẽ nhánh chữ T vào giữa thanh cái — được
+   gom thành một mạch bằng thuật toán hợp-tìm (union-find). Về điện thì chỗ chạm nhau
+   bắt buộc cùng một cấp.
+2. **Nhãn bỏ phiếu cho đoạn gần nó nhất.** Nếu trong tầm có đoạn mà tên lớp đã đúng cấp
+   của nhãn thì ưu tiên đoạn đó — nhãn `131-08` của dao tiếp địa 110kV nằm sát đoạn cáp
+   22kV của máy biến áp, không phân biệt thì đoạn cáp sẽ bị tô đỏ.
+3. **Lan sang đoạn chưa có nhãn** theo số bước nối trong mạch (tối đa 4 bước): đoạn dây
+   nối giữa hai thiết bị trong cùng một ngăn lộ không có nhãn riêng.
+4. **Còn lại mới lấy theo tên lớp.**
+
+Hai bẫy đã xử lý riêng:
+
+* Dãy **tủ hợp bộ 6kV** của E6.8 Xi măng Thái Nguyên đánh số `C09, C10, C11 … C14`.
+  Đó là số thứ tự tủ chứ không phải tên thanh cái (tên thanh cái không có chữ số 0),
+  nên gặp kiểu đánh số này thì bỏ toàn bộ phiếu dạng `Cxx` của chỗ đó — nếu không cả
+  dãy tủ 6kV bị tô thành 110kV.
+* **Máy biến áp / tự ngẫu** nối hai cấp khác nhau nên không lấy cấp theo đường dây đấu
+  vào; hai phía cũng không được gom chung một mạch.
+
+Kết quả rà soát (`node tools/kiem-cap-dien-ap.mjs` — so số hiệu ngăn lộ với màu của
+dây/thiết bị bên cạnh trên toàn bộ 2.191 nhãn của tờ A0):
+
+| Cách làm | Số nhãn lệch |
+|---|---|
+| Theo tên lớp (bản cũ) | 274 |
+| Nhãn bỏ phiếu theo mảng nối | 41 |
+| Thêm nối chữ T + lan theo bước nối (bản hiện tại) | **13** |
+
+13 chỗ còn lại phần lớn là báo nhầm của chính công cụ (dãy tủ C09-C14, nhãn dao tiếp
+địa `131-08` nằm giữa hai cấp).
 
 ## 6.4 Thống kê tờ A0 sau khi dựng
 
-19.316 đối tượng: 10.628 tuyến · 3.052 thiết bị · 881 hình tròn · 4.755 dòng chữ
+18.891 đối tượng: 9.930 tuyến · 3.577 thiết bị · 629 hình tròn · 4.755 dòng chữ
 (chưa kể ~28.000 nút của các tuyến). Phân bố theo cấp điện áp:
-220kV 883 · 110kV 6.392 · 35kV 3.725 · 22kV 7.401 · 10kV 248 · 6kV 510 · 0,4kV 156.
+220kV 1.082 · 110kV 6.036 · 35kV 3.646 · 22kV 7.352 · 10kV 94 · 6kV 515 · 0,4kV 175.
 
 Để tờ này kéo/phóng mượt, bộ vẽ dùng chỉ mục không gian dạng lưới (`src/render/index2d.ts`)
-và bỏ qua đối tượng nhỏ hơn 1 pixel khi thu nhỏ: ~4 ms/khung khi phóng vào một trạm,
+và bỏ qua đối tượng nhỏ hơn 1 pixel khi thu nhỏ: ~6 ms/khung khi phóng vào một trạm,
 ~36 ms/khung khi xem toàn tờ.
 
 ---
