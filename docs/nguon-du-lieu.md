@@ -172,6 +172,21 @@ bản CAD gốc cho thấy ba điểm phải xử lý riêng:
    chiếm 25,53 ở giữa. Dò đủ hai cụm mũi tên thì thay bằng máy cắt hợp bộ, thiếu một
    cụm thì chỉ là máy cắt thường (ví dụ ngăn TU của E26.1 chỉ có một cụm phía trên).
 
+## 5.1d Đường dây 110kV nối giữa các trạm
+
+File CAD vẽ 25 trạm rời nhau; mỗi ngăn lộ 110kV chỉ là một mũi tên cụt kèm nhãn ghi
+nơi đến. Trên tờ sơ đồ tổng có **49 nhãn** dạng `171 E6.22 ĐỊNH HÓA` - đó chính là
+danh mục kết lưới do Phòng Điều độ ghi. Ghép các nhãn hai đầu lại thì ra 26 đường
+dây 110kV; những tuyến chỉ ghi nhãn một đầu thì đầu kia tra theo **số hiệu ngăn lộ**
+(chữ số thứ hai là 7 hoặc 8 mới là ngăn đường dây, 13x là ngăn máy biến áp).
+
+Mã hiệu dây và chiều dài lấy từ sơ đồ **"LƯỚI ĐIỆN 220KV-110KV KHU VỰC TỈNH THÁI
+NGUYÊN"** của Phòng Điều độ (bản ngày 10/8/2026, người vẽ Hoàng Gia Tùng).
+
+Vài chỗ trong sơ đồ đó khác với nhãn trên file CAD (ví dụ hai lộ E6.2 - E6.8 ghi là
+171/172 trên CAD nhưng 174/177 trong sơ đồ kết lưới). Khi lệch thì lấy theo nhãn
+trên file CAD vì đó là bản vẽ đang dùng, và ghi chú lại để rà soát.
+
 ## 5.2 Quy tắc phân loại cấp điện áp
 
 | Đối tượng | Căn cứ | Độ tin cậy |

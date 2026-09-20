@@ -99,36 +99,57 @@ export interface DuongDayData {
 }
 
 export const DUONG_DAY: DuongDayData[] = [
-  { a: 'E6.2', b: 'E6.11', kv: 110, day: 'AC-185', km: 6.7, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.2', b: 'E6.8', kv: 110, day: 'AC-185', km: 17.04, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.2', b: 'E6.6', kv: 110, day: 'AC-185', km: 20.99, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.2', b: 'E6.4', kv: 110, day: 'AC-240', km: 4.9, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.2', b: 'E6.20', kv: 220, day: 'AC-400', km: 5.0, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.4', b: 'A6.15', kv: 110, day: 'AC-185', km: 14.2, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'A6.15', b: 'E6.12', kv: 110, day: 'AC-185', km: 10.7, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.12', b: 'E6.19', kv: 110, day: 'AC-185', km: 4.0, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.19', b: 'E14.1', kv: 110, day: 'AC-185', km: 32.9, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.6', b: 'E6.22', kv: 110, day: 'AC-185', km: 26.0, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.22', b: 'E26.1', kv: 110, day: 'AC-185', km: 40.0, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E26.1', b: 'E26.2', kv: 110, day: 'AC-185', km: 28.0, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E26.1', b: 'E26.3', kv: 110, day: 'AC-185', km: 32.0, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.20', b: 'E6.5', kv: 110, day: 'AC-400', km: 1.27, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.20', b: 'E6.9', kv: 110, day: 'AC-400', km: 2.15, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.20', b: 'E6.21', kv: 110, day: 'AC-300', km: 6.0, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.21', b: 'E6.3', kv: 110, day: 'AC-400', km: 4.2, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.3', b: 'E6.7', kv: 110, day: 'AC-400', km: 4.28, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.7', b: 'E1.19', kv: 110, day: 'AC-400', km: 13.3, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.16', b: 'E6.13', kv: 110, day: 'AC-400', km: 8.92, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.16', b: 'E6.14', kv: 110, day: 'AC-400', km: 8.38, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.16', b: 'E6.17', kv: 110, day: 'AC-300', km: 4.5, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.16', b: 'E6.25', kv: 220, day: 'AC-400', km: 3.3, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.25', b: 'E6.17', kv: 110, day: 'AC-400', km: 5.2, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.25', b: 'E6.18', kv: 110, day: 'AC-400', km: 5.2, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.18', b: 'E6.23', kv: 110, day: 'AC-400', km: 2.84, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.13', b: 'E6.14', kv: 110, day: 'AC-400', km: 1.93, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.24', b: 'E1.19', kv: 110, day: 'AC-185', km: 11.0, mach: 2, nguon: 'Sơ bộ - cần rà soát' },
-  { a: 'E6.24', b: 'E6.16', kv: 110, day: 'AC-185', km: 12.98, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
+  /* Danh muc lay tu so do "LUOI DIEN 220KV-110KV KHU VUC TINH THAI NGUYEN" cua
+     Phong Dieu do (ban ngay 10/8/2026), doi chieu voi nhan ghi noi den tren tung
+     ngan lo trong file CAD so do ket day. */
+
+  /* ---- Nhanh Tuyen Quang - Dai Tu - Nui Phao - Quan Trieu - E6.2 ---- */
+  { a: 'E14.1', b: 'E6.19', kv: 110, day: 'AC-185+AC-240', km: 32.9, mach: 1, nguon: 'CAD' },
+  { a: 'E6.19', b: 'E6.12', kv: 110, day: 'AC-185+AC-240', km: 10.7, mach: 1, nguon: 'CAD' },
+  { a: 'E6.12', b: 'E6.11', kv: 110, day: 'AC-240 + AC-185', km: 19.1, mach: 1, nguon: 'CAD' },
+  { a: 'E6.11', b: 'E6.2', kv: 110, day: 'AC-185', km: 6.7, mach: 1, nguon: 'CAD' },
+
+  /* ---- Tu 220kV Thai Nguyen (E6.2) ---- */
+  { a: 'E6.2', b: 'E6.8', kv: 110, day: 'AC-185', km: 17.04, mach: 2, nguon: 'CAD' },
+  { a: 'E6.2', b: 'E6.6', kv: 110, day: 'AC-185', km: 20.99, mach: 1, nguon: 'CAD' },
+  { a: 'E6.2', b: 'E6.4', kv: 110, day: 'AC-400', km: 5.2, mach: 1, nguon: 'CAD' },
+  { a: 'E6.2', b: 'A6.15', kv: 110, day: 'AC-400', km: 5.2, mach: 2, nguon: 'CAD' },
+
+  /* ---- Nhanh Phu Luong - Dinh Hoa - Bac Kan ---- */
+  { a: 'E6.6', b: 'E6.22', kv: 110, day: 'AC-185', km: 26.0, mach: 1, nguon: 'CAD' },
+  { a: 'E6.22', b: 'E26.1', kv: 110, day: 'ACSR-240', km: 10.99, mach: 1, nguon: 'CAD' },
+  { a: 'E26.1', b: 'E26.5', kv: 110, day: 'AC-185', km: 2.0, mach: 2, nguon: 'CAD' },
+  { a: 'E26.5', b: 'E26.2', kv: 110, day: 'AC-185', km: 28.0, mach: 1, nguon: 'CAD' },
+  { a: 'E26.5', b: 'E26.3', kv: 110, day: 'AC-185', km: 32.0, mach: 1, nguon: 'CAD' },
+  { a: 'E26.3', b: 'E16.2', kv: 110, day: 'AC-185', km: 40.0, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
+
+  /* ---- Tu 220kV Luu Xa (E6.15 / E6.20 tren ban CAD) ---- */
+  { a: 'E6.20', b: 'E6.9', kv: 110, day: 'AC-300', km: 7.8, mach: 2, nguon: 'CAD' },
+  { a: 'E6.20', b: 'E6.5', kv: 110, day: 'AC-185', km: 2.0, mach: 2, nguon: 'CAD' },
+  { a: 'E6.20', b: 'E6.4', kv: 110, day: 'AC-400', km: 2.15, mach: 2, nguon: 'CAD' },
+  { a: 'E6.2', b: 'E6.20', kv: 220, day: 'ACSR-400', km: 3.3, mach: 2, nguon: 'CAD' },
+
+  /* ---- Khu vuc Song Cong - Pho Yen ---- */
+  { a: 'E6.21', b: 'E6.3', kv: 110, day: 'AC-400', km: 4.2, mach: 1, nguon: 'CAD' },
+  { a: 'E6.3', b: 'E6.16', kv: 110, day: 'AC-400', km: 4.34, mach: 1, nguon: 'CAD' },
+  { a: 'E6.7', b: 'E6.16', kv: 110, day: 'AC-400', km: 4.28, mach: 1, nguon: 'CAD' },
+  { a: 'E6.7', b: 'E1.19', kv: 110, day: 'AC 2x185', km: 11.0, mach: 2, nguon: 'CAD' },
+  { a: 'E6.24', b: 'E6.16', kv: 110, day: 'AC-400', km: 5.54, mach: 1, nguon: 'CAD' },
+  { a: 'E6.24', b: 'E1.19', kv: 110, day: 'AC-400', km: 6.68, mach: 1, nguon: 'CAD' },
+
+  /* ---- Khu vuc Yen Binh - Phu Binh ---- */
+  { a: 'E6.16', b: 'E6.13', kv: 110, day: 'AC-400 + AC 2x185', km: 4.34, mach: 1, nguon: 'CAD' },
+  { a: 'E6.16', b: 'E6.14', kv: 110, day: 'AC-400', km: 8.92, mach: 2, nguon: 'CAD' },
+  { a: 'E6.16', b: 'E6.23', kv: 110, day: 'AC-400', km: 8.38, mach: 1, nguon: 'CAD' },
+  { a: 'E6.16', b: 'E6.18', kv: 110, day: 'AC-400', km: 12.98, mach: 1, nguon: 'CAD' },
+  { a: 'E6.16', b: 'E6.25', kv: 220, day: 'AC-400', km: 3.3, mach: 2, nguon: 'CAD' },
+  { a: 'E6.16', b: 'E1.19', kv: 110, day: 'ACSR-400', km: 0.11, mach: 1, nguon: 'CAD' },
+  { a: 'E6.13', b: 'E6.23', kv: 110, day: 'ACSR-400', km: 2.61, mach: 1, nguon: 'CAD' },
+  { a: 'E6.13', b: 'E6.25', kv: 110, day: 'AC-400', km: 5.3, mach: 1, nguon: 'CAD' },
+  { a: 'E6.25', b: 'E6.17', kv: 110, day: 'AC-400', km: 5.82, mach: 1, nguon: 'CAD' },
+  { a: 'E6.25', b: 'E6.18', kv: 110, day: 'AC-400', km: 5.3, mach: 1, nguon: 'CAD' },
 ];
+
 
 /**
  * Thu vien ma hieu day dan / cap - dung cho o chon nhanh khi ve tuyen.

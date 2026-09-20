@@ -287,6 +287,43 @@ Toàn tờ sơ đồ kết dây nhận được: **95 máy cắt · 169 máy c�
 hợp bộ, 33 dao cách ly, 68 dao tiếp địa, 14 TI - trước đây dao tiếp địa và TI không
 nhận được cái nào.
 
+### Đường dây 110kV nối giữa các trạm
+
+Bản CAD gốc vẽ 25 trạm rời nhau, mỗi ngăn lộ 110kV chỉ là một mũi tên cụt kèm nhãn
+ghi nơi đến (`171 E6.22 ĐỊNH HÓA`). Phần mềm nay **nối các ngăn lộ đó lại thành
+đường dây**, căn cứ:
+
+* chính các nhãn nơi đến trên bản vẽ (do Phòng Điều độ ghi) - 49 nhãn;
+* sơ đồ **"Lưới điện 220kV-110kV khu vực tỉnh Thái Nguyên"** của Phòng Điều độ
+  (mã hiệu dây, chiều dài, số mạch).
+
+Tổng cộng **26 đường dây 110kV** được vẽ nối, ví dụ:
+
+| Từ | Đến | Dây | km |
+|---|---|---|---|
+| E6.19 Đại Từ | E6.12 Núi Pháo | AC185+AC240 | 10,7 |
+| E6.12 Núi Pháo | E6.11 XM Quán Triều | AC240 + AC185 | 19,1 |
+| E6.11 XM Quán Triều | E6.2 220kV Thái Nguyên | AC185 | 6,7 |
+| E6.2 220kV Thái Nguyên | E6.6 Phú Lương | AC185 | 20,99 |
+| E6.22 Định Hóa | E26.1 Bắc Kạn | ACSR240 | 10,99 |
+| E6.15 220kV Lưu Xá | E6.9 Gang Thép | AC300 | 7,8 (2 mạch) |
+| E6.16 220kV Phú Bình | E6.14 Yên Bình 2 | AC400 | 8,92 (2 mạch) |
+
+**Cách đi dây cho gọn mắt** (`tools/noi-duong-day-110.mjs`): mỗi đầu ngăn lộ đi
+thẳng ra khỏi trạm một đoạn 110 đơn vị, rồi tìm đường bằng thuật toán **A\*** trên
+lưới ô 60 đơn vị:
+
+* ô nằm trong phạm vi trạm khác bị **cấm** - đường dây không bao giờ cắt qua trạm;
+* ô của chính hai trạm đầu cuối thì đi được nhưng **phạt nặng**, nên đường dây thoát
+  ra khỏi trạm ngay chứ không chạy dọc qua giữa trạm;
+* mỗi lần rẽ bị phạt, nên đường đi ít gấp khúc nhất;
+* ô đã có tuyến khác đi qua cũng bị phạt, nên các tuyến **tự tản ra song song** thay
+  vì đè lên nhau.
+
+Mỗi tuyến mang một nhãn **mã hiệu dây và chiều dài** đặt giữa đoạn dài nhất, và nằm
+trên lớp riêng `110kV` với tên lớp CAD gốc là `Kết lưới 110kV` (tắt/bật được trong
+bảng Lớp).
+
 ### Danh mục trạm
 
 Danh mục xếp theo số hiệu: **E6.2, E6.3 … E6.25 rồi mới tới E26.1, E26.2, E26.3**
@@ -363,6 +400,7 @@ python3 tools/tach-so-do-tram.py tong.dxf tram/ --min-x 999999999 \
         --to-tong 'KẾT DÂY LƯỚI ĐIỆN' \
         --them-to 'LƯỚI ĐIỆN 220KV' --them-to 'ĐƯỜNG DÂY'
 node tools/dung-du-lieu-tram.mjs tram/ src/data/tram-sld.json
+node tools/noi-duong-day-110.mjs src/data/tram-sld.json
 npm run build
 ```
 
@@ -443,6 +481,7 @@ docs/            dữ liệu trích xuất từ file CAD gốc
 tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm từ file CAD tổng
                  dung-du-lieu-tram.mjs  — dựng src/data/tram-sld.json
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật
+                 noi-duong-day-110.mjs  — nối đường dây 110kV giữa các trạm (A*)
                  kiem-cap-dien-ap.mjs   — rà soát cấp điện áp theo số hiệu ngăn lộ
                  xem-vung.mjs           — chụp một vùng sơ đồ để đối chiếu
                  xem-cad.py             — vẽ nguyên bản vùng đó từ file DXF gốc
@@ -455,7 +494,8 @@ Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và s�
 
 ## 10. Việc còn phải làm
 
-* Rà soát toạ độ thực tế của 28 trạm và kết lưới 110/220kV (mục 5).
+* Rà soát toạ độ thực tế của 28 trạm trên sơ đồ địa lý (mục 5). Danh mục đường dây
+  110/220kV đã cập nhật theo sơ đồ kết lưới của Phòng Điều độ.
 * Bổ sung công suất MBA cho E6.22 Định Hoá, E6.23 Yên Bình 8, E6.24 Đa Phúc,
   E6.25 Phú Bình 2 và ba trạm khu vực Bắc Kạn (E26.1–E26.3) — file CAD gốc chưa ghi.
 * Rà lại vài chỗ lẻ còn suy sai cấp điện áp (chạy `node tools/kiem-cap-dien-ap.mjs`)

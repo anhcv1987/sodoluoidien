@@ -82,6 +82,21 @@ check('Vẽ mượt khi phóng vào trạm', perf < 20, `${perf.toFixed(1)} ms/k
 
 await page.screenshot({ path: shot });
 
+/* ---------------- Ket luoi 110kV giua cac tram ---------------- */
+
+const kl = await page.evaluate(() => {
+  const a = window.sodo;
+  const dd = a.store.entities.filter((e) => e.kind === 'branch' && e.srcLayer === 'Kết lưới 110kV');
+  const nhan = a.store.entities.filter((e) => e.kind === 'text' && e.srcLayer === 'Kết lưới 110kV');
+  const dinh = dd.reduce((n, e) => n + e.nodes.length, 0);
+  return { tuyen: dd.length, nhan: nhan.length, dinh, kv: [...new Set(dd.map((e) => e.kv))] };
+});
+check(
+  'Đã nối đường dây 110kV giữa các trạm',
+  kl.tuyen >= 24 && kl.nhan >= 24 && kl.kv.length === 1 && kl.kv[0] === 110,
+  `${kl.tuyen} tuyến · ${kl.nhan} nhãn mã dây · ${kl.dinh} đỉnh`,
+);
+
 /* ---------------- Lien ket dien + diem dau noi ---------------- */
 
 const lk = await page.evaluate(() => {
