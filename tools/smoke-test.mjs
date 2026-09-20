@@ -82,6 +82,44 @@ check('Vẽ mượt khi phóng vào trạm', perf < 20, `${perf.toFixed(1)} ms/k
 
 await page.screenshot({ path: shot });
 
+/* ---------------- Lien ket dien + diem dau noi ---------------- */
+
+const lk = await page.evaluate(() => {
+  const a = window.sodo;
+  const m = a.mangDien();
+  let tong = 0;
+  let ho = 0;
+  for (const cs of m.cucCua.values()) for (const c of cs) { tong++; if (!c.batDuoc) ho++; }
+  a.batDiemNoi();
+  return {
+    nut: m.soNut, dao: m.soDao, cauMBA: m.cauMBA.length,
+    thietBi: a.store.entities.filter((e) => e.kind === 'device').length,
+    chuaNoi: m.chuaNoi.length, cuc: tong, cucHo: ho,
+    hienDiem: a.ed.renderer.opt.showTerminals, soDiem: a.ed.renderer.diemNoi.length,
+  };
+});
+check('Dựng được mô hình liên kết điện', lk.nut > 1000 && lk.cauMBA > 50, `${lk.nut} nút · ${lk.dao} mạch · ${lk.cauMBA} cầu MBA`);
+check(
+  'Hầu hết thiết bị đã đấu vào lưới',
+  lk.chuaNoi / lk.thietBi < 0.03,
+  `${lk.thietBi - lk.chuaNoi}/${lk.thietBi} thiết bị · ${lk.cuc - lk.cucHo}/${lk.cuc} cực đã nối`,
+);
+check('Bật được lớp điểm đấu nối (F4)', lk.hienDiem && lk.soDiem === lk.cuc, `${lk.soDiem} điểm`);
+
+const mchb = await page.evaluate(() => {
+  const a = window.sodo;
+  const box = [17, 5967, 1058, 6851]; // E26.1 Bac Kan - tram ve tay, khong dung block
+  const co = (e) => e.p.x >= box[0] && e.p.x <= box[2] && e.p.y >= box[1] && e.p.y <= box[3];
+  const c = {};
+  for (const e of a.store.entities) if (e.kind === 'device' && co(e)) c[e.block] = (c[e.block] || 0) + 1;
+  return c;
+});
+check(
+  'Trạm vẽ tay đã gắn đủ block (E26.1 Bắc Kạn)',
+  (mchb.MCHB ?? 0) >= 8 && (mchb.DCL ?? 0) >= 20 && (mchb.DTD ?? 0) >= 40 && (mchb.TI ?? 0) >= 10,
+  JSON.stringify(mchb),
+);
+
 /* ---------------- Trang so do dia ly ---------------- */
 
 const geo = await page.evaluate(() => {

@@ -254,18 +254,27 @@ của ký hiệu mẫu.
 E6.17 Phú Bình, E6.20 Lưu Xá 220, E6.13 Yên Bình, E6.23, E6.14, E6.18) không dùng
 block mà vẽ thẳng bằng LINE/CIRCLE. Phần mềm dò hình rồi thay bằng block:
 
-* **Máy cắt** — bốn đoạn khép kín thành hình chữ nhật, hai cạnh ngắn có dây nối.
-* **Biến dòng TI** — vòng tròn đơn lẻ nằm trên đường dây (loại cụm vòng tròn chồng
-  nhau vì đó là cuộn dây TU/TUC/máy biến áp).
-* **Dao cách ly** — khe hở TRỐNG trên đường dây + lưỡi dao chéo ở một mép khe.
-* **Dao tiếp địa** — ba vạch song song ngắn dần (ký hiệu đất) + cần + lưỡi dao.
+| Ký hiệu | Dấu hiệu dò tìm |
+|---|---|
+| **Máy cắt** | bốn đoạn khép kín thành hình chữ nhật, hai cạnh ngắn có dây nối |
+| **Máy cắt hợp bộ** | như trên, cộng thêm **hai cụm mũi tên** (tiếp điểm xe đẩy) ở trên và dưới thân |
+| **Biến dòng TI** | vòng tròn đơn lẻ trên đường dây (cụm vòng tròn chồng nhau là cuộn dây TU/TUC/MBA) |
+| **Dao cách ly** | khe hở TRỐNG trên đường dây + lưỡi dao chéo ở một mép khe |
+| **Dao tiếp địa** | ba vạch song song ngắn dần (ký hiệu đất) + cần + lưỡi dao |
 
 Trước khi dò hình, các nét **thẳng hàng** nối tiếp nhau được gộp lại: ở E26.1 mỗi
 vạch của ký hiệu đất vẽ thành hai nửa trên/dưới trục nên không gộp thì không nhận
-ra vạch nào. Dao nhận ra từ lưỡi chéo thì mang trạng thái **mở** đúng như hình vẽ.
+ra vạch nào.
 
-Riêng E26.1 Bắc Kạn: **26 máy cắt, 33 dao cách ly, 68 dao tiếp địa, 14 TI** — trước
-đây dao tiếp địa và TI không nhận được cái nào.
+Ký hiệu thay vào được đặt **đúng như hình vẽ tay**: dao nhận ra từ lưỡi chéo thì
+mang trạng thái **mở**, khe hở của ký hiệu bằng đúng khe hở đo được trên bản vẽ,
+lưỡi dao quay về đúng phía (lật gương theo hình gốc), và máy cắt hợp bộ lấy cỡ theo
+toàn bộ chiều cao từ cụm mũi tên trên xuống cụm mũi tên dưới.
+
+Toàn tờ sơ đồ kết dây nhận được: **99 máy cắt · 165 máy cắt hợp bộ · 243 TI ·
+140 dao cách ly · 311 dao tiếp địa**. Riêng E26.1 Bắc Kạn: 17 máy cắt, 9 máy cắt
+hợp bộ, 33 dao cách ly, 68 dao tiếp địa, 14 TI - trước đây dao tiếp địa và TI không
+nhận được cái nào.
 
 ### Liên kết điện và chiều công suất
 
@@ -283,17 +292,26 @@ trung áp sau này:
 3. **Mạch.** Nhập các nút nối thông qua thiết bị **đang đóng**. Máy biến áp không
    nhập chung (hai phía khác cấp điện áp) mà ghi thành "cầu nối qua máy biến áp".
 
+#### Bắt điểm và kiểm tra đã nối hay chưa
+
+* Khi vẽ, con trỏ **bắt thẳng vào cực đấu nối của thiết bị** (thanh trạng thái hiện
+  "Cực đấu nối"), không còn bắt nhầm vào tâm ký hiệu rồi nối hụt.
+* **F4** bật lớp **ĐIỂM ĐẤU NỐI**: mỗi cực được đánh dấu ngay trên bản vẽ —
+  **ô vuông xanh đặc** = cực đã chạm vào dây dẫn, **ô vuông đỏ gạch chéo** = chưa nối.
+  Vẽ xong một đoạn dây là thấy ngay ô đỏ chuyển thành ô xanh.
+
 Dùng trong phần mềm:
 
 | Lệnh | Tác dụng |
 |---|---|
+| **F4** | Hiện / ẩn điểm đấu nối của mọi thiết bị |
 | Chọn một đối tượng rồi **Shift+M** | Tô sáng toàn bộ mạch nối thông với nó |
 | **Dữ liệu → Tô sáng cả chuỗi 110kV - MBA - trung áp** | Như trên nhưng đi xuyên máy biến áp |
 | **Dữ liệu → Kiểm tra liên kết điện…** | Bảng thống kê + chọn nhanh thiết bị chưa đấu vào lưới |
 
-Trên tờ sơ đồ kết dây hiện có: **1.551 nút điện, 861 mạch rời nhau, 98 cầu nối qua
-máy biến áp**; 3.975/4.028 thiết bị (98,7%) đã đấu được vào lưới. Dựng mô hình mất
-khoảng 0,25 giây.
+Trên tờ sơ đồ kết dây hiện có: **1.530 nút điện, 838 mạch rời nhau, 98 cầu nối qua
+máy biến áp**; **3.980/4.015 thiết bị (99,1%)** và **6.363/6.471 cực (98,3%)** đã đấu
+được vào lưới. Dựng mô hình mất khoảng 0,25 giây.
 
 Bước tiếp theo để hiện chiều công suất: đánh dấu ngăn lộ nguồn (110/220kV), duyệt
 cây từ nguồn đi ra - lưới trung áp vận hành hình tia nên chiều công suất trên mỗi
@@ -390,6 +408,9 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  dung-du-lieu-tram.mjs  — dựng src/data/tram-sld.json
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật
                  kiem-cap-dien-ap.mjs   — rà soát cấp điện áp theo số hiệu ngăn lộ
+                 xem-vung.mjs           — chụp một vùng sơ đồ để đối chiếu
+                 xem-cad.py             — vẽ nguyên bản vùng đó từ file DXF gốc
+                 hoi-vung.mjs           — liệt kê đối tượng trong một vùng
 ```
 
 Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và sửa trực tiếp được.
@@ -406,5 +427,6 @@ Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và s�
 * Nhập lần lượt các sơ đồ lộ trung áp rời rạc và đấu nối về trạm 110kV tương ứng.
 * Hiện **chiều công suất** trên sơ đồ: đánh dấu ngăn lộ nguồn, duyệt cây từ nguồn
   rồi vẽ mũi tên (mô hình liên kết điện đã có, xem mục 6).
-* Đấu nốt 53 thiết bị còn lơ lửng (`Dữ liệu → Kiểm tra liên kết điện…` để xem danh
-  sách) - phần lớn là chống sét van và TU vẽ tách rời đường dây trong bản CAD gốc.
+* Đấu nốt 35 thiết bị còn lơ lửng (bật **F4** hoặc `Dữ liệu → Kiểm tra liên kết
+  điện…` để xem) - phần lớn là chống sét van và TU vẽ tách rời đường dây trong bản
+  CAD gốc.

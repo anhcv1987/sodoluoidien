@@ -120,10 +120,12 @@ const R_TI = 2.11 * K;
 const L_DTD = 15.917;
 /** Khoảng cách từ vạch đất dài nhất tới điểm chèn của block đó. */
 const L_DTD_CHEN = 11.732;
-/** Chiều dài block "110-DCL" theo phương đường dây, sau chuẩn hoá. */
-const H_DCL = 9.64 * K;
+/** Bề rộng KHE HỞ của ký hiệu dao cách ly MỞ, sau chuẩn hoá. */
+const KHE_DCL_MO = 0.5687;
 /** Chiều cao block "110-MC" sau chuẩn hoá (theo định nghĩa = 1). */
 const H_MC = 1;
+/** Chiều cao block "22-MCHB" (thân máy cắt + hai cụm mũi tên) sau chuẩn hoá. */
+const H_MCHB = 61.67 * K;
 
 /* ------------------------------ nhận dạng ------------------------------ */
 
@@ -324,7 +326,60 @@ export function nhanDangBlock(
     if (!coDay) continue;
     void ngangTruc;
 
+    /* --- May cat HOP BO: hinh chu nhat + hai cum mui ten tren va duoi --- */
+    // Tu hop bo ve them hai cum "mui ten" (tiep diem xe day) o tren va duoi than
+    // may cat. Co du hai cum thi phai thay bang block may cat hop bo, khong phai
+    // may cat thuong.
+    const nganTruc2 = { x: -truc.y, y: truc.x };
+    const doc = (p: Pt): number => dot(sub(p, tam), truc);
+    const ngang = (p: Pt): number => dot(sub(p, tam), nganTruc2);
+    const nuaDai = dDai / 2;
+    const timMuiTen = (dau: 1 | -1): { seg: number[]; xa: number } => {
+      const seg: number[] = [];
+      let xa = nuaDai;
+      for (let k = 0; k < segs.length; k++) {
+        if (boSeg.has(k) || canh.includes(k)) continue;
+        const u1 = doc(segs[k].a) * dau;
+        const u2 = doc(segs[k].b) * dau;
+        const v1 = Math.abs(ngang(segs[k].a));
+        const v2 = Math.abs(ngang(segs[k].b));
+        if (Math.min(u1, u2) < nuaDai - dNgan * 0.2 || Math.max(u1, u2) > nuaDai + dDai * 1.2) continue;
+        if (Math.max(v1, v2) > dNgan * 0.72) continue;
+        const a = lechPhuong(huong[k], truc);
+        // Canh mui ten nam cheo; doan doc truc la day noi giua than va mui ten
+        if (a < 18 && dai[k] < dDai * 1.2) {
+          seg.push(k);
+          xa = Math.max(xa, Math.max(u1, u2));
+          continue;
+        }
+        if (a >= 18 && a <= 80 && dai[k] < dDai) {
+          seg.push(k);
+          xa = Math.max(xa, Math.max(u1, u2));
+        }
+      }
+      const cheo = seg.filter((k) => lechPhuong(huong[k], truc) >= 18);
+      return cheo.length >= 2 ? { seg, xa } : { seg: [], xa: nuaDai };
+    };
+    const tren = timMuiTen(1);
+    const duoi = timMuiTen(-1);
+    const hopBo = chon.mayCat && tren.seg.length > 0 && duoi.seg.length > 0;
+
     for (const j of canh) boSeg.add(j);
+    if (hopBo) {
+      for (const k of tren.seg) boSeg.add(k);
+      for (const k of duoi.seg) boSeg.add(k);
+      const toanBo = tren.xa + duoi.xa;
+      devices.push({
+        block: 'MCHB',
+        p: tam,
+        rot: degOf(truc) - 90,
+        scale: toanBo / H_MCHB,
+        mirror: false,
+        layer: segs[i0].layer,
+      });
+      dem('MCHB');
+      continue;
+    }
     devices.push({
       block: 'MC',
       p: tam,
@@ -511,17 +566,26 @@ export function nhanDangBlock(
 
       // Lưỡi dao: đoạn chéo bắt đầu ở một trong hai mép khe
       let luoi: number | undefined;
+      let goc: Pt | undefined;
       for (const mep of [A.p, B.p]) {
         luoi = taiDiem(mep, [A.seg, B.seg]).find((k) => {
           const v = sub(dauKia(k, mep), mep);
           const a = lechPhuong(v, truc);
           return a > 10 && a < 80 && dai[k] > 1.5 && dai[k] < G * 1.8;
         });
-        if (luoi !== undefined) break;
+        if (luoi !== undefined) {
+          goc = mep;
+          break;
+        }
       }
-      if (luoi === undefined) continue;
+      if (luoi === undefined || !goc) continue;
 
       const tam = mid(A.p, B.p);
+      // Đặt ký hiệu sao cho lưỡi dao vẽ ra trùng hướng lưỡi dao trên bản vẽ:
+      // trục +X của ký hiệu hướng về mép khe có chân lưỡi dao, còn ngọn lưỡi
+      // nằm bên nào thì lật gương theo bên đó.
+      const trucL = norm(sub(goc, tam));
+      const ngonLuoi = sub(dauKia(luoi, goc), goc);
       boSeg.add(luoi);
       daDung.add(i);
       daDung.add(j);
@@ -529,9 +593,12 @@ export function nhanDangBlock(
         block: 'DCL',
         state: 'mo',
         p: tam,
-        rot: degOf(truc) - 90,
-        scale: G / H_DCL,
-        mirror: false,
+        // Trục ký hiệu dao cách ly trong thư viện nằm ngang (+X) ở góc 0, khác
+        // máy cắt (trục dọc +Y), nên KHÔNG trừ 90 độ như máy cắt.
+        rot: degOf(trucL),
+        // Ký hiệu vẽ ra phải có KHE HỞ đúng bằng khe hở dò được trên bản vẽ
+        scale: G / KHE_DCL_MO,
+        mirror: cross(trucL, ngonLuoi) < 0,
         layer: segs[A.seg].layer,
       });
       dem('DCL');

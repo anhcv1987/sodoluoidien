@@ -79,7 +79,12 @@ export class App {
         // trên tờ sơ đồ kết dây tổng.
         if (e.kind === 'substation' && e.code) this.gotoStation(e.code);
       },
-      onChange: () => this.refreshChrome(),
+      onChange: () => {
+        // Bản vẽ đổi -> tính lại điểm đấu nối để vừa vẽ xong là thấy ngay
+        // thiết bị đã nối được hay chưa.
+        if (this.ed.renderer.opt.showTerminals) this.capNhatDiemNoi();
+        this.refreshChrome();
+      },
     });
     this.build();
     if (saved) this.setMsg('Đã khôi phục bản vẽ từ lần làm việc trước');
@@ -196,6 +201,7 @@ export class App {
         ['—', () => undefined],
         ['Gán cấp điện áp theo lớp CAD gốc…', () => this.showSrcLayerDialog()],
         ['—', () => undefined],
+        ['Hiện điểm đấu nối của thiết bị (F4)', () => this.batDiemNoi()],
         ['Tô sáng mạch điện của đối tượng đang chọn (Shift+M)', () => this.toSangMach(false)],
         ['Tô sáng cả chuỗi 110kV - MBA - trung áp', () => this.toSangMach(true)],
         ['Kiểm tra liên kết điện…', () => this.kiemTraLienKet()],
@@ -393,6 +399,7 @@ export class App {
       this.toggleChip('BẮT ĐIỂM', this.ed.snap.osnap, () => (this.ed.snap.osnap = !this.ed.snap.osnap), 'F3'),
       this.toggleChip('LƯỚI', this.ed.snap.grid, () => (this.ed.snap.grid = !this.ed.snap.grid), 'F9'),
       this.toggleChip('HIỆN LƯỚI', this.ed.renderer.opt.showGrid, () => this.toggleOpt('showGrid'), 'F7'),
+      this.toggleChip('ĐIỂM ĐẤU NỐI', this.ed.renderer.opt.showTerminals, () => this.batDiemNoi(), 'F4'),
       this.toggleChip('CHẾ ĐỘ IN', this.ed.renderer.opt.printMode, () => this.toggleOpt('printMode'), ''),
     );
     this.layersHost.replaceChildren(buildLayers(this.ed, () => this.refreshChrome()));
@@ -525,6 +532,11 @@ export class App {
       this.saveFile();
       return;
     }
+    if (e.key === 'F4') {
+      e.preventDefault();
+      this.batDiemNoi();
+      return;
+    }
     if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'm') {
       e.preventDefault();
       this.toSangMach(false);
@@ -555,7 +567,7 @@ export class App {
   private mang?: { sheet: string; rev: number; m: MangDien };
 
   private mangDien(): MangDien {
-    const rev = this.store.entities.length;
+    const rev = this.store.version;
     const key = this.store.sheet.id;
     if (this.mang && this.mang.sheet === key && this.mang.rev === rev) return this.mang.m;
     const m = dungMangDien(this.store.entities, (id) => {
@@ -564,6 +576,34 @@ export class App {
     });
     this.mang = { sheet: key, rev, m };
     return m;
+  }
+
+  /**
+   * Bật / tắt lớp hiển thị ĐIỂM ĐẤU NỐI.
+   *
+   * Mỗi cực của thiết bị được đánh dấu: ô vuông xanh đặc = cực đã chạm vào dây
+   * dẫn (thiết bị thực sự nối vào lưới), ô vuông đỏ gạch chéo = chưa nối. Nhờ đó
+   * khi vẽ thêm đường nối nhìn là biết ngay đã đấu được hay còn hụt.
+   */
+  private batDiemNoi(): void {
+    const bat = !this.ed.renderer.opt.showTerminals;
+    this.ed.renderer.opt.showTerminals = bat;
+    if (bat) this.capNhatDiemNoi();
+    else this.ed.renderer.diemNoi = [];
+    this.refreshChrome();
+    this.setMsg(
+      bat
+        ? 'Hiện điểm đấu nối: ô xanh = đã nối vào dây, ô đỏ = chưa nối.'
+        : 'Đã tắt lớp điểm đấu nối.',
+    );
+  }
+
+  /** Tính lại vị trí và trạng thái các cực đấu nối để vẽ lên bản vẽ. */
+  private capNhatDiemNoi(): void {
+    const m = this.mangDien();
+    const ds: { p: { x: number; y: number }; noi: boolean }[] = [];
+    for (const cs of m.cucCua.values()) for (const c of cs) ds.push({ p: c.p, noi: c.batDuoc });
+    this.ed.renderer.diemNoi = ds;
   }
 
   /** Tô sáng toàn bộ đối tượng nối thông với đối tượng đang chọn. */
@@ -1262,7 +1302,8 @@ export class App {
       <h4>Phím tắt</h4>
       <ul>
         <li><b>S / L / B / D / T / G / M</b>: Chọn · Đường dây · Thanh cái · Thiết bị · Trạm · Ghi chú · Đo</li>
-        <li><b>F3</b> bắt điểm · <b>F7</b> hiện lưới · <b>F8</b> ORTHO · <b>F9</b> bắt lưới</li>
+        <li><b>F3</b> bắt điểm · <b>F4</b> hiện điểm đấu nối · <b>F7</b> hiện lưới · <b>F8</b> ORTHO · <b>F9</b> bắt lưới</li>
+         <li><b>Shift+M</b> tô sáng cả mạch điện nối thông với đối tượng đang chọn</li>
         <li><b>R</b>: xoay 90° khi đang đặt thiết bị</li>
         <li><b>Enter</b> kết thúc tuyến · <b>Esc</b> huỷ lệnh · <b>Delete</b> xoá</li>
         <li><b>Ctrl+Z / Ctrl+Y</b> hoàn tác / làm lại · <b>Ctrl+A</b> chọn tất cả · <b>Ctrl+S</b> lưu</li>

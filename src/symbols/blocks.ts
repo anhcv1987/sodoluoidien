@@ -1,4 +1,4 @@
-import { A, C, L, P, T, normalizeCad, primBounds, type Prim } from './prims';
+import { A, C, L, P, T, normalizeCad, primBounds, xformPrims, type Prim } from './prims';
 
 /**
  * THU VIEN BLOCK THIET BI.
@@ -25,6 +25,8 @@ export interface BlockDef {
   prims: Prim[];
   /** Hinh ve trang thai MO (neu la thiet bi dong cat co the ve hai trang thai). */
   primsOpen?: Prim[];
+  /** Kich thuoc hop bao cua hinh "mo" (don vi block). */
+  bboxOpen?: [number, number];
   /** Thiet bi dong cat -> co trang thai dong/mo, tham gia phan tich ket luoi. */
   switching: boolean;
   /** Thiet bi noi tiep tren duong day (cat duong day) hay noi re nhanh xuong dat. */
@@ -47,6 +49,8 @@ export interface BlockDef {
    * ap co hai hoac ba cuc theo so cuon day.
    */
   cuc: [number, number][];
+  /** Cac cuc khi thiet bi o trang thai MO (hinh ve khac nen dai ngan khac). */
+  cucMo?: [number, number][];
   /** Co to dac khi dang dong hay khong (may cat). */
   fillWhenClosed?: boolean;
   /** Nguon goc hinh ve. */
@@ -65,12 +69,18 @@ const CAD_MC: Prim[] = [P(true, false, -6.127, 0, 6.127, 0, 6.127, -18.669, -6.1
 /** 110-DCL: thanh tiep diem + luoi dao cheo. Trong CAD truc nam ngang -> quay 90. */
 const CAD_DCL: Prim[] = [L(0, -3.353, 0, 3.353), L(-4.82, 1.384, 4.82, -1.384)];
 
-/** 22-DCL Mo: dao cach ly o trang thai MO (co khe ho, luoi dao cheo ra). */
+/**
+ * Dao cach ly o trang thai MO: khe ho tren duong day + luoi dao cheo ra.
+ * Ve lai theo ty le block "22-DCL Mo" cua ban CAD nhung LAY TAM KHE HO LAM GOC,
+ * de hinh "mo" va hinh "dong" dung chung mot tam - khi doi trang thai ky hieu
+ * khong bi nhay cho.
+ */
 const CAD_DCL_MO: Prim[] = [
-  L(0, 0, 0, -4.883),
-  L(0, -15.5, 0, -20),
-  L(0, -15.5, 9.737, -8.627),
+  L(0, 10, 0, 5.117),
+  L(0, -5.5, 0, -10),
+  L(0, -5.5, 9.737, 1.373),
 ];
+
 
 /** 22-DCLHB: dao cach ly hop bo (tiep diem kieu mui ten kep tren + duoi). */
 const CAD_DCLHB: Prim[] = [
@@ -287,6 +297,31 @@ const CAD_SVC: Prim[] = [
 /* Dang ky block                                                       */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Cac cuc dau noi mac dinh cua mot ky hieu.
+ *
+ * Truc dien cua block CAD goc luon nam DOC (+Y); sau khi chuan hoa no bi quay di
+ * `normRot`, nen truc trong he toa do block la (0,1) da quay `normRot`. Hai cuc
+ * nam o hai dau truc do. Thieu buoc quay nay thi dao cach ly (normRot = 90) se co
+ * cuc nam ngang truc - khong bao gio cham vao day duoc.
+ */
+function cucMacDinh(
+  inline: boolean,
+  normRot: number,
+  b: { minX: number; minY: number; maxX: number; maxY: number },
+  origin: [number, number],
+): [number, number][] {
+  if (!inline) return [origin];
+  const r = (normRot * Math.PI) / 180;
+  const ax = { x: -Math.sin(r), y: Math.cos(r) };
+  const nua =
+    Math.abs(ax.x) > Math.abs(ax.y) ? (b.maxX - b.minX) / 2 : (b.maxY - b.minY) / 2;
+  return [
+    [ax.x * nua, ax.y * nua],
+    [-ax.x * nua, -ax.y * nua],
+  ];
+}
+
 function make(
   id: string,
   name: string,
@@ -318,18 +353,22 @@ function make(
     normRot: opts.rot ?? 0,
     origin: norm.origin,
     bbox: [Math.max(1e-6, b.maxX - b.minX), Math.max(1e-6, b.maxY - b.minY)],
-    cuc:
-      opts.cuc ??
-      ((opts.inline ?? true)
-        ? ([
-            [0, b.maxY],
-            [0, b.minY],
-          ] as [number, number][])
-        : ([norm.origin] as [number, number][])),
+    cuc: opts.cuc ?? cucMacDinh(opts.inline ?? true, opts.rot ?? 0, b, norm.origin),
     source: opts.source,
   };
   if (opts.fillWhenClosed) def.fillWhenClosed = true;
-  if (opts.open) def.primsOpen = normalizeCad(opts.open, opts.openRot ?? opts.rot ?? 0, K).prims;
+  if (opts.open) {
+    // Hinh "mo" phai dung CHUNG he toa do voi hinh "dong": cung goc xoay chuan hoa,
+    // cung phep doi tam. Neu chuan hoa rieng thi hai trang thai lech nhau 90 do va
+    // lech tam - dung la loi dao cach ly mo ve thanh hinh chu Z nam ngang.
+    const rotMo = opts.openRot ?? opts.rot ?? 0;
+    const xoay = xformPrims(opts.open, { rot: rotMo, k: K });
+    const dat = xformPrims(xoay, { dx: norm.origin[0], dy: norm.origin[1] });
+    def.primsOpen = dat;
+    const bo = primBounds(dat);
+    def.bboxOpen = [Math.max(1e-6, bo.maxX - bo.minX), Math.max(1e-6, bo.maxY - bo.minY)];
+    def.cucMo = opts.cuc ?? cucMacDinh(opts.inline ?? true, opts.rot ?? 0, bo, norm.origin);
+  }
   return def;
 }
 
@@ -349,7 +388,6 @@ export const BLOCKS: BlockDef[] = [
     rot: 90,
     switching: true,
     open: CAD_DCL_MO,
-    openRot: 0,
     source: 'CAD: block "110-DCL" (đóng) / "22-DCL Mo" (mở)',
   }),
   make('DCLHB', 'Dao cách ly hợp bộ', 'DCLHB', 'Đóng cắt', CAD_DCLHB, {

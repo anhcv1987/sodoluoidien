@@ -163,15 +163,55 @@ export function distToEntity(store: DocStore, e: Entity, p: Pt): number {
 }
 
 /** Cac diem "bat diem" (osnap) ma doi tuong cung cap. */
+/**
+ * Vi tri cac CUC DAU NOI cua mot thiet bi tren ban ve.
+ *
+ * Lay tu thu vien block (`cuc`), quay - lat - phong theo dung thiet bi. Day la
+ * cho ma day dan phai cham vao thi thiet bi moi thuc su duoc dau vao luoi.
+ */
+export function cucThietBi(e: DeviceEntity): Pt[] {
+  const def = getBlock(e.block);
+  const bang = (e.state === 'mo' ? def?.cucMo : undefined) ?? def?.cuc;
+  const ds = bang?.length ? bang : [[0, 0] as [number, number]];
+  const m = e.mirror ? -1 : 1;
+  const r = (e.rot * Math.PI) / 180;
+  const co = Math.cos(r);
+  const si = Math.sin(r);
+  const laMBA = /^(MBA|AT)/.test(e.block);
+  return ds.map((c) => {
+    let cx = c[0];
+    let cy = c[1];
+    // Thiet bi dau re mot cuc: diem dau nam o MEP hop bao (xem src/core/lienket.ts)
+    const hb = (e.state === 'mo' ? def?.bboxOpen : undefined) ?? def?.bbox;
+    if (ds.length === 1 && hb && !laMBA) {
+      const k = Math.max(
+        Math.abs(cx) / Math.max(hb[0] / 2, 1e-9),
+        Math.abs(cy) / Math.max(hb[1] / 2, 1e-9),
+      );
+      if (k > 1e-6) {
+        cx /= k;
+        cy /= k;
+      }
+    }
+    const x = cx * m * e.scale;
+    const y = cy * e.scale;
+    return { x: e.p.x + x * co - y * si, y: e.p.y + x * si + y * co };
+  });
+}
+
 export function snapPoints(store: DocStore, e: Entity): { p: Pt; kind: string }[] {
   const out: { p: Pt; kind: string }[] = [];
   switch (e.kind) {
     case 'node':
       out.push({ p: e.p, kind: 'Nút' });
       break;
-    case 'device':
+    case 'device': {
+      // Cực đấu nối phải đứng TRƯỚC tâm thiết bị: vẽ dây thì bao giờ cũng muốn
+      // bắt vào cực, bắt vào tâm là nối hụt.
+      for (const c of cucThietBi(e)) out.push({ p: c, kind: 'Cực đấu nối' });
       out.push({ p: e.p, kind: 'Tâm thiết bị' });
       break;
+    }
     case 'substation':
       out.push({ p: e.p, kind: 'Tâm trạm' });
       break;

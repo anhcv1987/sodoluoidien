@@ -154,6 +154,24 @@ Góc quay suy từ véc-tơ "điểm chèn → tâm hình" của block CAD so v�
 ứng của ký hiệu mẫu, rồi làm tròn về bội số 90°; lệch quá 25° (ký hiệu lật gương
 như `110-TUC1`, `TUC 110`) thì giữ góc chuẩn hoá của ký hiệu mẫu.
 
+## 5.1c Ký hiệu vẽ tay được nhận dạng thành block
+
+Bốn trạm E26.1 Bắc Kạn, E26.2 Chợ Đồn, E26.3 Nà Phặc, E6.17 Phú Bình (và E6.13,
+E6.14, E6.18, E6.20, E6.23) vẽ thẳng bằng LINE/CIRCLE. Đối chiếu từng ngăn lộ với
+bản CAD gốc cho thấy ba điểm phải xử lý riêng:
+
+1. **Nét bị cắt đôi.** Mỗi vạch của ký hiệu đất ở E26.1 vẽ thành hai nửa trên/dưới
+   trục (dài 0,47 + 0,47; 0,79 + 0,79; 1,11 + 1,11). Phải gộp các nét thẳng hàng
+   nối tiếp nhau trước khi dò hình.
+2. **Ký hiệu "mở" khác hẳn ký hiệu "đóng".** Block `110-DCL` (đóng) cao 6,7 còn
+   `22-DCL Mo` (mở) cao 20 - lệch nhau hai lần. Trước đây hai hình chuẩn hoá riêng
+   nên lệch nhau 90 độ và lệch tâm, vẽ ra thành hình chữ Z nằm ngang. Nay hình "mở"
+   dùng chung hệ toạ độ với hình "đóng", và cỡ lấy theo hộp bao của chính hình "mở".
+3. **Máy cắt hợp bộ.** Tủ hợp bộ vẽ thân máy cắt (hình chữ nhật) kèm hai cụm mũi tên
+   tiếp điểm xe đẩy ở trên và dưới. Block `22-MCHB` cao 61,67 trong đó thân máy cắt
+   chiếm 25,53 ở giữa. Dò đủ hai cụm mũi tên thì thay bằng máy cắt hợp bộ, thiếu một
+   cụm thì chỉ là máy cắt thường (ví dụ ngăn TU của E26.1 chỉ có một cụm phía trên).
+
 ## 5.2 Quy tắc phân loại cấp điện áp
 
 | Đối tượng | Căn cứ | Độ tin cậy |

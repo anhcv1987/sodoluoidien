@@ -25,6 +25,8 @@ export interface RenderOptions {
    * TAT de giong het ban mau; bat len khi muon nhin nhanh trang thai khi dieu do.
    */
   fillClosedBreaker: boolean;
+  /** Hien diem dau noi cua thiet bi: xanh = da noi vao day, do = chua noi. */
+  showTerminals: boolean;
 }
 
 export const defaultRenderOptions = (): RenderOptions => ({
@@ -36,6 +38,7 @@ export const defaultRenderOptions = (): RenderOptions => ({
   showPlaces: true,
   markDraft: true,
   fillClosedBreaker: false,
+  showTerminals: false,
 });
 
 export interface RenderState {
@@ -99,6 +102,39 @@ export class Renderer {
     return this.opt.printMode ? '#111827' : '#e5e9f0';
   }
 
+  /**
+   * Diem dau noi cua thiet bi (toa do the gioi) kem trang thai da noi hay chua.
+   * Do lop giao dien tinh san (src/core/lienket.ts) roi gan vao day.
+   */
+  diemNoi: { p: Pt; noi: boolean }[] = [];
+
+  /** Ve diem dau noi: o vuong xanh = da cham vao day, o do rong = chua noi. */
+  private drawTerminals(ctx: CanvasRenderingContext2D): void {
+    if (!this.diemNoi.length) return;
+    const view = this.vp.viewBox(20);
+    const r = 3.5;
+    ctx.save();
+    ctx.lineWidth = 1.4;
+    for (const d of this.diemNoi) {
+      if (d.p.x < view.minX || d.p.x > view.maxX || d.p.y < view.minY || d.p.y > view.maxY) continue;
+      const s = this.vp.toScreen(d.p);
+      if (d.noi) {
+        ctx.fillStyle = this.opt.printMode ? '#15803d' : '#22c55e';
+        ctx.fillRect(s.x - r, s.y - r, r * 2, r * 2);
+      } else {
+        ctx.strokeStyle = '#ef4444';
+        ctx.strokeRect(s.x - r, s.y - r, r * 2, r * 2);
+        ctx.beginPath();
+        ctx.moveTo(s.x - r, s.y - r);
+        ctx.lineTo(s.x + r, s.y + r);
+        ctx.moveTo(s.x + r, s.y - r);
+        ctx.lineTo(s.x - r, s.y + r);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
   draw(state: RenderState): void {
     const ctx = this.ctx();
     const { width, height } = this.vp;
@@ -130,6 +166,7 @@ export class Renderer {
       }
     }
 
+    if (this.opt.showTerminals) this.drawTerminals(ctx);
     if (this.opt.showConductor) this.drawConductorLabels(ctx, visible, view);
     if (this.opt.showLabels) this.drawSubstationLabels(ctx, visible, view);
 

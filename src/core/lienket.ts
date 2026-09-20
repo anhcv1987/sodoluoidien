@@ -229,7 +229,9 @@ export function dungMangDien(
 
   for (const d of devices) {
     const def = getBlock(d.block);
-    const cucGoc: [number, number][] = def?.cuc?.length ? def.cuc : [[0, 0]];
+    // Ky hieu trang thai MO dai ngan khac ky hieu dong -> cuc cung khac cho
+    const bang = (d.state === 'mo' ? def?.cucMo : undefined) ?? def?.cuc;
+    const cucGoc: [number, number][] = bang?.length ? bang : [[0, 0]];
     // Với thiết bị đấu rẽ (một cực), điểm đấu là ĐIỂM CHÈN của block CAD. Bản vẽ
     // dùng nhiều biến thể block khác nhau: "6-Tiep dia" kết thúc đúng tại điểm
     // đấu, còn "110-Tiep Dia" lại thò thêm một đoạn dây quá điểm đấu. Vì vậy thử
@@ -237,8 +239,9 @@ export function dungMangDien(
     // nào bắt được đường dây.
     const themUngVien = (t: [number, number]): [number, number][] => {
       const out: [number, number][] = [t];
-      if (def?.bbox) {
-        const [w, h] = def.bbox;
+      const hb = (d.state === 'mo' ? def?.bboxOpen : undefined) ?? def?.bbox;
+      if (hb) {
+        const [w, h] = hb;
         const k = Math.max(
           Math.abs(t[0]) / Math.max(w / 2, 1e-9),
           Math.abs(t[1]) / Math.max(h / 2, 1e-9),

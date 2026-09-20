@@ -1124,7 +1124,9 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
     const mirror = d.sx < 0;
     const m = mirror ? -1 : 1;
     const o = def?.origin ?? [0, 0];
-    const bb = def?.bbox ?? [1, 1];
+    // Ky hieu trang thai MO co hinh khac han (khe ho + luoi dao) nen phai lay
+    // hop bao cua chinh hinh do, neu khong se ve to gap doi.
+    const bb = (d.state === 'mo' ? def?.bboxOpen : undefined) ?? def?.bbox ?? [1, 1];
     const ins = tx(d.p);
 
     // Đặt ký hiệu theo ĐÚNG HỘP BAO CỦA BLOCK TRONG CAD: tâm hình trùng tâm hộp
