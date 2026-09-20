@@ -130,6 +130,7 @@ for (const item of index) {
         r2(e.scale),
         Math.max(0, STATES.indexOf(e.state ?? 'dong')),
         idx(srcTable, e.srcLayer ?? ''),
+        e.mirror ? 1 : 0,
       ]);
     } else if (e.kind === 'circle') {
       c.push([

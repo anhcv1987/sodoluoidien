@@ -15,6 +15,7 @@ import { allStyles, colorOf } from '../core/voltage';
 import { exportDxf, exportSvg } from '../io/dxfExport';
 import { defaultImportOptions, importDxf, inspectDxf } from '../io/dxfImport';
 import { cungMach, daoCua, dungMangDien, type MangDien } from '../core/lienket';
+import { getBlock } from '../symbols/blocks';
 import {
   BUILD_ID,
   autosave,
@@ -444,15 +445,19 @@ export class App {
       );
       for (const st of cad) {
         const wrap = el('div', { class: 'tram-item' });
+        // Giữ lại cấp điện áp trong tên rút gọn: trạm 220kV Phú Bình (E6.16) và
+        // trạm 110kV Phú Bình (E6.17) chỉ khác nhau ở chỗ đó.
+        const capTram = st.title.match(/(\d{3})\s*KV/i)?.[1] ?? '';
         const ten = st.title
           .replace(/^(SƠ ĐỒ\s*)?TRẠM\s*\d+\s*KV\s*/i, '')
           .replace(/\s*\(?[EA]\d+\.\d+\)?\s*$/i, '')
           .trim();
+        const tenDay = capTram ? `${capTram}kV ${ten}` : ten;
         const row = el('button', { class: 'tram-row', type: 'button', title: st.title }, [
           el('span', { class: 'tram-code', text: st.code }),
-          el('span', { class: 'tram-name', text: ten || st.title }),
+          el('span', { class: 'tram-name', text: tenDay || st.title }),
         ]);
-        (row.firstChild as HTMLElement).style.color = colorOf(/220/.test(st.title) ? 220 : 110);
+        (row.firstChild as HTMLElement).style.color = colorOf(capTram === '220' ? 220 : 110);
         row.addEventListener('click', () => this.gotoStation(st.code));
         wrap.append(row);
         const id = viTri.get(st.code);
@@ -627,34 +632,109 @@ export class App {
     );
   }
 
-  /** Bảng kiểm tra liên kết điện - dùng để rà soát sau khi nhập từ CAD. */
+  /** Phóng tới một điểm trên bản vẽ và chọn sẵn đối tượng ở đó. */
+  private nhayToiDoiTuong(id: string): void {
+    const e = this.store.get(id);
+    if (!e || !('p' in e)) return;
+    const p = e.p as { x: number; y: number };
+    const r = 'scale' in e ? Math.max(Number(e.scale) * 3, 30) : 30;
+    this.ed.vp.fit({ minX: p.x - r, minY: p.y - r, maxX: p.x + r, maxY: p.y + r }, 0.1);
+    this.ed.select([id]);
+    this.ed.requestDraw();
+    this.refreshProps();
+  }
+
+  /** Nhãn ghi gần thiết bị nhất - để biết đó là ngăn lộ nào. */
+  private nhanGanNhat(p: { x: number; y: number }, r: number): string {
+    let ten = '';
+    let bd = r;
+    for (const e of this.store.entities) {
+      if (e.kind !== 'text') continue;
+      const d = Math.hypot(e.p.x - p.x, e.p.y - p.y);
+      if (d < bd) {
+        bd = d;
+        ten = e.text.trim();
+      }
+    }
+    return ten;
+  }
+
+  /**
+   * Bảng kiểm tra liên kết điện.
+   *
+   * Ngoài phần thống kê còn liệt kê CHI TIẾT từng thiết bị chưa đấu vào lưới để
+   * bấm vào là nhảy tới đúng chỗ, chọn sẵn thiết bị đó mà sửa.
+   */
   private kiemTraLienKet(): void {
     const m = this.mangDien();
     const tb = this.store.entities.filter((e) => e.kind === 'device').length;
+    let cuc = 0;
+    let cucHo = 0;
+    for (const cs of m.cucCua.values()) for (const c of cs) { cuc++; if (!c.batDuoc) cucHo++; }
+
     const row = (a: string, b: string): string =>
-      `<tr><td style="padding:2px 12px 2px 0">${a}</td><td><b>${b}</b></td></tr>`;
-    const ds = m.chuaNoi
-      .slice(0, 40)
-      .map((id) => {
-        const e = this.store.get(id);
-        return e && e.kind === 'device' ? `${e.block}${e.label ? ' ' + e.label : ''}` : id;
-      })
-      .join(', ');
-    const body = el('div', { class: 'help' });
-    body.innerHTML =
+      `<tr><td style="padding:2px 14px 2px 0">${a}</td><td><b>${b}</b></td></tr>`;
+    const tom = el('div', { class: 'help' });
+    tom.innerHTML =
       `<table>${row('Số nút điện (điểm đẳng thế)', String(m.soNut))}` +
       `${row('Số mạch rời nhau (qua thiết bị đang đóng)', String(m.soDao))}` +
       `${row('Cầu nối qua máy biến áp', String(m.cauMBA.length))}` +
-      `${row('Thiết bị', String(tb))}` +
-      `${row('Thiết bị đã đấu vào lưới', String(tb - m.chuaNoi.length))}` +
-      `${row('Thiết bị CHƯA đấu vào lưới', String(m.chuaNoi.length))}` +
-      `${row('Thiết bị đấu thiếu một cực', String(m.noiThieu.length))}</table>` +
-      (ds ? `<p style="margin-top:8px">Chưa đấu: ${ds}${m.chuaNoi.length > 40 ? '…' : ''}</p>` : '') +
-      '<p style="margin-top:8px">Chọn một thiết bị rồi bấm <b>Shift+M</b> để tô sáng toàn bộ mạch nối thông ' +
-      'với nó. Đây là nền để sau này hiện chiều công suất 110kV - máy biến áp - trung áp.</p>';
-    const dong = dialog('Kiểm tra liên kết điện', body, [
+      `${row('Thiết bị đã đấu vào lưới', `${tb - m.chuaNoi.length}/${tb}`)}` +
+      `${row('Cực đã chạm vào dây dẫn', `${cuc - cucHo}/${cuc}`)}</table>`;
+
+    // Danh sach chi tiet: thiet bi chua dau + thiet bi dau thieu mot cuc
+    const ds = [
+      ...m.chuaNoi.map((id) => ({ id, loai: 'Chưa đấu' })),
+      ...m.noiThieu.map((id) => ({ id, loai: 'Thiếu một cực' })),
+    ];
+    const t = el('table', { class: 'table' });
+    t.append(
+      el('thead', {}, [
+        el('tr', {}, [
+          el('th', { text: 'Ký hiệu' }),
+          el('th', { text: 'Nhãn gần nhất' }),
+          el('th', { text: 'Cấp' }),
+          el('th', { text: 'Toạ độ' }),
+          el('th', { text: 'Tình trạng' }),
+        ]),
+      ]),
+    );
+    const tbody = el('tbody');
+    for (const v of ds) {
+      const e = this.store.get(v.id);
+      if (!e || e.kind !== 'device') continue;
+      const nhan = e.label ?? this.nhanGanNhat(e.p, Math.max(e.scale * 2.5, 25));
+      const tr = el('tr', {}, [
+        el('td', { text: getBlock(e.block)?.abbr ?? e.block }),
+        el('td', { text: nhan }),
+        el('td', { text: `${e.kv}kV` }),
+        el('td', { text: `${Math.round(e.p.x)} ; ${Math.round(e.p.y)}` }),
+        el('td', { text: v.loai }),
+      ]);
+      tr.title = 'Bấm để nhảy tới và chọn thiết bị này';
+      tr.addEventListener('click', () => {
+        dong();
+        this.nhayToiDoiTuong(v.id);
+        if (!this.ed.renderer.opt.showTerminals) this.batDiemNoi();
+      });
+      tbody.append(tr);
+    }
+    t.append(tbody);
+
+    const than = el('div', {}, [
+      tom,
+      el('p', {
+        class: 'muted small',
+        text: ds.length
+          ? `Còn ${ds.length} thiết bị cần rà lại - bấm một dòng để nhảy tới và chọn sẵn thiết bị đó. ` +
+            'Vẽ thêm đoạn dây nối vào cực (ô đỏ) là xong.'
+          : 'Tất cả thiết bị đã đấu vào lưới.',
+      }),
+      el('div', { class: 'table-wrap' }, [t]),
+    ]);
+    const dong = dialog('Kiểm tra liên kết điện', than, [
       button('Chọn hết thiết bị chưa đấu', () => {
-        this.ed.select(m.chuaNoi);
+        this.ed.select(ds.map((v) => v.id));
         this.ed.requestDraw();
         dong();
       }),

@@ -34,7 +34,7 @@ interface CompactSheet {
   title: string;
   /** Tuyến: [lớp, kV, loại tuyến, lớp CAD gốc, x0,y0, x1,y1, ...] */
   b: number[][];
-  /** Thiết bị: [lớp, kV, block, x, y, góc, cỡ, trạng thái, lớp CAD gốc] */
+  /** Thiết bị: [lớp, kV, block, x, y, góc, cỡ, trạng thái, lớp CAD gốc, lật gương] */
   d: number[][];
   /** Chữ: [lớp, kV, x, y, cao, góc, căn lề, lớp CAD gốc, nội dung] */
   t: (number | string)[][];
@@ -148,6 +148,7 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
     };
     const sl = data.srcLayers[row[8]];
     if (sl) d.srcLayer = sl;
+    if (row[9]) d.mirror = true;
     put(d);
   }
 
@@ -203,14 +204,47 @@ export interface CadStation {
   box?: { minX: number; minY: number; maxX: number; maxY: number };
 }
 
+/**
+ * SỬA MÃ / TÊN TRẠM cho đúng danh mục của Phòng Điều độ.
+ *
+ * Tiêu đề trong file CAD có chỗ ghi thiếu, ghi lẫn ký tự thừa, hoặc đánh mã không
+ * đúng (trạm 220kV Lưu Xá ghi là E6.20 trong khi danh mục là E6.15).
+ */
+const SUA_TRAM: Record<string, { ma?: string; ten: string }> = {
+  'E6.2': { ten: 'Trạm 220kV Thái Nguyên' },
+  'E6.20': { ma: 'E6.15', ten: 'Trạm 220kV Lưu Xá' },
+  'E6.16': { ten: 'Trạm 220kV Phú Bình' },
+  'E6.25': { ten: 'Trạm 220kV Phú Bình 2' },
+};
+
+/**
+ * Thứ tự danh mục: E6.2, E6.3 … E6.25 rồi mới tới E26.1, E26.2, E26.3.
+ * So theo SỐ chứ không so theo chữ, nếu không E6.10 sẽ đứng trước E6.2.
+ */
+function thuTuTram(ma: string): [number, number, string] {
+  const m = ma.match(/^E(\d+)\.(\d+)/i);
+  if (!m) return [9999, 9999, ma];
+  return [Number(m[1]), Number(m[2]), ma];
+}
+
+export function sapXepTram<T extends { code: string }>(ds: T[]): T[] {
+  return [...ds].sort((a, b) => {
+    const x = thuTuTram(a.code);
+    const y = thuTuTram(b.code);
+    return x[0] - y[0] || x[1] - y[1] || x[2].localeCompare(y[2]);
+  });
+}
+
 /** Danh sách trạm nằm trong một tờ (chỉ tờ tổng mới có). */
 export function stationsOf(code: string): CadStation[] {
   const s = data.sheets.find((x) => x.code === code);
   if (!s?.st) return [];
-  return s.st.map((r) => {
+  return sapXepTram(s.st.map((r) => {
+    const ma0 = String(r[0]);
+    const sua = SUA_TRAM[ma0];
     const st: CadStation = {
-      code: String(r[0]),
-      title: String(r[1]),
+      code: sua?.ma ?? ma0,
+      title: sua?.ten ?? String(r[1]).replace(/^[^A-ZĐ]*(?=[A-ZĐ])/u, '').trim(),
       x: r[2] as number,
       y: r[3] as number,
     };
@@ -223,7 +257,7 @@ export function stationsOf(code: string): CadStation[] {
       };
     }
     return st;
-  });
+  }));
 }
 
 /** Mã tờ sơ đồ tổng (tất cả các trạm trên một tờ khổ A0). */

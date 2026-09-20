@@ -259,9 +259,12 @@ export function dungMangDien(
     const cuCo = def ? Math.max(def.bbox[0], def.bbox[1]) : 1;
     // Máy biến áp: đường dây trong bản vẽ kéo vào tận tâm cuộn dây, nên bán kính
     // bắt phải bằng cỡ một cuộn dây.
+    // Bán kính bắt rộng rãi: bản vẽ CAD gốc nhiều chỗ để hở vài đơn vị giữa ký
+    // hiệu và đường dây, siết chặt quá thì báo "chưa nối" cho cả những chỗ thực
+    // tế đã nối.
     const r = laMBA(d.block)
-      ? Math.max(saiSo, d.scale * 1.25)
-      : Math.max(saiSo, d.scale * 0.28, d.scale * cuCo * 0.1);
+      ? Math.max(saiSo * 3, d.scale * 1.25)
+      : Math.max(saiSo * 3, d.scale * 0.45, d.scale * cuCo * 0.16);
     for (let k = 0; k < cucGoc.length; k++) {
       const ungVien = cucGoc.length === 1 ? themUngVien(cucGoc[k]) : [cucGoc[k]];
       let nut = -1;

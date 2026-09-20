@@ -344,7 +344,9 @@ export function nhanDangBlock(
         const v1 = Math.abs(ngang(segs[k].a));
         const v2 = Math.abs(ngang(segs[k].b));
         if (Math.min(u1, u2) < nuaDai - dNgan * 0.2 || Math.max(u1, u2) > nuaDai + dDai * 1.2) continue;
-        if (Math.max(v1, v2) > dNgan * 0.72) continue;
+        // Cánh mũi tên có nơi rộng hơn cả thân máy cắt (E26.3 Nà Phặc: cánh
+        // vươn ra 10,3 trong khi thân rộng 11,2) nên không siết chặt được.
+        if (Math.max(v1, v2) > dNgan * 1.15) continue;
         const a = lechPhuong(huong[k], truc);
         // Canh mui ten nam cheo; doan doc truc la day noi giua than va mui ten
         if (a < 18 && dai[k] < dDai * 1.2) {
@@ -488,7 +490,25 @@ export function nhanDangBlock(
     if (luoi === undefined) continue;
     const dinhLuoi = dauKia(luoi, dauCan);
 
-    const L = len(tamSeg[i1], dinhLuoi);
+    // Sau lưỡi dao thường còn một đoạn dây nối tiếp tới đường dây chính. Ký hiệu
+    // dao tiếp địa phải dài tới đó, nếu không sẽ vẽ ngắn hơn hình gốc và hở ra
+    // một quãng giữa ký hiệu và đường dây.
+    let xaNhat = len(tamSeg[i1], dinhLuoi);
+    const banKinh = xaNhat * 1.6;
+    for (const e of luoiTam.quanh(add(tamSeg[i1], mul(d, xaNhat)), banKinh)) {
+      const j = e.v;
+      if (j === i1 || j === i2 || j === i3 || j === can || j === luoi || boSeg.has(j)) continue;
+      if (lechPhuong(huong[j], d) > 14) continue;
+      for (const q of [segs[j].a, segs[j].b]) {
+        const doc = dot(sub(q, tamSeg[i1]), d);
+        const lech = Math.abs(dot(sub(q, tamSeg[i1]), h1));
+        if (doc > xaNhat && doc < xaNhat * 2.2 && lech < L1 * 1.2) {
+          xaNhat = doc;
+          boSeg.add(j);
+        }
+      }
+    }
+    const L = xaNhat;
     if (L < 3 || L > 150) continue;
 
     boSeg.add(i1);
@@ -564,21 +584,28 @@ export function nhanDangBlock(
       }
       if (!vuong) continue;
 
-      // Lưỡi dao: đoạn chéo bắt đầu ở một trong hai mép khe
+      // Lưỡi dao: đoạn chéo bắt đầu ở một trong hai mép khe.
+      // Ở mép còn lại thường có thêm một nét chéo NGẮN là tiếp điểm tĩnh; phải
+      // lấy nét DÀI NHẤT làm lưỡi dao, nếu không ký hiệu vẽ ra sẽ quay ngược và
+      // lưỡi dao thật vẫn còn nằm lại thành nét rời (lỗi dao cách ly 110kV).
       let luoi: number | undefined;
       let goc: Pt | undefined;
+      const cheoKhac: number[] = [];
       for (const mep of [A.p, B.p]) {
-        luoi = taiDiem(mep, [A.seg, B.seg]).find((k) => {
+        for (const k of taiDiem(mep, [A.seg, B.seg])) {
           const v = sub(dauKia(k, mep), mep);
           const a = lechPhuong(v, truc);
-          return a > 10 && a < 80 && dai[k] > 1.5 && dai[k] < G * 1.8;
-        });
-        if (luoi !== undefined) {
-          goc = mep;
-          break;
+          if (a <= 10 || a >= 80 || dai[k] <= 1.5 || dai[k] >= G * 1.8) continue;
+          if (luoi === undefined || dai[k] > dai[luoi]) {
+            if (luoi !== undefined) cheoKhac.push(luoi);
+            luoi = k;
+            goc = mep;
+          } else cheoKhac.push(k);
         }
       }
       if (luoi === undefined || !goc) continue;
+      // Nét tiếp điểm tĩnh cũng thuộc ký hiệu -> bỏ luôn, khỏi vẽ thừa
+      for (const k of cheoKhac) boSeg.add(k);
 
       const tam = mid(A.p, B.p);
       // Đặt ký hiệu sao cho lưỡi dao vẽ ra trùng hướng lưỡi dao trên bản vẽ:
@@ -586,6 +613,7 @@ export function nhanDangBlock(
       // nằm bên nào thì lật gương theo bên đó.
       const trucL = norm(sub(goc, tam));
       const ngonLuoi = sub(dauKia(luoi, goc), goc);
+      const lat = cross(trucL, ngonLuoi) < 0;
       boSeg.add(luoi);
       daDung.add(i);
       daDung.add(j);
@@ -595,10 +623,13 @@ export function nhanDangBlock(
         p: tam,
         // Trục ký hiệu dao cách ly trong thư viện nằm ngang (+X) ở góc 0, khác
         // máy cắt (trục dọc +Y), nên KHÔNG trừ 90 độ như máy cắt.
-        rot: degOf(trucL),
+        // Lật gương trong phần mềm đổi dấu trục X - tức đổi luôn phía chân lưỡi
+        // dao. Muốn chỉ đổi phía NGỌN lưỡi thì phải lật gương ĐỒNG THỜI quay
+        // thêm 180 độ, khi đó chân lưỡi trở về đúng mép khe cũ.
+        rot: degOf(trucL) + (lat ? 180 : 0),
         // Ký hiệu vẽ ra phải có KHE HỞ đúng bằng khe hở dò được trên bản vẽ
         scale: G / KHE_DCL_MO,
-        mirror: cross(trucL, ngonLuoi) < 0,
+        mirror: lat,
         layer: segs[A.seg].layer,
       });
       dem('DCL');

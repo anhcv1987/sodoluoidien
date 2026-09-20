@@ -24,7 +24,7 @@ export const defaultSnap = (): SnapSettings => ({
   grid: false,
   gridStep: 1,
   ortho: false,
-  radiusPx: 12,
+  radiusPx: 20,
   nearest: true,
 });
 

@@ -78,7 +78,9 @@ const CAD_DCL: Prim[] = [L(0, -3.353, 0, 3.353), L(-4.82, 1.384, 4.82, -1.384)];
 const CAD_DCL_MO: Prim[] = [
   L(0, 10, 0, 5.117),
   L(0, -5.5, 0, -10),
-  L(0, -5.5, 9.737, 1.373),
+  // Luoi dao bat che qua ca khe ho, dung ty le nhu cac ngan lo 110kV ve tay
+  // trong ban CAD (luoi dai bang 1,37 lan khe ho, nghieng khoang 36 do).
+  L(0, -5.5, 8.44, 6.28),
 ];
 
 

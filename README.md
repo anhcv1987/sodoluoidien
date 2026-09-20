@@ -266,15 +266,43 @@ Trước khi dò hình, các nét **thẳng hàng** nối tiếp nhau được g
 vạch của ký hiệu đất vẽ thành hai nửa trên/dưới trục nên không gộp thì không nhận
 ra vạch nào.
 
-Ký hiệu thay vào được đặt **đúng như hình vẽ tay**: dao nhận ra từ lưỡi chéo thì
-mang trạng thái **mở**, khe hở của ký hiệu bằng đúng khe hở đo được trên bản vẽ,
-lưỡi dao quay về đúng phía (lật gương theo hình gốc), và máy cắt hợp bộ lấy cỡ theo
-toàn bộ chiều cao từ cụm mũi tên trên xuống cụm mũi tên dưới.
+Ký hiệu thay vào được đặt **đúng như hình vẽ tay**:
 
-Toàn tờ sơ đồ kết dây nhận được: **99 máy cắt · 165 máy cắt hợp bộ · 243 TI ·
-140 dao cách ly · 311 dao tiếp địa**. Riêng E26.1 Bắc Kạn: 17 máy cắt, 9 máy cắt
+* dao nhận ra từ lưỡi chéo thì mang trạng thái **mở**, khe hở của ký hiệu bằng đúng
+  khe hở đo được trên bản vẽ;
+* ở mép khe còn lại thường có thêm một nét chéo ngắn là **tiếp điểm tĩnh** - phải
+  lấy nét DÀI NHẤT làm lưỡi dao, nếu không ký hiệu sẽ quay ngược và lưỡi dao thật
+  vẫn nằm lại thành nét rời (lỗi dao cách ly 110kV ở E26.1, E26.2, E26.3, E6.17);
+* lưỡi dao quay về đúng phía như hình gốc. Lật gương trong phần mềm đổi dấu trục X,
+  tức đổi luôn phía **chân** lưỡi dao, nên muốn đổi phía **ngọn** lưỡi thì phải lật
+  gương ĐỒNG THỜI quay thêm 180°;
+* dao tiếp địa kéo dài tới tận đoạn dây nối vào đường dây chính, không dừng ở ngọn
+  lưỡi dao, nên không còn hở một quãng giữa ký hiệu và đường dây;
+* máy cắt hợp bộ lấy cỡ theo toàn bộ chiều cao từ cụm mũi tên trên xuống cụm dưới;
+  cánh mũi tên có nơi rộng hơn cả thân máy cắt (E26.3 Nà Phặc: cánh vươn 10,3 trong
+  khi thân rộng 11,2) nên ngưỡng bề ngang phải nới tới 1,15 lần bề rộng thân.
+
+Toàn tờ sơ đồ kết dây nhận được: **95 máy cắt · 169 máy cắt hợp bộ · 243 TI ·
+139 dao cách ly · 311 dao tiếp địa**. Riêng E26.1 Bắc Kạn: 17 máy cắt, 9 máy cắt
 hợp bộ, 33 dao cách ly, 68 dao tiếp địa, 14 TI - trước đây dao tiếp địa và TI không
 nhận được cái nào.
+
+### Danh mục trạm
+
+Danh mục xếp theo số hiệu: **E6.2, E6.3 … E6.25 rồi mới tới E26.1, E26.2, E26.3**
+(so theo số chứ không so theo chữ, nếu không E6.10 sẽ đứng trước E6.2). Tên rút gọn
+giữ lại cấp điện áp để phân biệt **220kV Phú Bình (E6.16)** với **110kV Phú Bình
+(E6.17)**.
+
+Bốn trạm 220kV được sửa lại mã / tên cho đúng danh mục của Phòng Điều độ (bản CAD
+ghi thiếu hoặc lẫn ký tự thừa):
+
+| Mã | Tên | Ghi trong file CAD |
+|---|---|---|
+| E6.2 | Trạm 220kV Thái Nguyên | TRẠM 220 KV THÁI NGUYÊN E6.2 |
+| E6.15 | Trạm 220kV Lưu Xá | `i128.88;` TRẠM 220KV LƯU XÁ (**E6.20**) |
+| E6.16 | Trạm 220kV Phú Bình | TRẠM 220KV PHÚ BÌNH |
+| E6.25 | Trạm 220kV Phú Bình 2 | TRẠM 220KV PHÚ BÌNH 2 |
 
 ### Liên kết điện và chiều công suất
 
@@ -299,6 +327,9 @@ trung áp sau này:
 * **F4** bật lớp **ĐIỂM ĐẤU NỐI**: mỗi cực được đánh dấu ngay trên bản vẽ —
   **ô vuông xanh đặc** = cực đã chạm vào dây dẫn, **ô vuông đỏ gạch chéo** = chưa nối.
   Vẽ xong một đoạn dây là thấy ngay ô đỏ chuyển thành ô xanh.
+* **Dữ liệu → Kiểm tra liên kết điện…** liệt kê CHI TIẾT từng thiết bị còn thiếu
+  (ký hiệu, nhãn ngăn lộ gần nhất, cấp điện áp, toạ độ, tình trạng). Bấm một dòng là
+  nhảy tới đúng chỗ và chọn sẵn thiết bị đó để sửa.
 
 Dùng trong phần mềm:
 
@@ -309,9 +340,14 @@ Dùng trong phần mềm:
 | **Dữ liệu → Tô sáng cả chuỗi 110kV - MBA - trung áp** | Như trên nhưng đi xuyên máy biến áp |
 | **Dữ liệu → Kiểm tra liên kết điện…** | Bảng thống kê + chọn nhanh thiết bị chưa đấu vào lưới |
 
-Trên tờ sơ đồ kết dây hiện có: **1.530 nút điện, 838 mạch rời nhau, 98 cầu nối qua
-máy biến áp**; **3.980/4.015 thiết bị (99,1%)** và **6.363/6.471 cực (98,3%)** đã đấu
+Trên tờ sơ đồ kết dây hiện có: **1.471 nút điện, 807 mạch rời nhau, 98 cầu nối qua
+máy biến áp**; **4.007/4.014 thiết bị (99,8%)** và **6.421/6.469 cực (99,3%)** đã đấu
 được vào lưới. Dựng mô hình mất khoảng 0,25 giây.
+
+Bán kính hút của con trỏ là 20 pixel, còn bán kính coi một cực là "đã chạm vào dây"
+lấy theo cỡ ký hiệu (0,45 lần cỡ ký hiệu, riêng máy biến áp là 1,25 lần vì bản vẽ
+kéo dây vào tận tâm cuộn dây) - bản CAD gốc nhiều chỗ để hở vài đơn vị giữa ký hiệu
+và đường dây, siết chặt quá thì báo nhầm "chưa nối".
 
 Bước tiếp theo để hiện chiều công suất: đánh dấu ngăn lộ nguồn (110/220kV), duyệt
 cây từ nguồn đi ra - lưới trung áp vận hành hình tia nên chiều công suất trên mỗi
@@ -427,6 +463,6 @@ Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và s�
 * Nhập lần lượt các sơ đồ lộ trung áp rời rạc và đấu nối về trạm 110kV tương ứng.
 * Hiện **chiều công suất** trên sơ đồ: đánh dấu ngăn lộ nguồn, duyệt cây từ nguồn
   rồi vẽ mũi tên (mô hình liên kết điện đã có, xem mục 6).
-* Đấu nốt 35 thiết bị còn lơ lửng (bật **F4** hoặc `Dữ liệu → Kiểm tra liên kết
-  điện…` để xem) - phần lớn là chống sét van và TU vẽ tách rời đường dây trong bản
-  CAD gốc.
+* Đấu nốt 40 thiết bị còn thiếu (bật **F4** hoặc `Dữ liệu → Kiểm tra liên kết
+  điện…` để xem danh sách chi tiết) - phần lớn là dao cách ly đầu cáp và máy cắt hợp
+  bộ vẽ tách rời đường dây trong bản CAD gốc.
