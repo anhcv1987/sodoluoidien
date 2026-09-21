@@ -207,14 +207,14 @@ export interface CadStation {
 }
 
 /**
- * SỬA MÃ / TÊN TRẠM cho đúng danh mục của Phòng Điều độ.
+ * SỬA TÊN TRẠM cho đúng danh mục của Phòng Điều độ.
  *
- * Tiêu đề trong file CAD có chỗ ghi thiếu, ghi lẫn ký tự thừa, hoặc đánh mã không
- * đúng (trạm 220kV Lưu Xá ghi là E6.20 trong khi danh mục là E6.15).
+ * Tiêu đề trong file CAD có chỗ ghi thiếu hoặc ghi lẫn ký tự thừa; mã trạm thì
+ * giữ nguyên như Phòng Điều độ đánh (trạm 220kV Lưu Xá là E6.20).
  */
 const SUA_TRAM: Record<string, { ma?: string; ten: string }> = {
   'E6.2': { ten: 'Trạm 220kV Thái Nguyên' },
-  'E6.20': { ma: 'E6.15', ten: 'Trạm 220kV Lưu Xá' },
+  'E6.20': { ten: 'Trạm 220kV Lưu Xá' },
   'E6.16': { ten: 'Trạm 220kV Phú Bình' },
   'E6.25': { ten: 'Trạm 220kV Phú Bình 2' },
 };

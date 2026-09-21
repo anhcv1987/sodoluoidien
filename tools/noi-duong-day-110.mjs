@@ -26,6 +26,46 @@ const data = JSON.parse(readFileSync(duongDan, 'utf8'));
 const to = data.sheets.find((s) => s.code === 'TONG');
 if (!to) throw new Error('Không tìm thấy tờ sơ đồ tổng (TONG) trong dữ liệu.');
 
+/** Tên lớp CAD riêng cho phần do chính script này vẽ thêm. */
+const SRC_KET_LUOI = 'Kết lưới 110kV';
+const SRC_NGOAI = 'Trạm ngoài tỉnh';
+
+const iLayer = (ten) => {
+  let i = data.layers.indexOf(ten);
+  if (i < 0) {
+    data.layers.push(ten);
+    i = data.layers.length - 1;
+  }
+  return i;
+};
+const iSrc = (ten) => {
+  let i = data.srcLayers.indexOf(ten);
+  if (i < 0) {
+    data.srcLayers.push(ten);
+    i = data.srcLayers.length - 1;
+  }
+  return i;
+};
+const LOP = iLayer('110kV');
+const SRC = iSrc(SRC_KET_LUOI);
+const SRC_TN = iSrc(SRC_NGOAI);
+const KIEU = Math.max(0, data.lineKinds.indexOf('ĐDK'));
+const KIEU_TC = Math.max(0, data.lineKinds.indexOf('Thanh cái'));
+const CAN_GIUA = Math.max(0, data.aligns.indexOf('center'));
+const CAN_TRAI = Math.max(0, data.aligns.indexOf('left'));
+const I_MC = Math.max(0, data.blocks.indexOf('MC'));
+const r2 = (v) => Math.round(v * 100) / 100;
+
+// Xoá kết quả của lần chạy trước để chạy lại được nhiều lần trên cùng một file.
+{
+  const bo = new Set([SRC, SRC_TN]);
+  const n0 = to.b.length;
+  to.b = to.b.filter((r) => !bo.has(r[3]));
+  to.t = to.t.filter((r) => !bo.has(r[7]));
+  to.d = to.d.filter((r) => !bo.has(r[8]));
+  if (n0 !== to.b.length) console.log(`Đã xoá ${n0 - to.b.length} tuyến của lần chạy trước.`);
+}
+
 /* ------------------------------------------------------------------ */
 /* 1. Đọc lại hình học cần dùng                                         */
 /* ------------------------------------------------------------------ */
@@ -117,12 +157,46 @@ const dauLo = new Map();
   }
 }
 
-// (b) Theo số hiệu ngăn lộ - dùng cho đầu kia của những tuyến chỉ ghi nhãn một đầu.
-//     Đầu ngăn lộ nằm thành MỘT HÀNG ở mép trạm; chọn hàng có nhiều đầu mút nhất.
+// (b) Ghép SỐ HIỆU NGĂN LỘ cho những đầu mút đã nhận ra nhờ nhãn nơi đến.
+//     Nhãn nơi đến ghi số hiệu ngăn lộ của ĐẦU KIA ("171 E6.8" ở trạm E6.2 nghĩa
+//     là đi tới ngăn 171 của trạm E6.8) nên số hiệu ngăn lộ của chính trạm phải
+//     tra ở hàng chữ phía trong, nằm cùng trục với đoạn dây ra.
+//
+//     Tiện thể ghi lại HÀNG NGĂN LỘ của trạm - cao độ của hàng đầu dây ra - để
+//     bước (c) bám theo.
+/** Cao độ (hoặc hoành độ) hàng đầu dây ra của từng trạm. */
+const hangLo = new Map();
+for (const [khoa, m] of [...dauLo]) {
+  const g = /^([EA]\d+(?:\.\d+)?)>[EA]\d+(?:\.\d+)?#\d+$/.exec(khoa);
+  if (!g) continue;
+  const b = hop.get(g[1]);
+  if (!b) continue;
+  const doc = Math.abs(m.p[1] - m.truoc[1]) >= Math.abs(m.p[0] - m.truoc[0]);
+  let lo = '';
+  let lech = 40;
+  for (const c of nhanLo) {
+    if (c.x < b.x0 - 80 || c.x > b.x1 + 80 || c.y < b.y0 - 80 || c.y > b.y1 + 80) continue;
+    const d = doc ? Math.abs(c.x - m.p[0]) : Math.abs(c.y - m.p[1]);
+    if (d < lech) {
+      lech = d;
+      lo = c.t;
+    }
+  }
+  if (lo) dauLo.set(`${g[1]}#${lo}`, m);
+  hangLo.set(g[1], { doc, v: doc ? m.p[1] : m.p[0] });
+}
+
+// (c) Theo số hiệu ngăn lộ - dùng cho ngăn lộ KHÔNG ghi nhãn nơi đến.
+//     Đầu ngăn lộ nằm thành MỘT HÀNG ở mép trạm. Nếu bước (b) đã xác định được
+//     hàng đó thì bám theo, không thì lấy hàng có nhiều đầu mút nhất. Lấy đúng
+//     hàng là quan trọng: bắt nhầm đầu mút nằm sâu trong trạm (sát thanh cái,
+//     giữa hai dao cách ly) thì đường dây sẽ được vẽ cắt ngang qua cả trạm.
 for (const [ma, b] of hop) {
   const trong = dauMut.filter(
     (m) => m.p[0] >= b.x0 - 80 && m.p[0] <= b.x1 + 80 && m.p[1] >= b.y0 - 80 && m.p[1] <= b.y1 + 80,
   );
+  const cx = (b.x0 + b.x1) / 2;
+  const cy = (b.y0 + b.y1) / 2;
   const kem = [];
   for (const m of trong) {
     let t = '';
@@ -136,34 +210,133 @@ for (const [ma, b] of hop) {
     }
     if (!t) continue;
     // Đầu ngăn lộ là đầu mút CHĨA RA XA tâm trạm
-    const cx = (b.x0 + b.x1) / 2;
-    const cy = (b.y0 + b.y1) / 2;
     const raNgoai =
       (m.p[0] - m.truoc[0]) * (m.p[0] - cx) + (m.p[1] - m.truoc[1]) * (m.p[1] - cy) > 0;
     if (raNgoai) kem.push({ m, t });
   }
-  // hàng (theo y) có nhiều đầu mút nhất
-  const theoY = new Map();
-  for (const k of kem) {
-    const y = Math.round(k.m.p[1] / 8) * 8;
-    theoY.set(y, (theoY.get(y) ?? 0) + 1);
+  let hang = hangLo.get(ma);
+  // Chỉ nới ra ngoài hàng khi ĐÃ BIẾT CHẮC hàng đầu dây ra nhờ nhãn nơi đến;
+  // trạm không có nhãn nào thì bám sát hàng đông đầu mút nhất cho an toàn.
+  const noiRa = Boolean(hang);
+  if (!hang) {
+    // hàng (theo y) có nhiều đầu mút nhất
+    const theoY = new Map();
+    for (const k of kem) {
+      const y = Math.round(k.m.p[1] / 8) * 8;
+      theoY.set(y, (theoY.get(y) ?? 0) + 1);
+    }
+    let yTot = null;
+    let nTot = 0;
+    for (const [y, n] of theoY) if (n > nTot) [yTot, nTot] = [y, n];
+    if (yTot === null) continue;
+    hang = { doc: true, v: yTot };
   }
-  let yTot = null;
-  let nTot = 0;
-  for (const [y, n] of theoY) if (n > nTot) [yTot, nTot] = [y, n];
-  if (yTot === null) continue;
+  // Ngăn lộ chĩa về phía nào thì nhận các đầu mút từ hàng đó TRỞ RA (có trạm vẽ
+  // đầu dây ra so le nhau), còn đầu mút nằm phía trong hàng thì bỏ.
+  const chieu = hang.v < (hang.doc ? cy : cx) ? -1 : 1;
+  const xa = new Map();
   for (const k of kem) {
-    if (Math.abs(k.m.p[1] - yTot) > 40) continue;
-    const khoaLo = `${ma}#${k.t}`;
-    if (!dauLo.has(khoaLo)) dauLo.set(khoaLo, k.m);
+    const v = hang.doc ? k.m.p[1] : k.m.p[0];
+    if (noiRa ? (v - hang.v) * chieu < -40 : Math.abs(v - hang.v) > 40) continue;
+    const cu = xa.get(k.t);
+    if (!cu || (v - cu.v) * chieu > 0) xa.set(k.t, { m: k.m, v });
   }
+  for (const [t, u] of xa) {
+    const khoaLo = `${ma}#${t}`;
+    if (!dauLo.has(khoaLo)) dauLo.set(khoaLo, u.m);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 2b. Trạm 220kV ngoài tỉnh                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Lưới 110kV Thái Nguyên - Bắc Kạn còn nhận điện từ ba trạm 220kV KHÔNG thuộc
+ * địa bàn, bản CAD gốc chưa vẽ (chỉ ghi nhãn nơi đến ở đầu ngăn lộ):
+ *
+ *   E26.5 - 220kV Bắc Kạn   (cấp cho E26.1 Bắc Kạn, E26.2 Chợ Đồn, E26.3 Nà Phặc)
+ *   E16.2 - 220kV Cao Bằng  (cấp cho E26.3 Nà Phặc)
+ *   E1.19 - 220kV Sóc Sơn   (cấp cho E6.16 Phú Bình, E6.24 Đa Phúc, E6.7 Sông Công)
+ *
+ * E1.19 đã có sẵn một sơ đồ thu nhỏ ở góc dưới bên trái bản vẽ nên chỉ cần lấy
+ * lại đầu ngăn lộ; hai trạm còn lại được vẽ thêm phần thanh cái 110kV (thanh cái
+ * + máy cắt + ngăn lộ), đủ để thể hiện điểm đấu nối chứ không vẽ sâu vào trạm.
+ */
+
+/** Trạm ngoài tỉnh: không vẽ lưới trung áp nên không cần chừa dải để dành. */
+const ngoaiTinh = new Set();
+
+const BUOC_LO = 350; // khoảng cách giữa hai ngăn lộ
+const SAU_LO = 130; // chiều dài ngăn lộ tính từ thanh cái xuống
+const CAO_MC = 16; // cỡ ký hiệu máy cắt, bằng máy cắt 110kV trong các trạm
+
+/** Hình học vẽ thêm cho trạm ngoài tỉnh, ghi vào dữ liệu ở cuối script. */
+const veNgoai = { b: [], d: [], t: [] };
+
+const TRAM_NGOAI = [
+  // [mã, tên ghi trên bản vẽ, x ngăn lộ đầu, cao độ thanh cái, danh sách ngăn lộ]
+  ['E26.5', '220kV BẮC KẠN (E26.5)', -100, 7980, ['171', '173', '172', '174']],
+  ['E16.2', '220kV CAO BẰNG (E16.2)', 2450, 7980, ['171']],
+];
+
+for (const [ma, ten, x0Lo, yTC, dsLo] of TRAM_NGOAI) {
+  const xs = dsLo.map((_, i) => x0Lo + i * BUOC_LO);
+  const xa = xs[0] - 120;
+  const xb = xs[xs.length - 1] + 120;
+  veNgoai.b.push([LOP, 110, KIEU_TC, SRC_TN, xa, yTC, xb, yTC]);
+  for (let i = 0; i < xs.length; i++) {
+    const x = xs[i];
+    const yMC = yTC - 40 - CAO_MC / 2;
+    veNgoai.b.push([LOP, 110, KIEU, SRC_TN, x, yTC, x, yMC + CAO_MC / 2]);
+    veNgoai.d.push([LOP, 110, I_MC, x, yMC, 0, CAO_MC, 0, SRC_TN, 0]);
+    veNgoai.b.push([LOP, 110, KIEU, SRC_TN, x, yMC - CAO_MC / 2, x, yTC - SAU_LO]);
+    veNgoai.t.push([LOP, 110, x + 14, yMC - 6, 13, 0, CAN_TRAI, SRC_TN, dsLo[i]]);
+    dauLo.set(`${ma}#${dsLo[i]}`, { p: [x, yTC - SAU_LO], truoc: [x, yMC - CAO_MC / 2] });
+  }
+  veNgoai.t.push([LOP, 110, (xa + xb) / 2, yTC + 30, 24, 0, CAN_GIUA, SRC_TN, ten]);
+  hop.set(ma, { x0: xa, y0: yTC - SAU_LO, x1: xb, y1: yTC + 70 });
+  ngoaiTinh.add(ma);
+}
+
+/**
+ * E1.19 SÓC SƠN - sơ đồ thu nhỏ có sẵn trong file CAD. Ngăn lộ 172 chỉ vẽ tới máy
+ * cắt, thiếu đoạn dây ra nên vẽ bù cho bằng các ngăn lộ bên cạnh.
+ */
+{
+  hop.set('E1.19', { x0: -4816, y0: -6975, x1: -4610, y1: -6762 });
+  ngoaiTinh.add('E1.19');
+  veNgoai.b.push([LOP, 110, KIEU, SRC_TN, -4686.61, -6836.27, -4686.61, -6869.38]);
+  const bayE119 = [
+    // [số ngăn lộ, x, y đầu dây ra, y điểm phía trong]
+    ['172', -4686.61, -6869.38, -6836.27],
+    ['174', -4651.73, -6954.27, -6836.27],
+    ['176', -4617.08, -6915.43, -6852.83],
+  ];
+  for (const [lo, x, y, yTrong] of bayE119) {
+    dauLo.set(`E1.19#${lo}`, { p: [x, y], truoc: [x, yTrong] });
+  }
+}
+
+// Xem danh sách khoá đầu ngăn lộ nhận được:  XEM=1 node tools/noi-duong-day-110.mjs
+if (process.env.XEM) {
+  const ds = [...dauLo.entries()].map(([k, m]) => [k, m.p.map((v) => Math.round(v))]);
+  ds.sort((x, y) => x[0].localeCompare(y[0]));
+  for (const [k, q] of ds) console.log(k.padEnd(18), q.join(', '));
+  process.exit(0);
 }
 
 /* ------------------------------------------------------------------ */
 /* 3. Danh mục đường dây 110kV                                          */
 /* ------------------------------------------------------------------ */
 
-/** [đầu A, đầu B, mã hiệu dây, chiều dài km] */
+/**
+ * [đầu A, đầu B, mã hiệu dây, chiều dài km]
+ *
+ * Khoá đầu ngăn lộ ưu tiên dạng "trạm#số ngăn lộ" vì đó là cách Phòng Điều độ gọi
+ * tên lộ (177E6.2, 171E6.8...). Dạng "trạm>trạm đến" chỉ dùng khi ngăn lộ không
+ * ghi số hiệu trên bản vẽ. Để trống mã hiệu dây thì không ghi nhãn.
+ */
 const DUONG_DAY = [
   ['E6.19>E6.12', 'E6.12>E6.19', 'AC185+AC240', 10.7],
   ['E6.12>E6.11', 'E6.11>E6.12', 'AC240 + AC185', 19.1],
@@ -171,26 +344,39 @@ const DUONG_DAY = [
   ['E6.2>E6.6', 'E6.6>E6.2', 'AC185', 20.99],
   ['E6.6>E26.1', 'E6.22>E6.6', 'AC185', 26.0],
   ['E6.22>E26.1', 'E26.1>E6.22', 'ACSR240', 10.99],
-  ['E6.2>E6.8#1', 'E6.8>E6.2#1', 'AC185', 17.04],
-  ['E6.2>E6.8#2', 'E6.8>E6.2#2', 'AC185', 17.04],
+  ['E6.2#177', 'E6.8#171', 'AC185', 17.04],
+  ['E6.2#178', 'E6.8#172', 'AC185', 17.04],
   ['E6.2>E6.4', 'E6.4>E6.2', 'AC400', 5.2],
   ['E6.4>E6.20', 'E6.20#175', 'AC400', 2.15],
   ['E6.9>E6.20#1', 'E6.20#171', 'AC300', 7.8],
   ['E6.9>E6.20#2', 'E6.20#172', 'AC300', 7.8],
   ['E6.5#171', 'E6.20#173', 'AC185', 1.78],
   ['E6.5#172', 'E6.20#174', 'AC185', 2.0],
-  ['E6.21>E6.3', 'E6.3#171', 'AC400', 4.2],
-  ['E6.3>E6.16', 'E6.16#174', 'AC400', 4.34],
+  ['E6.3#171', 'E6.21#171', 'AC400', 4.28],
+  ['E6.3#172', 'E6.16#172', 'AC400', 4.34],
   ['E6.7>E6.16', 'E6.16#173', 'AC400', 8.38],
   ['E6.24>E6.16', 'E6.16>E6.24', 'AC400', 5.54],
   ['E6.13>E6.16', 'E6.16#178', 'AC400', 4.34],
   ['E6.14>E6.16#1', 'E6.16#180', 'AC400', 8.92],
   ['E6.14>E6.16#2', 'E6.16#181', 'AC400', 8.92],
   ['E6.13>E6.23', 'E6.23>E6.13', 'ACSR400', 2.61],
-  ['E6.13>E6.25', 'E6.25>E6.13', 'AC400', 5.3],
+  ['E6.13#172', 'E6.25#172', 'AC400', 5.3],
   ['E6.16>E6.25', 'E6.25>E6.16', 'AC400', 3.3],
   ['E6.25>E6.17', 'E6.17#172', 'AC400', 5.82],
   ['E6.25>E6.18', 'E6.18#171', 'AC400', 5.3],
+
+  /* --- Đường dây 110kV đi các trạm 220kV ngoài địa bàn ---
+     Sơ đồ kết lưới của Phòng Điều độ không ghi mã hiệu dây và chiều dài cho các
+     lộ nối lên 220kV Bắc Kạn và 220kV Cao Bằng nên để trống, chờ bổ sung. */
+  ['E26.5#173', 'E26.1#171', '', 0],
+  ['E26.5#172', 'E26.1#172', '', 0],
+  ['E26.5#171', 'E26.2#171', '', 0],
+  ['E26.5#174', 'E26.3#171', '', 0],
+  ['E16.2#171', 'E26.3#172', '', 0],
+  // 220kV Sóc Sơn: chiều dài là tổng các đoạn ghi trên sơ đồ kết lưới
+  ['E1.19#176', 'E6.16#176', 'AC400+TACSR200', 15.94],
+  ['E1.19#174', 'E6.24#171', 'AC400+TACSR200', 8.38],
+  ['E1.19#172', 'E6.7#172', 'AC2x185', 11.0],
 ];
 
 /* ------------------------------------------------------------------ */
@@ -244,10 +430,52 @@ const DAI_TA = 560; // bề sâu dải để dành (đơn vị bản vẽ)
 const PHAT_TA = 420; // phạt mỗi ô khi đi vào dải đó
 const daiTrungAp = new Array(NX * NY).fill('');
 for (const h of hopList) {
+  if (ngoaiTinh.has(h.ma)) continue; // trạm ngoài tỉnh không vẽ lưới trung áp
   for (let i = Math.max(0, cot(h.x0 - LE)); i <= Math.min(NX - 1, cot(h.x1 + LE)); i++) {
     for (let j = Math.max(0, hang(h.y0 - LE - DAI_TA)); j <= Math.min(NY - 1, hang(h.y0 - LE)); j++) {
       const k = j * NX + i;
       if (!chiem[k]) daiTrungAp[k] = h.ma;
+    }
+  }
+}
+
+/**
+ * Ô đã có sẵn hình vẽ trên bản CAD. Đường dây kết lưới đi đè lên thanh cái, máy
+ * cắt hay dao cách ly của trạm thì nhìn rất rối, nên các ô đó bị phạt; riêng ô có
+ * thiết bị TRUNG ÁP (35/22/10/6/0,4kV) bị phạt rất nặng - đó là phần phải để dành
+ * cho việc đấu tiếp lưới trung áp sau này.
+ */
+const CAP_TA = [0.4, 6, 10, 22, 35];
+const oDaVe = new Uint8Array(NX * NY);
+const oTrungAp = new Uint8Array(NX * NY);
+{
+  const cham = (mang, x, y) => {
+    const i = cot(x);
+    const j = hang(y);
+    if (i < 0 || i >= NX || j < 0 || j >= NY) return;
+    mang[j * NX + i] = 1;
+  };
+  for (const r of to.b) {
+    if (r[3] === SRC || r[3] === SRC_TN) continue; // phần do chính script này vẽ
+    const mang = CAP_TA.includes(r[1]) ? oTrungAp : oDaVe;
+    for (let i = 4; i + 3 < r.length; i += 2) {
+      const [x0, y0, x1, y1] = [r[i], r[i + 1], r[i + 2], r[i + 3]];
+      const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / (O / 2)));
+      for (let t = 0; t <= n; t++) cham(mang, x0 + ((x1 - x0) * t) / n, y0 + ((y1 - y0) * t) / n);
+    }
+  }
+  // nới rộng vùng trung áp ra một ô cho thoáng
+  const goc = Uint8Array.from(oTrungAp);
+  for (let j = 0; j < NY; j++) {
+    for (let i = 0; i < NX; i++) {
+      if (!goc[j * NX + i]) continue;
+      for (let dj = -1; dj <= 1; dj++) {
+        for (let di = -1; di <= 1; di++) {
+          const i1 = i + di;
+          const j1 = j + dj;
+          if (i1 >= 0 && i1 < NX && j1 >= 0 && j1 < NY) oTrungAp[j1 * NX + i1] = 1;
+        }
+      }
     }
   }
 }
@@ -267,24 +495,23 @@ function timDuong(A, B, tru) {
   const tj = hang(B[1]);
   if (si < 0 || si >= NX || sj < 0 || sj >= NY || ti < 0 || ti >= NX || tj < 0 || tj >= NY) return null;
   // Ô của trạm khác thì cấm hẳn; ô của CHÍNH hai trạm đầu cuối thì đi được nhưng
-  // phạt rất nặng, để đường dây thoát ra khỏi trạm ngay chứ không cắt ngang trạm.
+  // phạt nặng, để đường dây thoát ra khỏi trạm ngay chứ không cắt ngang trạm.
   const PHAT_TRONG_TRAM = 900;
-  /** Phạt rất nặng khi đi vào PHẦN TRUNG ÁP nằm dưới ngăn lộ 110kV của chính trạm. */
+  /** Phạt khi đè lên hình vẽ sẵn có của bản CAD. */
+  const PHAT_DE = 1100;
+  /** Phạt rất nặng khi đi vào phần TRUNG ÁP - chỗ để dành đấu lưới 35/22/6kV. */
   const PHAT_TA_TRONG = 5200;
   const phatO = (i, j) => {
     const k = j * NX + i;
     const c = chiem[k];
-    if (c) {
-      const t = tru.find((u) => u.ma === c);
-      if (!t) return -1;
-      // Trong sơ đồ trạm, phần 35/22/6kV nằm DƯỚI hàng ngăn lộ 110kV. Đường dây
-      // 110kV không được cắt ngang qua đó, để dành chỗ đấu lưới trung áp sau này.
-      return toaY(j) < t.day - 30 ? PHAT_TA_TRONG : PHAT_TRONG_TRAM;
-    }
+    if (c && !maTru.includes(c)) return -1;
+    let p = c ? PHAT_TRONG_TRAM : 0;
+    if (oTrungAp[k]) p += PHAT_TA_TRONG;
+    else if (oDaVe[k]) p += PHAT_DE;
     // Dải để dành cho lưới trung áp ngay dưới trạm: đi qua được nhưng phạt nặng.
     const d = daiTrungAp[k];
-    if (d && !maTru.includes(d)) return PHAT_TA;
-    return 0;
+    if (d && !maTru.includes(d)) p += PHAT_TA;
+    return p;
   };
   const N = NX * NY;
   const DI = [1, -1, 0, 0];
@@ -357,12 +584,7 @@ function timDuong(A, B, tru) {
 function diDay(mA, mB, maTram) {
   const dA = huongRa(mA);
   const dB = huongRa(mB);
-  // Chừa một dải ngay dưới hàng ngăn lộ để đường dây rẽ ngang thoát ra; sâu hơn
-  // nữa là phần 35/22/6kV của trạm, phải để dành cho lưới trung áp.
-  const tru = [
-    { ma: maTram[0], day: mA.p[1] - VUON - 40 },
-    { ma: maTram[1], day: mB.p[1] - VUON - 40 },
-  ];
+  const tru = [{ ma: maTram[0] }, { ma: maTram[1] }];
   const A = [mA.p[0] + dA[0] * VUON, mA.p[1] + dA[1] * VUON];
   const B = [mB.p[0] + dB[0] * VUON, mB.p[1] + dB[1] * VUON];
   const giua = timDuong(A, B, tru);
@@ -374,28 +596,6 @@ function diDay(mA, mB, maTram) {
 /* ------------------------------------------------------------------ */
 /* 5. Ghi vào dữ liệu                                                   */
 /* ------------------------------------------------------------------ */
-
-const iLayer = (ten) => {
-  let i = data.layers.indexOf(ten);
-  if (i < 0) {
-    data.layers.push(ten);
-    i = data.layers.length - 1;
-  }
-  return i;
-};
-const iSrc = (ten) => {
-  let i = data.srcLayers.indexOf(ten);
-  if (i < 0) {
-    data.srcLayers.push(ten);
-    i = data.srcLayers.length - 1;
-  }
-  return i;
-};
-const LOP = iLayer('110kV');
-const SRC = iSrc('Kết lưới 110kV');
-const KIEU = Math.max(0, data.lineKinds.indexOf('ĐDK'));
-const CAN_GIUA = Math.max(0, data.aligns.indexOf('center'));
-const r2 = (v) => Math.round(v * 100) / 100;
 
 const thieu = [];
 /** Các tuyến đã đi dây xong, chờ chèn ký hiệu nhảy dây rồi mới ghi. */
@@ -573,6 +773,8 @@ for (const { pts, day, km } of tuyen) {
   const mx = (pts[bestI - 1][0] + pts[bestI][0]) / 2;
   const my = (pts[bestI - 1][1] + pts[bestI][1]) / 2;
   const doc = Math.abs(pts[bestI][0] - pts[bestI - 1][0]) < 1;
+  xong++;
+  if (!day) continue; // chưa có mã hiệu dây / chiều dài thì không ghi nhãn
   to.t.push([
     LOP,
     110,
@@ -584,10 +786,33 @@ for (const { pts, day, km } of tuyen) {
     SRC,
     `${day} - ${String(km).replace('.', ',')}km`,
   ]);
-  xong++;
 }
 
+// Phần vẽ thêm cho trạm 220kV ngoài tỉnh
+for (const r of veNgoai.b) to.b.push(r);
+for (const r of veNgoai.d) to.d.push(r);
+for (const r of veNgoai.t) to.t.push(r);
+
 writeFileSync(duongDan, JSON.stringify(data));
+
+// Tự kiểm: đếm số đỉnh rơi vào ô đã có hình vẽ / ô trung áp.
+{
+  let deTA = 0;
+  let deVe = 0;
+  let dinh = 0;
+  for (const { pts } of tuyen) {
+    for (const q of pts) {
+      const i = cot(q[0]);
+      const j = hang(q[1]);
+      if (i < 0 || i >= NX || j < 0 || j >= NY) continue;
+      dinh++;
+      if (oTrungAp[j * NX + i]) deTA++;
+      else if (oDaVe[j * NX + i]) deVe++;
+    }
+  }
+  console.log(`Tự kiểm: ${dinh} đỉnh, ${deTA} đỉnh trong vùng trung áp, ${deVe} đỉnh đè hình vẽ sẵn.`);
+}
+
 console.log(
   `Đã nối ${xong}/${DUONG_DAY.length} đường dây 110kV vào tờ sơ đồ kết dây` +
     `, chèn ${soNhay} ký hiệu nhảy dây ở chỗ giao chéo.`,

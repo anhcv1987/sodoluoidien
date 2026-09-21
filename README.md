@@ -297,30 +297,78 @@ ghi nơi đến (`171 E6.22 ĐỊNH HÓA`). Phần mềm nay **nối các ngăn 
 * sơ đồ **"Lưới điện 220kV-110kV khu vực tỉnh Thái Nguyên"** của Phòng Điều độ
   (mã hiệu dây, chiều dài, số mạch).
 
-Tổng cộng **26 đường dây 110kV** được vẽ nối, ví dụ:
+Tổng cộng **34 đường dây 110kV** được vẽ nối. Bảng đường dây trong
+`tools/noi-duong-day-110.mjs` gọi tên hai đầu theo **số hiệu ngăn lộ** đúng như
+Phòng Điều độ vẫn gọi (177E6.2 - 171E6.8), ví dụ:
 
-| Từ | Đến | Dây | km |
+| Đầu A | Đầu B | Dây | km |
 |---|---|---|---|
-| E6.19 Đại Từ | E6.12 Núi Pháo | AC185+AC240 | 10,7 |
-| E6.12 Núi Pháo | E6.11 XM Quán Triều | AC240 + AC185 | 19,1 |
-| E6.11 XM Quán Triều | E6.2 220kV Thái Nguyên | AC185 | 6,7 |
-| E6.2 220kV Thái Nguyên | E6.6 Phú Lương | AC185 | 20,99 |
-| E6.22 Định Hóa | E26.1 Bắc Kạn | ACSR240 | 10,99 |
-| E6.15 220kV Lưu Xá | E6.9 Gang Thép | AC300 | 7,8 (2 mạch) |
-| E6.16 220kV Phú Bình | E6.14 Yên Bình 2 | AC400 | 8,92 (2 mạch) |
+| 171 E6.19 Đại Từ | 172 E6.12 Núi Pháo | AC185+AC240 | 10,7 |
+| 177 E6.2 220kV Thái Nguyên | 171 E6.8 XM Thái Nguyên | AC185 | 17,04 |
+| 178 E6.2 220kV Thái Nguyên | 172 E6.8 XM Thái Nguyên | AC185 | 17,04 |
+| 171 E6.3 Gò Đầm | 171 E6.21 Sông Công 2 | AC400 | 4,28 |
+| 172 E6.3 Gò Đầm | 172 E6.16 220kV Phú Bình | AC400 | 4,34 |
+| 172 E6.13 Yên Bình | 172 E6.25 220kV Phú Bình 2 | AC400 | 5,3 |
+| 171 E6.22 Định Hóa | 173 E26.1 Bắc Kạn | ACSR240 | 10,99 |
+| 171/172 E6.9 Gang Thép | 171/172 E6.20 220kV Lưu Xá | AC300 | 7,8 (2 mạch) |
+
+#### Ba trạm 220kV ngoài địa bàn
+
+Lưới 110kV Thái Nguyên - Bắc Kạn còn nhận điện từ ba trạm 220kV **không thuộc địa
+bàn PCTN**, bản CAD gốc chưa vẽ (chỉ ghi nhãn nơi đến ở đầu ngăn lộ). Phần mềm bổ
+sung ba trạm đó và **08 đường dây 110kV**:
+
+| Trạm | Ngăn lộ | Đi tới |
+|---|---|---|
+| **E26.5** 220kV Bắc Kạn | 171 | 171 E26.2 Chợ Đồn |
+| | 172 | 172 E26.1 Bắc Kạn |
+| | 173 | 171 E26.1 Bắc Kạn |
+| | 174 | 171 E26.3 Nà Phặc |
+| **E16.2** 220kV Cao Bằng | 171 | 172 E26.3 Nà Phặc |
+| **E1.19** 220kV Sóc Sơn | 172 | 172 E6.7 Sông Công (AC2x185 - 11km) |
+| | 174 | 171 E6.24 Đa Phúc (8,38km) |
+| | 176 | 176 E6.16 220kV Phú Bình (15,94km) |
+
+E1.19 Sóc Sơn đã có sẵn một **sơ đồ thu nhỏ ở góc dưới bên trái** bản vẽ gốc nên
+chỉ lấy lại đầu ngăn lộ (và vẽ bù đoạn dây ra của ngăn 172 mà bản CAD bỏ sót).
+E26.5 và E16.2 được vẽ thêm **phần thanh cái 110kV** (thanh cái + máy cắt + ngăn
+lộ có ghi số hiệu), đủ để thể hiện điểm đấu nối chứ không vẽ sâu vào trạm; hình
+này nằm trên lớp CAD riêng `Trạm ngoài tỉnh`. Sơ đồ kết lưới của Phòng Điều độ
+không ghi mã hiệu dây và chiều dài cho các lộ lên 220kV Bắc Kạn và 220kV Cao Bằng
+nên các tuyến đó **chưa có nhãn**, chờ bổ sung.
+
+#### Tìm đúng đầu dây ra của ngăn lộ
+
+Một ngăn lộ 110kV trong sơ đồ trạm có nhiều đầu mút hở: sát thanh cái, giữa hai dao
+cách ly, và **đầu dây ra** ở ngoài cùng. Đấu nhầm vào đầu mút phía trong thì đường
+dây sẽ được vẽ cắt ngang qua cả trạm. Vì vậy công cụ xác định **hàng đầu dây ra**
+của từng trạm từ những ngăn lộ CÓ nhãn nơi đến (nhãn luôn đặt ở đầu dây ra), rồi
+mới gán số hiệu cho các ngăn lộ còn lại theo hàng đó trở ra - có trạm vẽ đầu dây ra
+so le nhau nên không chốt cứng một hàng. Chạy `XEM=1 node tools/noi-duong-day-110.mjs`
+để in ra bảng *số hiệu ngăn lộ → toạ độ đầu dây ra*.
+
+Lưu ý cách đọc nhãn nơi đến: **số trong nhãn là ngăn lộ của ĐẦU KIA**. Nhãn
+`171 E6.8` đặt ở ngăn 177 của E6.2 nghĩa là lộ 177E6.2 đi tới ngăn 171 của E6.8.
 
 **Cách đi dây cho gọn mắt** (`tools/noi-duong-day-110.mjs`): mỗi đầu ngăn lộ đi
 thẳng ra khỏi trạm một đoạn 110 đơn vị, rồi tìm đường bằng thuật toán **A\*** trên
 lưới ô 60 đơn vị:
 
 * ô nằm trong phạm vi trạm khác bị **cấm** - đường dây không bao giờ cắt qua trạm;
-* ô của chính hai trạm đầu cuối thì đi được nhưng **phạt nặng**, nên đường dây thoát
-  ra khỏi trạm ngay chứ không chạy dọc qua giữa trạm;
+* ô của chính hai trạm đầu cuối thì đi được nhưng **phạt nặng** (900/ô), nên đường
+  dây thoát ra khỏi trạm ngay chứ không chạy dọc qua giữa trạm;
+* ô **đã có hình vẽ sẵn** của bản CAD (thanh cái, máy cắt, dao cách ly...) bị phạt
+  1100/ô, nên đường dây không đè lên ký hiệu thiết bị;
+* ô có **thiết bị trung áp 35/22/10/6/0,4kV** (nới rộng thêm một ô) bị phạt 5200/ô -
+  đó chính là chỗ phải để dành cho việc đấu tiếp lưới trung áp;
 * mỗi lần rẽ bị phạt, nên đường đi ít gấp khúc nhất;
 * ô đã có tuyến khác đi qua cũng bị phạt, nên các tuyến **tự tản ra song song** thay
   vì đè lên nhau;
-* **dải để dành cho lưới trung áp** (xem ngay dưới) bị phạt, nên đường dây 110kV
-  tránh xuống vùng sẽ vẽ lộ 35/22/6kV.
+* **dải để dành cho lưới trung áp** ngay dưới mỗi trạm (xem ngay dưới) bị phạt
+  420/ô, nên đường dây 110kV tránh xuống vùng sẽ vẽ lộ 35/22/6kV.
+
+Chạy xong, công cụ tự kiểm và in ra số đỉnh rơi vào vùng trung áp / đè lên hình vẽ
+sẵn có, để dễ so sánh giữa hai lần chỉnh.
 
 Khi hai tuyến buộc phải gặp nhau ở cùng một góc rẽ, bộ định tuyến **vạt góc** tuyến
 đi sau (13, 22, 31... đơn vị tuỳ số tuyến trùng) để không còn đỉnh trùng nhau -
@@ -333,27 +381,25 @@ bảng Lớp).
 #### Dải để dành cho lưới trung áp
 
 Mỗi trạm 110kV sau này còn phải vẽ tiếp các lộ 35/22/6kV đi ra phía dưới. Vì vậy
-bộ định tuyến giữ sẵn một **dải sâu 560 đơn vị ngay dưới mỗi trạm** và phạt nặng
-mọi ô rơi vào đó (phạt 420/ô ở ngoài trạm, 5200/ô đối với phần trung áp nằm *bên
-trong* trạm - tính từ mép dưới của ngăn lộ 110kV trở xuống). Nhờ đó đường dây 110kV
-chạy vòng phía trên hoặc đi men rìa chứ không bổ dọc qua thanh cái 22kV/35kV. Số ô
-lấn vào vùng trung áp giảm từ hơn 90 xuống còn **4**.
+bộ định tuyến giữ sẵn một **dải sâu 560 đơn vị ngay dưới mỗi trạm** (trừ ba trạm
+220kV ngoài địa bàn, vốn không vẽ lưới trung áp) và phạt 420/ô khi đi vào đó. Cộng
+với việc phạt 5200/ô ở những ô có sẵn thiết bị trung áp, đường dây 110kV chạy vòng
+phía trên hoặc đi men rìa chứ không bổ dọc qua thanh cái 22kV/35kV: trong 717 đỉnh
+của 34 tuyến chỉ còn **23 đỉnh** nằm trong vùng trung áp.
 
 #### Ký hiệu nhảy dây ở chỗ giao chéo
 
 Chỗ hai đường dây cắt nhau **trên hình vẽ** mà **không** đấu nối với nhau được vẽ
 bằng **nửa hình tròn** (bán kính 24 đơn vị, 8 đoạn cung) chèn thẳng vào tuyến đi
-ngang - đúng quy ước "nhảy dây" của bản vẽ sơ đồ nguyên lý. Hiện có **50 ký hiệu
+ngang - đúng quy ước "nhảy dây" của bản vẽ sơ đồ nguyên lý. Hiện có **44 ký hiệu
 nhảy dây**, và **0 chỗ giao chéo còn thiếu ký hiệu**. Chỗ sát góc rẽ thì bán kính
 tự thu nhỏ theo khoảng trống còn lại (tối thiểu 9 đơn vị).
 
 Quan trọng hơn hình vẽ là **mô hình điện**: các tuyến kết lưới mang cờ
 `khongNoiGiua` (`src/core/types.ts`), nên khi dựng nút điện (`src/core/lienket.ts`)
 chúng **chỉ được đấu ở hai đầu**, đoạn giữa chỉ đi ngang qua. Nếu không có cờ này
-thì 86 điểm giao chéo sẽ bị coi là điểm đấu và **Shift+M** (tô sáng cả mạch) sẽ tô
-lem sang các tuyến không liên quan. Kiểm tra thực tế: chọn một tuyến kết lưới rồi
-Shift+M cho ra 95 đối tượng, trong đó **chỉ đúng 1 tuyến kết lưới** - không còn
-chảy lan.
+thì mọi điểm giao chéo sẽ bị coi là điểm đấu và **Shift+M** (tô sáng cả mạch) sẽ tô
+lem sang các tuyến không liên quan.
 
 ### Danh mục trạm
 
@@ -362,13 +408,13 @@ Danh mục xếp theo số hiệu: **E6.2, E6.3 … E6.25 rồi mới tới E26.
 giữ lại cấp điện áp để phân biệt **220kV Phú Bình (E6.16)** với **110kV Phú Bình
 (E6.17)**.
 
-Bốn trạm 220kV được sửa lại mã / tên cho đúng danh mục của Phòng Điều độ (bản CAD
-ghi thiếu hoặc lẫn ký tự thừa):
+Bốn trạm 220kV được sửa lại tên cho đúng danh mục của Phòng Điều độ (bản CAD ghi
+thiếu hoặc lẫn ký tự thừa); mã trạm giữ nguyên:
 
 | Mã | Tên | Ghi trong file CAD |
 |---|---|---|
 | E6.2 | Trạm 220kV Thái Nguyên | TRẠM 220 KV THÁI NGUYÊN E6.2 |
-| E6.15 | Trạm 220kV Lưu Xá | `i128.88;` TRẠM 220KV LƯU XÁ (**E6.20**) |
+| E6.20 | Trạm 220kV Lưu Xá | `i128.88;` TRẠM 220KV LƯU XÁ (E6.20) |
 | E6.16 | Trạm 220kV Phú Bình | TRẠM 220KV PHÚ BÌNH |
 | E6.25 | Trạm 220kV Phú Bình 2 | TRẠM 220KV PHÚ BÌNH 2 |
 

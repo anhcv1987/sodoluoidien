@@ -183,9 +183,38 @@ dây 110kV; những tuyến chỉ ghi nhãn một đầu thì đầu kia tra the
 Mã hiệu dây và chiều dài lấy từ sơ đồ **"LƯỚI ĐIỆN 220KV-110KV KHU VỰC TỈNH THÁI
 NGUYÊN"** của Phòng Điều độ (bản ngày 10/8/2026, người vẽ Hoàng Gia Tùng).
 
-Vài chỗ trong sơ đồ đó khác với nhãn trên file CAD (ví dụ hai lộ E6.2 - E6.8 ghi là
-171/172 trên CAD nhưng 174/177 trong sơ đồ kết lưới). Khi lệch thì lấy theo nhãn
-trên file CAD vì đó là bản vẽ đang dùng, và ghi chú lại để rà soát.
+**Cách đọc nhãn nơi đến:** số trong nhãn là **ngăn lộ của ĐẦU KIA**, không phải
+ngăn lộ của chính trạm đang xét. Nhãn `171 E6.8` đặt ở ngăn 177 của E6.2 nghĩa là
+lộ 177E6.2 đi tới ngăn 171 của E6.8. Đối chiếu vị trí chữ trên bản vẽ xác nhận điều
+này: ở E26.1 Bắc Kạn, nhãn `171 E6.22 ĐỊNH HÓA` nằm đúng trên cột của ngăn lộ 173,
+còn sơ đồ kết lưới cũng vẽ 173E26.1 - 171E6.22.
+
+Số hiệu ngăn lộ hai đầu của 08 tuyến đã được Phòng Điều độ xác nhận lại:
+177E6.2 - 171E6.8, 178E6.2 - 172E6.8, 171E6.3 - 171E6.21, 172E6.3 - 172E6.16,
+172E6.13 - 172E6.25.
+
+### Ba trạm 220kV ngoài địa bàn
+
+| Mã | Trạm | Nguồn dữ liệu |
+|---|---|---|
+| E26.5 | 220kV Bắc Kạn | Sơ đồ kết lưới (ngăn 171-174) + nhãn nơi đến ở E26.1, E26.2, E26.3 |
+| E16.2 | 220kV Cao Bằng | Nhãn `171 E16.2 CAO BẰNG` ở ngăn 172 của E26.3 Nà Phặc |
+| E1.19 | 220kV Sóc Sơn | Sơ đồ thu nhỏ có sẵn ở góc dưới bên trái file CAD (ngăn 171-176) |
+
+Chiều dài ba tuyến đi Sóc Sơn là **tổng các đoạn** ghi trên sơ đồ kết lưới:
+176E1.19 - 176E6.16 = 0,11 + 1,5 + 13,3 + 1,03 = 15,94km;
+174E1.19 - 171E6.24 = 1,6 + 6,68 + 0,101 = 8,38km;
+172E1.19 - 172E6.7 = 11km (AC 2x185, ghi sẵn một đoạn).
+Các tuyến đi 220kV Bắc Kạn và 220kV Cao Bằng chưa có mã hiệu dây / chiều dài trên
+sơ đồ nên để trống.
+
+### Chỗ còn phải rà soát
+
+* Nhãn `173 E26.1 Bắc Kạn` đặt ở E6.6 Phú Lương, nhưng sơ đồ kết lưới vẽ
+  172E6.6 - 172E6.22 rồi mới 171E6.22 - 173E26.1. Phần mềm đang vẽ theo sơ đồ kết
+  lưới (E6.6 - E6.22 - E26.1).
+* Sơ đồ kết lưới còn một tuyến 172E6.21 - 171E6.16 (Sông Công 2 - 220kV Phú Bình)
+  chưa có nhãn nơi đến trên file CAD nên chưa vẽ.
 
 ### Cách trình bày tuyến kết lưới
 
@@ -194,9 +223,14 @@ trên file CAD vì đó là bản vẽ đang dùng, và ghi chú lại để rà
 có thêm hai quy tắc phục vụ việc vẽ tiếp lưới trung áp:
 
 1. **Dải để dành trung áp** - một dải sâu 560 đơn vị ngay dưới mỗi trạm bị phạt
-   420/ô; riêng phần trung áp nằm *bên trong* khung trạm (từ mép dưới ngăn lộ 110kV
-   trở xuống) bị phạt 5200/ô. Nhờ đó chỗ sẽ vẽ các lộ 35/22/6kV luôn để trống.
-2. **Vạt góc** - nếu hai tuyến rẽ tại cùng một đỉnh, tuyến đi sau được vạt góc
+   420/ô (trừ ba trạm 220kV ngoài địa bàn, vốn không vẽ lưới trung áp).
+2. **Bám theo hình vẽ thật** - toàn bộ hình học của bản CAD được "rải" lên lưới ô:
+   ô có thiết bị trung áp 35/22/10/6/0,4kV (nới rộng thêm một ô) bị phạt 5200/ô, ô
+   có hình vẽ khác bị phạt 1100/ô. Cách này chính xác hơn cách ước lượng cũ (lấy
+   mép dưới hàng ngăn lộ 110kV làm ranh giới), vì mỗi trạm bố trí một kiểu - có
+   trạm ngăn lộ 110kV chĩa xuống chỗ trống, có trạm chĩa xuống ngay phía trên
+   thanh cái 22kV.
+3. **Vạt góc** - nếu hai tuyến rẽ tại cùng một đỉnh, tuyến đi sau được vạt góc
    (13, 22, 31... đơn vị) để không còn đỉnh trùng.
 
 Chỗ giao chéo được chèn **nửa hình tròn nhảy dây** (bán kính 24 đơn vị, 8 đoạn cung;
@@ -205,8 +239,11 @@ mỗi tuyến kết lưới mang cờ `khongNoiGiua`, nên trong mô hình đi�
 đầu** - 86 điểm giao chéo không bị hiểu nhầm là điểm đấu nối, Shift+M tô sáng mạch
 không còn lem sang tuyến khác.
 
-Số liệu sau khi chạy: 26/26 tuyến · 50 ký hiệu nhảy dây · 19 góc được vạt ·
-0 đỉnh trùng · 0 chỗ giao chéo thiếu ký hiệu.
+Số liệu sau khi chạy: 34/34 tuyến · 717 đỉnh · 44 ký hiệu nhảy dây · 0 đỉnh trùng ·
+0 chỗ giao chéo thiếu ký hiệu · 23 đỉnh còn nằm trong vùng trung áp.
+
+Công cụ chạy lại được nhiều lần trên cùng một file: mở đầu nó xoá hết các đối tượng
+thuộc hai lớp CAD `Kết lưới 110kV` và `Trạm ngoài tỉnh` do chính nó sinh ra.
 
 ## 5.2 Quy tắc phân loại cấp điện áp
 

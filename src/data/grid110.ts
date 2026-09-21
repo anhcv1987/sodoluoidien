@@ -123,19 +123,19 @@ export const DUONG_DAY: DuongDayData[] = [
   { a: 'E26.5', b: 'E26.3', kv: 110, day: 'AC-185', km: 32.0, mach: 1, nguon: 'CAD' },
   { a: 'E26.3', b: 'E16.2', kv: 110, day: 'AC-185', km: 40.0, mach: 1, nguon: 'Sơ bộ - cần rà soát' },
 
-  /* ---- Tu 220kV Luu Xa (E6.15 / E6.20 tren ban CAD) ---- */
+  /* ---- Tu 220kV Luu Xa (E6.20) ---- */
   { a: 'E6.20', b: 'E6.9', kv: 110, day: 'AC-300', km: 7.8, mach: 2, nguon: 'CAD' },
   { a: 'E6.20', b: 'E6.5', kv: 110, day: 'AC-185', km: 2.0, mach: 2, nguon: 'CAD' },
   { a: 'E6.20', b: 'E6.4', kv: 110, day: 'AC-400', km: 2.15, mach: 2, nguon: 'CAD' },
   { a: 'E6.2', b: 'E6.20', kv: 220, day: 'ACSR-400', km: 3.3, mach: 2, nguon: 'CAD' },
 
   /* ---- Khu vuc Song Cong - Pho Yen ---- */
-  { a: 'E6.21', b: 'E6.3', kv: 110, day: 'AC-400', km: 4.2, mach: 1, nguon: 'CAD' },
+  { a: 'E6.21', b: 'E6.3', kv: 110, day: 'AC-400', km: 4.28, mach: 1, nguon: 'CAD' },
   { a: 'E6.3', b: 'E6.16', kv: 110, day: 'AC-400', km: 4.34, mach: 1, nguon: 'CAD' },
   { a: 'E6.7', b: 'E6.16', kv: 110, day: 'AC-400', km: 4.28, mach: 1, nguon: 'CAD' },
   { a: 'E6.7', b: 'E1.19', kv: 110, day: 'AC 2x185', km: 11.0, mach: 2, nguon: 'CAD' },
   { a: 'E6.24', b: 'E6.16', kv: 110, day: 'AC-400', km: 5.54, mach: 1, nguon: 'CAD' },
-  { a: 'E6.24', b: 'E1.19', kv: 110, day: 'AC-400', km: 6.68, mach: 1, nguon: 'CAD' },
+  { a: 'E6.24', b: 'E1.19', kv: 110, day: 'TACSR-200 + AC-400', km: 8.38, mach: 1, nguon: 'CAD' },
 
   /* ---- Khu vuc Yen Binh - Phu Binh ---- */
   { a: 'E6.16', b: 'E6.13', kv: 110, day: 'AC-400 + AC 2x185', km: 4.34, mach: 1, nguon: 'CAD' },
@@ -143,7 +143,7 @@ export const DUONG_DAY: DuongDayData[] = [
   { a: 'E6.16', b: 'E6.23', kv: 110, day: 'AC-400', km: 8.38, mach: 1, nguon: 'CAD' },
   { a: 'E6.16', b: 'E6.18', kv: 110, day: 'AC-400', km: 12.98, mach: 1, nguon: 'CAD' },
   { a: 'E6.16', b: 'E6.25', kv: 220, day: 'AC-400', km: 3.3, mach: 2, nguon: 'CAD' },
-  { a: 'E6.16', b: 'E1.19', kv: 110, day: 'ACSR-400', km: 0.11, mach: 1, nguon: 'CAD' },
+  { a: 'E6.16', b: 'E1.19', kv: 110, day: 'AC-400 + TACSR-200', km: 15.94, mach: 1, nguon: 'CAD' },
   { a: 'E6.13', b: 'E6.23', kv: 110, day: 'ACSR-400', km: 2.61, mach: 1, nguon: 'CAD' },
   { a: 'E6.13', b: 'E6.25', kv: 110, day: 'AC-400', km: 5.3, mach: 1, nguon: 'CAD' },
   { a: 'E6.25', b: 'E6.17', kv: 110, day: 'AC-400', km: 5.82, mach: 1, nguon: 'CAD' },
