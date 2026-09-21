@@ -187,6 +187,27 @@ Vài chỗ trong sơ đồ đó khác với nhãn trên file CAD (ví dụ hai l
 171/172 trên CAD nhưng 174/177 trong sơ đồ kết lưới). Khi lệch thì lấy theo nhãn
 trên file CAD vì đó là bản vẽ đang dùng, và ghi chú lại để rà soát.
 
+### Cách trình bày tuyến kết lưới
+
+Đường đi của 26 tuyến do `tools/noi-duong-day-110.mjs` tính bằng A* trên lưới ô 60
+đơn vị. Ngoài các ràng buộc cũ (cấm cắt qua trạm khác, phạt rẽ, phạt ô đã có tuyến),
+có thêm hai quy tắc phục vụ việc vẽ tiếp lưới trung áp:
+
+1. **Dải để dành trung áp** - một dải sâu 560 đơn vị ngay dưới mỗi trạm bị phạt
+   420/ô; riêng phần trung áp nằm *bên trong* khung trạm (từ mép dưới ngăn lộ 110kV
+   trở xuống) bị phạt 5200/ô. Nhờ đó chỗ sẽ vẽ các lộ 35/22/6kV luôn để trống.
+2. **Vạt góc** - nếu hai tuyến rẽ tại cùng một đỉnh, tuyến đi sau được vạt góc
+   (13, 22, 31... đơn vị) để không còn đỉnh trùng.
+
+Chỗ giao chéo được chèn **nửa hình tròn nhảy dây** (bán kính 24 đơn vị, 8 đoạn cung;
+tự thu nhỏ tới tối thiểu 9 đơn vị khi sát góc rẽ). Song song với ký hiệu hình vẽ,
+mỗi tuyến kết lưới mang cờ `khongNoiGiua`, nên trong mô hình điện nó **chỉ đấu ở hai
+đầu** - 86 điểm giao chéo không bị hiểu nhầm là điểm đấu nối, Shift+M tô sáng mạch
+không còn lem sang tuyến khác.
+
+Số liệu sau khi chạy: 26/26 tuyến · 50 ký hiệu nhảy dây · 19 góc được vạt ·
+0 đỉnh trùng · 0 chỗ giao chéo thiếu ký hiệu.
+
 ## 5.2 Quy tắc phân loại cấp điện áp
 
 | Đối tượng | Căn cứ | Độ tin cậy |

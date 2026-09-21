@@ -131,6 +131,8 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
     if (nodes.length < 2) continue;
     const b: BranchEntity = { id: newId('b'), kind: 'branch', layer, kv, nodes, lineKind };
     if (srcLayer) b.srcLayer = srcLayer;
+    // Đường dây nối giữa các trạm chỉ đấu ở hai đầu; chỗ cắt nhau là giao chéo.
+    if (srcLayer === 'Kết lưới 110kV') b.khongNoiGiua = true;
     put(b);
   }
 

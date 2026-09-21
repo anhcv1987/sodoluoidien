@@ -318,11 +318,42 @@ lưới ô 60 đơn vị:
   ra khỏi trạm ngay chứ không chạy dọc qua giữa trạm;
 * mỗi lần rẽ bị phạt, nên đường đi ít gấp khúc nhất;
 * ô đã có tuyến khác đi qua cũng bị phạt, nên các tuyến **tự tản ra song song** thay
-  vì đè lên nhau.
+  vì đè lên nhau;
+* **dải để dành cho lưới trung áp** (xem ngay dưới) bị phạt, nên đường dây 110kV
+  tránh xuống vùng sẽ vẽ lộ 35/22/6kV.
+
+Khi hai tuyến buộc phải gặp nhau ở cùng một góc rẽ, bộ định tuyến **vạt góc** tuyến
+đi sau (13, 22, 31... đơn vị tuỳ số tuyến trùng) để không còn đỉnh trùng nhau -
+hiện còn **0 đỉnh trùng**.
 
 Mỗi tuyến mang một nhãn **mã hiệu dây và chiều dài** đặt giữa đoạn dài nhất, và nằm
 trên lớp riêng `110kV` với tên lớp CAD gốc là `Kết lưới 110kV` (tắt/bật được trong
 bảng Lớp).
+
+#### Dải để dành cho lưới trung áp
+
+Mỗi trạm 110kV sau này còn phải vẽ tiếp các lộ 35/22/6kV đi ra phía dưới. Vì vậy
+bộ định tuyến giữ sẵn một **dải sâu 560 đơn vị ngay dưới mỗi trạm** và phạt nặng
+mọi ô rơi vào đó (phạt 420/ô ở ngoài trạm, 5200/ô đối với phần trung áp nằm *bên
+trong* trạm - tính từ mép dưới của ngăn lộ 110kV trở xuống). Nhờ đó đường dây 110kV
+chạy vòng phía trên hoặc đi men rìa chứ không bổ dọc qua thanh cái 22kV/35kV. Số ô
+lấn vào vùng trung áp giảm từ hơn 90 xuống còn **4**.
+
+#### Ký hiệu nhảy dây ở chỗ giao chéo
+
+Chỗ hai đường dây cắt nhau **trên hình vẽ** mà **không** đấu nối với nhau được vẽ
+bằng **nửa hình tròn** (bán kính 24 đơn vị, 8 đoạn cung) chèn thẳng vào tuyến đi
+ngang - đúng quy ước "nhảy dây" của bản vẽ sơ đồ nguyên lý. Hiện có **50 ký hiệu
+nhảy dây**, và **0 chỗ giao chéo còn thiếu ký hiệu**. Chỗ sát góc rẽ thì bán kính
+tự thu nhỏ theo khoảng trống còn lại (tối thiểu 9 đơn vị).
+
+Quan trọng hơn hình vẽ là **mô hình điện**: các tuyến kết lưới mang cờ
+`khongNoiGiua` (`src/core/types.ts`), nên khi dựng nút điện (`src/core/lienket.ts`)
+chúng **chỉ được đấu ở hai đầu**, đoạn giữa chỉ đi ngang qua. Nếu không có cờ này
+thì 86 điểm giao chéo sẽ bị coi là điểm đấu và **Shift+M** (tô sáng cả mạch) sẽ tô
+lem sang các tuyến không liên quan. Kiểm tra thực tế: chọn một tuyến kết lưới rồi
+Shift+M cho ra 95 đối tượng, trong đó **chỉ đúng 1 tuyến kết lưới** - không còn
+chảy lan.
 
 ### Danh mục trạm
 

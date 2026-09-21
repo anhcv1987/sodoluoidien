@@ -206,10 +206,22 @@ export function dungMangDien(
     for (let k = 1; k < q.length; k++) luoi.them(q[k - 1], q[k], i);
   }
   for (let i = 0; i < branches.length; i++) {
-    for (const p of pts[i]) {
+    // Đường dây chỉ đấu ở HAI ĐẦU (đường dây liên trạm) thì chỉ xét hai đầu mút;
+    // đoạn giữa cắt qua tuyến khác là GIAO CHÉO, không phải điểm đấu nối.
+    const dsI = branches[i].khongNoiGiua
+      ? [pts[i][0], pts[i][pts[i].length - 1]].filter(Boolean)
+      : pts[i];
+    for (const p of dsI) {
       for (const j of luoi.quanh(p, saiSo)) {
         if (j === i) continue;
         const q = pts[j];
+        if (branches[j].khongNoiGiua) {
+          // Chạm vào GIỮA một đường dây liên trạm cũng không phải đấu nối
+          const d0 = q.length ? Math.hypot(q[0].x - p.x, q[0].y - p.y) : Infinity;
+          const d1 = q.length ? Math.hypot(q[q.length - 1].x - p.x, q[q.length - 1].y - p.y) : Infinity;
+          if (Math.min(d0, d1) <= saiSo) ht.hop(i, j);
+          continue;
+        }
         for (let k = 1; k < q.length; k++) {
           if (khoangCachDoan(p, q[k - 1], q[k]) <= saiSo) {
             ht.hop(i, j);

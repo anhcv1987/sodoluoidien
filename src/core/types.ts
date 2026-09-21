@@ -105,6 +105,12 @@ export interface BranchEntity extends EntityBase {
   label?: string;
   /** Thanh cai ve net dam hon va co the ve ngang. */
   busWidth?: number;
+  /**
+   * Duong day CHI DAU NOI O HAI DAU, doan giua chi di ngang qua.
+   * Dat cho cac duong day lien tram: cho nao cat qua tuyen khac la GIAO CHEO,
+   * khong phai diem dau noi (tren ban ve co ky hieu nua hinh tron nhay day).
+   */
+  khongNoiGiua?: boolean;
 }
 
 /** Trang thai dong cat cua thiet bi. */
