@@ -370,9 +370,17 @@ lưới ô 60 đơn vị:
 Chạy xong, công cụ tự kiểm và in ra số đỉnh rơi vào vùng trung áp / đè lên hình vẽ
 sẵn có, để dễ so sánh giữa hai lần chỉnh.
 
-Khi hai tuyến buộc phải gặp nhau ở cùng một góc rẽ, bộ định tuyến **vạt góc** tuyến
-đi sau (13, 22, 31... đơn vị tuỳ số tuyến trùng) để không còn đỉnh trùng nhau -
-hiện còn **0 đỉnh trùng**.
+**Chỉ có đoạn thẳng ngang - dọc, gấp khúc vuông góc 90 độ** - đúng quy ước vẽ sơ
+đồ nguyên lý, không có đoạn xiên nào. Hai chỗ dễ sinh đoạn xiên đều đã xử lý:
+
+* đoạn từ đầu ngăn lộ vươn ra được kéo dài tới **đúng một đường của lưới tìm
+  đường**, nên đoạn kế tiếp chỉ chạy theo trục vuông góc với nó;
+* thay vì **vạt góc** hai tuyến rẽ trùng một điểm (cách cũ, sinh ra đoạn xiên 45
+  độ), thuật toán **phạt thêm 1400 khi rẽ đúng ô mà tuyến khác đã rẽ**, nên các
+  góc rẽ tự tách nhau ra - hiện còn **0 đỉnh trùng**.
+
+Công cụ tự kiểm lại điều này sau mỗi lần chạy và in cảnh báo nếu còn đoạn xiên
+(ký hiệu nhảy dây nửa hình tròn không tính, vì đó là ký hiệu quy ước).
 
 Mỗi tuyến mang một nhãn **mã hiệu dây và chiều dài** đặt giữa đoạn dài nhất, và nằm
 trên lớp riêng `110kV` với tên lớp CAD gốc là `Kết lưới 110kV` (tắt/bật được trong
@@ -391,7 +399,7 @@ của 34 tuyến chỉ còn **23 đỉnh** nằm trong vùng trung áp.
 
 Chỗ hai đường dây cắt nhau **trên hình vẽ** mà **không** đấu nối với nhau được vẽ
 bằng **nửa hình tròn** (bán kính 24 đơn vị, 8 đoạn cung) chèn thẳng vào tuyến đi
-ngang - đúng quy ước "nhảy dây" của bản vẽ sơ đồ nguyên lý. Hiện có **44 ký hiệu
+ngang - đúng quy ước "nhảy dây" của bản vẽ sơ đồ nguyên lý. Hiện có **46 ký hiệu
 nhảy dây**, và **0 chỗ giao chéo còn thiếu ký hiệu**. Chỗ sát góc rẽ thì bán kính
 tự thu nhỏ theo khoảng trống còn lại (tối thiểu 9 đơn vị).
 

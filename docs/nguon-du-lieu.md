@@ -230,8 +230,11 @@ có thêm hai quy tắc phục vụ việc vẽ tiếp lưới trung áp:
    mép dưới hàng ngăn lộ 110kV làm ranh giới), vì mỗi trạm bố trí một kiểu - có
    trạm ngăn lộ 110kV chĩa xuống chỗ trống, có trạm chĩa xuống ngay phía trên
    thanh cái 22kV.
-3. **Vạt góc** - nếu hai tuyến rẽ tại cùng một đỉnh, tuyến đi sau được vạt góc
-   (13, 22, 31... đơn vị) để không còn đỉnh trùng.
+3. **Giữ đúng gấp khúc vuông góc** - toàn tuyến chỉ gồm đoạn thẳng ngang hoặc dọc,
+   không có đoạn xiên. Đoạn vươn ra từ đầu ngăn lộ được kéo tới đúng một đường của
+   lưới tìm đường; hai tuyến rẽ trùng một ô thì bị phạt thêm 1400 nên góc rẽ tự
+   tách ra (trước đây dùng cách vạt góc, nhưng vạt góc sinh ra đoạn xiên 45 độ nên
+   đã bỏ).
 
 Chỗ giao chéo được chèn **nửa hình tròn nhảy dây** (bán kính 24 đơn vị, 8 đoạn cung;
 tự thu nhỏ tới tối thiểu 9 đơn vị khi sát góc rẽ). Song song với ký hiệu hình vẽ,
@@ -239,8 +242,8 @@ mỗi tuyến kết lưới mang cờ `khongNoiGiua`, nên trong mô hình đi�
 đầu** - 86 điểm giao chéo không bị hiểu nhầm là điểm đấu nối, Shift+M tô sáng mạch
 không còn lem sang tuyến khác.
 
-Số liệu sau khi chạy: 34/34 tuyến · 717 đỉnh · 44 ký hiệu nhảy dây · 0 đỉnh trùng ·
-0 chỗ giao chéo thiếu ký hiệu · 23 đỉnh còn nằm trong vùng trung áp.
+Số liệu sau khi chạy: 34/34 tuyến · 740 đỉnh · 46 ký hiệu nhảy dây · 0 đỉnh trùng ·
+0 đoạn xiên · 0 chỗ giao chéo thiếu ký hiệu · 25 đỉnh còn nằm trong vùng trung áp.
 
 Công cụ chạy lại được nhiều lần trên cùng một file: mở đầu nó xoá hết các đối tượng
 thuộc hai lớp CAD `Kết lưới 110kV` và `Trạm ngoài tỉnh` do chính nó sinh ra.

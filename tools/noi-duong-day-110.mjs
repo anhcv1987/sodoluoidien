@@ -482,6 +482,8 @@ const oTrungAp = new Uint8Array(NX * NY);
 
 /** Số tuyến đã đi qua mỗi ô - để các tuyến tự tản ra, không chồng lên nhau. */
 const dongDuc = new Int16Array(NX * NY);
+/** Số tuyến đã RẼ tại mỗi ô - hai tuyến rẽ trùng một điểm thì nhìn như đấu nhau. */
+const reTai = new Int16Array(NX * NY);
 
 /**
  * Tìm đường đi vuông góc từ A tới B bằng A*, tránh ô của các trạm khác.
@@ -520,6 +522,8 @@ function timDuong(A, B, tru) {
   const truocO = new Int32Array(N * 4).fill(-1);
   const PHAT_RE = 260;
   const PHAT_DUC = 220;
+  /** Phạt thêm khi rẽ đúng ô mà tuyến khác đã rẽ - để không có hai góc trùng nhau. */
+  const PHAT_RE_TRUNG = 1400;
   const h = (i, j) => (Math.abs(i - ti) + Math.abs(j - tj)) * O;
   // hàng đợi ưu tiên đơn giản (mảng + sắp xếp theo lô)
   let bien = [];
@@ -548,7 +552,12 @@ function timDuong(A, B, tru) {
       const pt = phatO(i1, j1);
       if (pt < 0) continue;
       const k1 = (j1 * NX + i1) * 4 + d;
-      const c = g[k] + O + pt + (d === d0 ? 0 : PHAT_RE) + dongDuc[j1 * NX + i1] * PHAT_DUC;
+      const c =
+        g[k] +
+        O +
+        pt +
+        (d === d0 ? 0 : PHAT_RE + reTai[o] * PHAT_RE_TRUNG) +
+        dongDuc[j1 * NX + i1] * PHAT_DUC;
       if (c + 1e-9 < g[k1]) {
         g[k1] = c;
         truocO[k1] = k;
@@ -577,16 +586,36 @@ function timDuong(A, B, tru) {
     const b = o[i + 1];
     if ((a[0] === o[i][0] && b[0] === o[i][0]) || (a[1] === o[i][1] && b[1] === o[i][1])) continue;
     pts.push([o[i][0], o[i][1]]);
+    reTai[o[i][2]]++; // ô này đã có một góc rẽ
   }
   return pts;
+}
+
+/**
+ * Điểm "ra lưới": từ đầu ngăn lộ đi thẳng theo hướng của ngăn lộ ít nhất VUON đơn
+ * vị, ĐẾN ĐÚNG một đường của lưới tìm đường.
+ *
+ * Nhờ vậy đoạn kế tiếp (từ đây vào điểm đầu của đường A*) chỉ chạy theo trục vuông
+ * góc với đoạn vươn ra, nên toàn tuyến chỉ có đoạn thẳng ngang - dọc, gấp khúc
+ * vuông góc 90 độ, không có đoạn xiên.
+ */
+function raLuoi(p, d) {
+  if (d[1] !== 0) {
+    const y = p[1] + d[1] * VUON;
+    const j = d[1] > 0 ? Math.ceil((y - bao.y0) / O) : Math.floor((y - bao.y0) / O);
+    return [p[0], toaY(j)];
+  }
+  const x = p[0] + d[0] * VUON;
+  const i = d[0] > 0 ? Math.ceil((x - bao.x0) / O) : Math.floor((x - bao.x0) / O);
+  return [toaX(i), p[1]];
 }
 
 function diDay(mA, mB, maTram) {
   const dA = huongRa(mA);
   const dB = huongRa(mB);
   const tru = [{ ma: maTram[0] }, { ma: maTram[1] }];
-  const A = [mA.p[0] + dA[0] * VUON, mA.p[1] + dA[1] * VUON];
-  const B = [mB.p[0] + dB[0] * VUON, mB.p[1] + dB[1] * VUON];
+  const A = raLuoi(mA.p, dA);
+  const B = raLuoi(mB.p, dB);
   const giua = timDuong(A, B, tru);
   if (!giua) return null;
   // nối đầu ngăn lộ -> điểm ra -> đường đi -> điểm ra -> đầu ngăn lộ
@@ -620,6 +649,22 @@ for (const [ka, kb, day, km] of DUONG_DAY) {
     if (!pts.length || cach(pts[pts.length - 1], q) > 0.5) pts.push(q);
   }
   tuyen.push({ pts, day, km });
+}
+
+/* --- Tự kiểm: mọi đoạn phải là đường thẳng ngang hoặc dọc ---
+   Sơ đồ nguyên lý chỉ dùng đoạn thẳng gấp khúc vuông góc 90 độ; không có đoạn
+   xiên. Kiểm ngay ở đây, TRƯỚC khi chèn ký hiệu nhảy dây (nửa hình tròn là ký
+   hiệu quy ước nên không tính là đoạn xiên). */
+{
+  let xien = 0;
+  for (const { pts } of tuyen) {
+    for (let k = 1; k < pts.length; k++) {
+      const a = pts[k - 1];
+      const b = pts[k];
+      if (Math.abs(a[0] - b[0]) > 0.6 && Math.abs(a[1] - b[1]) > 0.6) xien++;
+    }
+  }
+  if (xien) console.log(`CẢNH BÁO: còn ${xien} đoạn xiên (phải là đoạn ngang hoặc dọc).`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -708,48 +753,26 @@ for (const khoaD of khoaSap) {
   pts.splice(k, 0, ...them);
 }
 
-/* --- Tách các đỉnh trùng nhau giữa hai tuyến khác nhau ---
-   Hai tuyến rẽ đúng tại cùng một điểm thì mô hình liên kết điện sẽ coi là chúng
-   ĐẤU VÀO NHAU, tô sáng Shift+M sẽ sáng nhầm cả hai. Vạt góc đi một chút để hai
-   tuyến chỉ cắt nhau chứ không chạm nhau. Làm nhiều lượt vì vạt xong có thể lại
-   sinh ra đỉnh trùng mới. */
+/* --- Đỉnh trùng nhau giữa hai tuyến khác nhau ---
+   Hai tuyến rẽ đúng tại cùng một điểm thì nhìn như đang đấu vào nhau. Về điện thì
+   không sao (tuyến kết lưới mang cờ khongNoiGiua, chỉ đấu ở hai đầu), nhưng nhìn
+   vẫn dễ nhầm nên đếm lại để biết mà xử lý. Trước đây có bước VẠT GÓC tuyến đi sau,
+   nhưng vạt góc sinh ra đoạn xiên 45 độ - trái quy ước vẽ sơ đồ nguyên lý - nên đã
+   bỏ; thay vào đó thuật toán tìm đường phạt ô đã có tuyến khác đi qua để các tuyến
+   tự tản ra. */
 {
   const kh = (q) => `${Math.round(q[0] * 2)}|${Math.round(q[1] * 2)}`;
-  let vat = 0;
-  for (let luot = 0; luot < 6; luot++) {
-    const kho = new Map();
-    tuyen.forEach((t, i) =>
-      t.pts.forEach((q, k) => {
-        const a = kho.get(kh(q));
-        if (a) a.push([i, k]);
-        else kho.set(kh(q), [[i, k]]);
-      }),
-    );
-    const canVat = [];
-    for (const ds of kho.values()) {
-      if (ds.length < 2) continue;
-      if (!ds.some(([i]) => i !== ds[0][0])) continue;
-      // giữ tuyến đầu tiên, vạt góc các tuyến còn lại
-      for (let z = 1; z < ds.length; z++) canVat.push([...ds[z], z]);
-    }
-    if (!canVat.length) break;
-    // vạt từ cuối lên đầu để splice không làm lệch chỉ số
-    canVat.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
-    for (const [i, k, z] of canVat) {
-      const pts = tuyen[i].pts;
-      if (k === 0 || k >= pts.length - 1) continue;
-      const a = pts[k - 1];
-      const c = pts[k];
-      const b = pts[k + 1];
-      const d = 13 + z * 9;
-      const ca = [c[0] + Math.sign(a[0] - c[0]) * d, c[1] + Math.sign(a[1] - c[1]) * d];
-      const cb = [c[0] + Math.sign(b[0] - c[0]) * d, c[1] + Math.sign(b[1] - c[1]) * d];
-      if (cach(ca, a) < 2 || cach(cb, b) < 2) continue;
-      pts.splice(k, 1, [r2(ca[0]), r2(ca[1])], [r2(cb[0]), r2(cb[1])]);
-      vat++;
-    }
-  }
-  if (vat) console.log(`Đã vạt ${vat} góc trùng nhau giữa hai tuyến.`);
+  const kho = new Map();
+  tuyen.forEach((t, i) =>
+    t.pts.forEach((q) => {
+      const a = kho.get(kh(q)) ?? new Set();
+      a.add(i);
+      kho.set(kh(q), a);
+    }),
+  );
+  let trung = 0;
+  for (const a of kho.values()) if (a.size > 1) trung++;
+  if (trung) console.log(`Còn ${trung} đỉnh trùng nhau giữa hai tuyến.`);
 }
 
 /* ------------------------------------------------------------------ */
