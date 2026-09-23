@@ -242,8 +242,18 @@ mỗi tuyến kết lưới mang cờ `khongNoiGiua`, nên trong mô hình đi�
 đầu** - 86 điểm giao chéo không bị hiểu nhầm là điểm đấu nối, Shift+M tô sáng mạch
 không còn lem sang tuyến khác.
 
-Số liệu sau khi chạy: 34/34 tuyến · 740 đỉnh · 46 ký hiệu nhảy dây · 0 đỉnh trùng ·
-0 đoạn xiên · 0 chỗ giao chéo thiếu ký hiệu · 25 đỉnh còn nằm trong vùng trung áp.
+Số liệu sau khi chạy: 34/34 tuyến · 953 đỉnh · 73 ký hiệu nhảy dây · 0 đỉnh trùng ·
+0 đoạn chồng nhau · 0 đoạn xiên · 0 chỗ giao chéo thiếu ký hiệu · 2 đỉnh còn nằm trong
+vùng trung áp.
+
+### Đầu dây ra đã sửa lại (bản ngày 23/9/2026)
+
+| Trạm | Trước | Nay |
+|---|---|---|
+| E6.14 Yên Bình 2 | đường dây vươn lên 150 đơn vị vào phần 22kV rồi quay đầu xuyên xuống qua ngăn lộ | vươn lên 30 đơn vị rồi chạy ngang ra khỏi trạm |
+| E6.20 220kV Lưu Xá | đấu vào đầu mút giữa ngăn lộ (sát dao -2), đường dây cắt ngang qua dãy ngăn lộ giữa hai thanh cái | đấu vào đúng 6 mũi tên đầu dây ra phía dưới (nhãn "GANG THÉP 17 E6.9"...), đi trong khe hở dưới trạm |
+| E6.5 Lưu Xá | đấu vào hai điểm KHÔNG thuộc cột ngăn lộ 171/172 | đấu vào đầu trên của ngăn lộ 171, 172 (nhãn "173E6.20...", "174E6.20...") |
+| E6.17, E6.18 | chọn theo hàng đông đầu mút nhất | theo nhãn nơi đến (bỏ mã định dạng "qc;") |
 
 Công cụ chạy lại được nhiều lần trên cùng một file: mở đầu nó xoá hết các đối tượng
 thuộc hai lớp CAD `Kết lưới 110kV` và `Trạm ngoài tỉnh` do chính nó sinh ra.

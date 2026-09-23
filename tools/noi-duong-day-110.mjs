@@ -76,6 +76,10 @@ const hop = new Map(to.st.map((r) => [String(r[0]), { x0: r[4], y0: r[5], x1: r[
 
 /** Trạm chứa điểm (x, y), nới rộng biên 80 đơn vị. */
 function tram(x, y) {
+  // Hai trạm vẽ sát nhau thì vùng nới biên chồng lên nhau: ưu tiên trạm chứa hẳn điểm.
+  for (const [ma, b] of hop) {
+    if (x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1) return ma;
+  }
   for (const [ma, b] of hop) {
     if (x >= b.x0 - 80 && x <= b.x1 + 80 && y >= b.y0 - 80 && y <= b.y1 + 80) return ma;
   }
@@ -107,8 +111,28 @@ for (const r of to.b) {
   }
 }
 
-const chu = to.t.map((r) => ({ t: String(r[8]).trim(), x: r[2], y: r[3] }));
-const nhanDich = chu.filter((c) => /^1\d\d\b/.test(c.t) && /[EA]\d+(\.\d+)?/.test(c.t));
+// Bỏ mã định dạng MTEXT còn sót trong chữ ("qc;", "t92.34;", "tz;")
+const boMaDinhDang = (t) => t.replace(/\b[a-z]{1,2}\d*(?:\.\d+)?;\s*/g, '').trim();
+const chu = to.t.map((r) => ({ t: boMaDinhDang(String(r[8])), x: r[2], y: r[3], kv: r[1] }));
+/**
+ * Nhãn NƠI ĐẾN ở đầu ngăn lộ 110kV. Hai kiểu ghi:
+ *   "171 E6.22 ĐỊNH HÓA"          - số hiệu ngăn lộ đầu kia đứng trước,
+ *   "GANG THÉP 17 E6.9"           - tên trạm đứng trước (trạm 220kV Lưu Xá ghi kiểu này).
+ * Kiểu thứ hai chỉ nhận chữ ở cấp 110kV, không phải tiêu đề trạm, không chứa số
+ * hiệu ngăn lộ của cấp khác (271, 373, 472...).
+ */
+/** Nhãn kiểu "171 E6.22 ..." / "174E6.20 ..." - mở đầu bằng số hiệu ngăn lộ 1xx. */
+const laKieuSo = (t) => /^1\d\d(?!\d)/.test(t);
+const nhanDich = chu.filter((c) => {
+  if (!/[EA]\d+(\.\d+)?/.test(c.t)) return false;
+  if (laKieuSo(c.t)) return true;
+  return (
+    c.kv === 110 &&
+    /[EA]\d+\.\d+/.test(c.t) && // mã trạm đầy đủ (E6.9), không nhầm với tên dao "E04"
+    !/TRẠM|SƠ ĐỒ/i.test(c.t) &&
+    !/(^|\D)[2-9]\d\d(\D|$)/.test(c.t)
+  );
+});
 // Ngăn lộ ĐƯỜNG DÂY 110kV: chữ số thứ hai là 7 hoặc 8 (13x là ngăn máy biến áp).
 // Nhận cả dạng có hậu tố dao cách ly ("171-7") vì nhiều trạm chỉ ghi kiểu đó.
 const nhanLo = chu
@@ -117,11 +141,18 @@ const nhanLo = chu
 
 const cach = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
-/** Đầu mút tự do gần một điểm nhất. */
-function mutGanNhat(x, y, max = 260) {
+/**
+ * Đầu mút tự do gần một điểm nhất.
+ * `chiDoanDai`: chỉ nhận đầu mút của một đoạn dây dài từ 12 đơn vị trở lên. Dùng
+ * cho nhãn kiểu "GANG THÉP 17 E6.9" của trạm 220kV Lưu Xá: nhãn đặt dưới cả dãy TU,
+ * chống sét vẽ bằng nhiều nét rất ngắn, các nét đó nằm gần nhãn hơn đầu dây ra.
+ */
+function mutGanNhat(x, y, max = 260, chiDoanDai = false) {
   let best = null;
   let bd = max;
   for (const m of dauMut) {
+    // Nhãn kiểu này căn trái, chữ bắt đầu ở BÊN TRÁI đầu dây ra của chính nó.
+    if (chiDoanDai && (cach(m.p, m.truoc) < 12 || m.p[0] < x - 5)) continue;
     const d = cach(m.p, [x, y]);
     if (d < bd) {
       bd = d;
@@ -145,11 +176,18 @@ const dauLo = new Map();
 // (a) Theo nhãn ghi nơi đến
 {
   const demTrung = new Map();
+  // Kiểu "TÊN TRẠM ... mã" chỉ dùng cho trạm KHÔNG có nhãn kiểu "1xx mã" nào (trạm
+  // 220kV Lưu Xá). Trạm đã ghi kiểu "1xx mã" thì các chữ kiểu kia thường là ghi chú
+  // phụ, lấy vào dễ lẫn hàng đầu dây ra.
+  const coKieuSo = new Set(nhanDich.filter((c) => laKieuSo(c.t)).map((c) => tram(c.x, c.y)));
   for (const c of nhanDich) {
     const A = tram(c.x, c.y);
-    const dest = /([EA]\d+(?:\.\d+)?)/.exec(c.t.replace(/^1\d\d\s*/, ''));
+    if (!laKieuSo(c.t) && coKieuSo.has(A)) continue;
+    const dest = laKieuSo(c.t)
+      ? /([EA]\d+(?:\.\d+)?)/.exec(c.t.replace(/^1\d\d\s*/, ''))
+      : /([EA]\d+\.\d+)/.exec(c.t);
     if (!A || !dest) continue;
-    const m = mutGanNhat(c.x, c.y);
+    const m = mutGanNhat(c.x, c.y, 260, !laKieuSo(c.t));
     if (!m) continue;
     const goc = `${A}>${dest[1]}`;
     const n = (demTrung.get(goc) ?? 0) + 1;
@@ -194,9 +232,8 @@ for (const [khoa, m] of [...dauLo]) {
 //     hàng là quan trọng: bắt nhầm đầu mút nằm sâu trong trạm (sát thanh cái,
 //     giữa hai dao cách ly) thì đường dây sẽ được vẽ cắt ngang qua cả trạm.
 for (const [ma, b] of hop) {
-  const trong = dauMut.filter(
-    (m) => m.p[0] >= b.x0 - 80 && m.p[0] <= b.x1 + 80 && m.p[1] >= b.y0 - 80 && m.p[1] <= b.y1 + 80,
-  );
+  // đầu mút thuộc về trạm này (hai trạm vẽ sát nhau thì không lấy sang của trạm kia)
+  const trong = dauMut.filter((m) => tram(m.p[0], m.p[1]) === ma);
   const cx = (b.x0 + b.x1) / 2;
   const cy = (b.y0 + b.y1) / 2;
   const kem = [];
@@ -401,6 +438,7 @@ const DUONG_DAY = [
 const hopList = [...hop.entries()].map(([ma, b]) => ({ ma, ...b }));
 const LE = 60; // nới biên ô trạm khi kiểm tra va chạm
 const VUON = 110; // đoạn đi thẳng ra khỏi ngăn lộ
+const VUON_MIN = 30; // đoạn vươn ra ngắn nhất khi phía trước là vùng trung áp
 const O = 60; // cạnh ô lưới khi tìm đường
 
 function huongRa(m) {
@@ -426,10 +464,22 @@ const toaY = (j) => bao.y0 + j * O;
 
 /** Ô bị trạm nào chiếm (mã trạm), hoặc rỗng. */
 const chiem = new Array(NX * NY).fill('');
-for (const h of hopList) {
-  for (let i = Math.max(0, cot(h.x0 - LE)); i <= Math.min(NX - 1, cot(h.x1 + LE)); i++) {
-    for (let j = Math.max(0, hang(h.y0 - LE)); j <= Math.min(NY - 1, hang(h.y1 + LE)); j++) {
-      chiem[j * NX + i] = h.ma;
+{
+  // Hai trạm vẽ sát nhau thì vùng nới biên chồng lên nhau: ô tranh chấp thuộc về
+  // trạm GẦN hơn, để khe hở giữa hai trạm vẫn còn đường cho dây đi.
+  const kc = new Float64Array(NX * NY).fill(Infinity);
+  const cachHop = (x, y, h) =>
+    Math.hypot(Math.max(h.x0 - x, 0, x - h.x1), Math.max(h.y0 - y, 0, y - h.y1));
+  for (const h of hopList) {
+    for (let i = Math.max(0, cot(h.x0 - LE)); i <= Math.min(NX - 1, cot(h.x1 + LE)); i++) {
+      for (let j = Math.max(0, hang(h.y0 - LE)); j <= Math.min(NY - 1, hang(h.y1 + LE)); j++) {
+        const k = j * NX + i;
+        const d = cachHop(toaX(i), toaY(j), h);
+        if (d < kc[k]) {
+          kc[k] = d;
+          chiem[k] = h.ma;
+        }
+      }
     }
   }
 }
@@ -463,6 +513,7 @@ for (const h of hopList) {
 const CAP_TA = [0.4, 6, 10, 22, 35];
 const oDaVe = new Uint8Array(NX * NY);
 const oTrungAp = new Uint8Array(NX * NY);
+const oSatTA = new Uint8Array(NX * NY);
 {
   const cham = (mang, x, y) => {
     const i = cot(x);
@@ -479,16 +530,17 @@ const oTrungAp = new Uint8Array(NX * NY);
       for (let t = 0; t <= n; t++) cham(mang, x0 + ((x1 - x0) * t) / n, y0 + ((y1 - y0) * t) / n);
     }
   }
-  // nới rộng vùng trung áp ra một ô cho thoáng
-  const goc = Uint8Array.from(oTrungAp);
+  // Ô SÁT vùng trung áp (cách một ô): phạt nhẹ như ô có hình vẽ, chứ không cấm
+  // hẳn - có trạm (E6.14) ngăn lộ 110kV quay về phía phần 22kV, khoảng hở chỉ vừa
+  // đúng một hàng ô, đường dây buộc phải đi qua đó.
   for (let j = 0; j < NY; j++) {
     for (let i = 0; i < NX; i++) {
-      if (!goc[j * NX + i]) continue;
+      if (!oTrungAp[j * NX + i]) continue;
       for (let dj = -1; dj <= 1; dj++) {
         for (let di = -1; di <= 1; di++) {
           const i1 = i + di;
           const j1 = j + dj;
-          if (i1 >= 0 && i1 < NX && j1 >= 0 && j1 < NY) oTrungAp[j1 * NX + i1] = 1;
+          if (i1 >= 0 && i1 < NX && j1 >= 0 && j1 < NY) oSatTA[j1 * NX + i1] = 1;
         }
       }
     }
@@ -499,12 +551,27 @@ const oTrungAp = new Uint8Array(NX * NY);
 const dongDuc = new Int16Array(NX * NY);
 /** Số tuyến đã RẼ tại mỗi ô - hai tuyến rẽ trùng một điểm thì nhìn như đấu nhau. */
 const reTai = new Int16Array(NX * NY);
+/**
+ * Ô đã có tuyến khác chạy NGANG / DỌC qua. Cắt vuông góc qua tuyến khác thì chỉ là
+ * giao chéo (có ký hiệu nhảy dây), còn chạy cùng chiều trong cùng một ô là hai tuyến
+ * đè lên nhau - phải tránh bằng mọi giá.
+ */
+const chayNgang = new Uint8Array(NX * NY);
+const chayDoc = new Uint8Array(NX * NY);
 
 /**
  * Tìm đường đi vuông góc từ A tới B bằng A*, tránh ô của các trạm khác.
  * Chi phí = chiều dài + phạt mỗi lần rẽ + phạt đi trùng tuyến đã có.
  */
-function timDuong(A, B, tru) {
+/** Chỉ số hướng trong A*: 0 = +x, 1 = -x, 2 = +y, 3 = -y (hướng ngược lại = d ^ 1). */
+const chiSoHuong = (v) => (v[0] > 0 ? 0 : v[0] < 0 ? 1 : v[1] > 0 ? 2 : 3);
+
+/**
+ * dA, dB: hướng chĩa ra của hai ngăn lộ. Đường đi phải RỜI A theo đúng hướng dA và
+ * không được đi tới B từ phía ngăn lộ - nếu không đường dây sẽ quay đầu 180 độ, đi
+ * ngược lại xuyên qua chính ngăn lộ vừa ra (hình "kẹp tóc").
+ */
+function timDuong(A, B, tru, dA, dB) {
   const maTru = tru.map((t) => t.ma);
   const si = cot(A[0]);
   const sj = hang(A[1]);
@@ -518,13 +585,27 @@ function timDuong(A, B, tru) {
   const PHAT_DE = 1100;
   /** Phạt rất nặng khi đi vào phần TRUNG ÁP - chỗ để dành đấu lưới 35/22/6kV. */
   const PHAT_TA_TRONG = 5200;
+  /** Phạt khi đi vào phần trạm nằm phía sau hàng đầu ngăn lộ (xem phatO). */
+  const PHAT_SAU_NGAN_LO = 9000;
   const phatO = (i, j) => {
     const k = j * NX + i;
     const c = chiem[k];
     if (c && !maTru.includes(c)) return -1;
     let p = c ? PHAT_TRONG_TRAM : 0;
+    if (c) {
+      // Ô nằm PHÍA SAU hàng đầu ngăn lộ (phía thanh cái) của chính trạm: đi vào đó
+      // là cắt ngang qua các ngăn lộ khác. Phải chạy ngang PHÍA TRƯỚC hàng đầu
+      // ngăn lộ cho tới khi ra khỏi trạm.
+      for (const t of tru) {
+        if (t.ma !== c) continue;
+        const sau = t.huong[1] !== 0
+          ? (toaY(j) - t.dau[1]) * t.huong[1]
+          : (toaX(i) - t.dau[0]) * t.huong[0];
+        if (sau < -10) p += PHAT_SAU_NGAN_LO;
+      }
+    }
     if (oTrungAp[k]) p += PHAT_TA_TRONG;
-    else if (oDaVe[k]) p += PHAT_DE;
+    else if (oDaVe[k] || oSatTA[k]) p += PHAT_DE;
     // Dải để dành cho lưới trung áp ngay dưới trạm: đi qua được nhưng phạt nặng.
     const d = daiTrungAp[k];
     if (d && !maTru.includes(d)) p += PHAT_TA;
@@ -539,14 +620,18 @@ function timDuong(A, B, tru) {
   const PHAT_DUC = 220;
   /** Phạt thêm khi rẽ đúng ô mà tuyến khác đã rẽ - để không có hai góc trùng nhau. */
   const PHAT_RE_TRUNG = 1400;
+  /** Phạt khi chạy cùng chiều trong ô mà tuyến khác đã chạy qua (hai tuyến đè nhau). */
+  const PHAT_CHONG = 400;
   const h = (i, j) => (Math.abs(i - ti) + Math.abs(j - tj)) * O;
   // hàng đợi ưu tiên đơn giản (mảng + sắp xếp theo lô)
   let bien = [];
-  for (let d = 0; d < 4; d++) {
-    const k = (sj * NX + si) * 4 + d;
+  {
+    // coi như vừa đi tới A theo hướng dA
+    const k = (sj * NX + si) * 4 + chiSoHuong(dA);
     g[k] = 0;
     bien.push([h(si, sj), k]);
   }
+  const cam = chiSoHuong(dB); // đi tới B theo hướng này là đi từ phía ngăn lộ ra
   let dich = -1;
   while (bien.length) {
     bien.sort((a, b) => a[0] - b[0]);
@@ -556,11 +641,12 @@ function timDuong(A, B, tru) {
     const i0 = o % NX;
     const j0 = (o / NX) | 0;
     if (f - h(i0, j0) > g[k] + 1e-6) continue;
-    if (i0 === ti && j0 === tj) {
+    if (i0 === ti && j0 === tj && d0 !== cam) {
       dich = k;
       break;
     }
     for (let d = 0; d < 4; d++) {
+      if (d === (d0 ^ 1)) continue; // không quay đầu 180 độ
       const i1 = i0 + DI[d];
       const j1 = j0 + DJ[d];
       if (i1 < 0 || i1 >= NX || j1 < 0 || j1 >= NY) continue;
@@ -572,7 +658,8 @@ function timDuong(A, B, tru) {
         O +
         pt +
         (d === d0 ? 0 : PHAT_RE + reTai[o] * PHAT_RE_TRUNG) +
-        dongDuc[j1 * NX + i1] * PHAT_DUC;
+        dongDuc[j1 * NX + i1] * PHAT_DUC +
+        ((d < 2 ? chayNgang[j1 * NX + i1] : chayDoc[j1 * NX + i1]) ? PHAT_CHONG : 0);
       if (c + 1e-9 < g[k1]) {
         g[k1] = c;
         truocO[k1] = k;
@@ -590,6 +677,11 @@ function timDuong(A, B, tru) {
   }
   o.reverse();
   for (const v of o) dongDuc[v[2]]++;
+  for (let i = 1; i < o.length; i++) {
+    const mang = o[i][1] === o[i - 1][1] ? chayNgang : chayDoc;
+    mang[o[i][2]] = 1;
+    mang[o[i - 1][2]] = 1;
+  }
   // bỏ điểm giữa của các đoạn thẳng hàng
   const pts = [];
   for (let i = 0; i < o.length; i++) {
@@ -614,24 +706,47 @@ function timDuong(A, B, tru) {
  * góc với đoạn vươn ra, nên toàn tuyến chỉ có đoạn thẳng ngang - dọc, gấp khúc
  * vuông góc 90 độ, không có đoạn xiên.
  */
-function raLuoi(p, d) {
-  if (d[1] !== 0) {
-    const y = p[1] + d[1] * VUON;
-    const j = d[1] > 0 ? Math.ceil((y - bao.y0) / O) : Math.floor((y - bao.y0) / O);
-    return [p[0], toaY(j)];
+function raLuoi(p, d, maTram) {
+  // Các đường lưới nằm phía trước ngăn lộ, cách đầu ngăn lộ từ VUON_MIN đến VUON.
+  const doc = d[1] !== 0;
+  const s = doc ? d[1] : d[0];
+  const v0 = doc ? p[1] : p[0];
+  const goc = doc ? bao.y0 : bao.x0;
+  const ung = [];
+  const m0 = s > 0 ? Math.ceil((v0 + VUON_MIN - goc) / O) : Math.floor((v0 - VUON_MIN - goc) / O);
+  for (let m = m0; ; m += s) {
+    const v = goc + m * O;
+    ung.push(v);
+    if ((v - v0) * s >= VUON) break; // đường lưới đầu tiên từ VUON trở ra là xa nhất
   }
-  const x = p[0] + d[0] * VUON;
-  const i = d[0] > 0 ? Math.ceil((x - bao.x0) / O) : Math.floor((x - bao.x0) / O);
-  return [toaX(i), p[1]];
+  const diem = (v) => (doc ? [p[0], v] : [v, p[1]]);
+  // Ưu tiên đoạn vươn ra dài nhất (≤ VUON) mà KHÔNG đâm vào vùng trung áp; phía
+  // trước ngăn lộ là thiết bị trung áp (trạm bố trí ngăn lộ 110kV quay vào phần
+  // 22kV) thì chỉ vươn ra ngắn rồi rẽ ngang ngay.
+  let tot = ung[0];
+  for (const v of ung) {
+    const q = diem(v);
+    const k = hang(q[1]) * NX + cot(q[0]);
+    if (oTrungAp[k]) break;
+    // không vươn sang ô của trạm bên cạnh (vẽ sát nhau)
+    if (chiem[k] && maTram && chiem[k] !== maTram) break;
+    tot = v;
+  }
+  return diem(tot);
 }
 
 function diDay(mA, mB, maTram) {
   const dA = huongRa(mA);
   const dB = huongRa(mB);
-  const tru = [{ ma: maTram[0] }, { ma: maTram[1] }];
-  const A = raLuoi(mA.p, dA);
-  const B = raLuoi(mB.p, dB);
-  const giua = timDuong(A, B, tru);
+  // Mỗi trạm đầu cuối ghi kèm HÀNG ĐẦU NGĂN LỘ và hướng chĩa ra, để phạt phần
+  // trạm nằm phía sau hàng đó (phía thanh cái, các ngăn lộ khác).
+  const tru = [
+    { ma: maTram[0], huong: dA, dau: mA.p },
+    { ma: maTram[1], huong: dB, dau: mB.p },
+  ];
+  const A = raLuoi(mA.p, dA, maTram[0]);
+  const B = raLuoi(mB.p, dB, maTram[1]);
+  const giua = timDuong(A, B, tru, dA, dB);
   if (!giua) return null;
   // nối đầu ngăn lộ -> điểm ra -> đường đi -> điểm ra -> đầu ngăn lộ
   return { pts: [mA.p, A, ...giua, B, mB.p] };
@@ -663,7 +778,113 @@ for (const [ka, kb, day, km] of DUONG_DAY) {
     const q = [r2(p[0]), r2(p[1])];
     if (!pts.length || cach(pts[pts.length - 1], q) > 0.5) pts.push(q);
   }
+  // bỏ điểm giữa ba điểm thẳng hàng - kể cả chỗ đường đi lùi lại trên cùng một
+  // đoạn thẳng (điểm ra lưới lệch vài đơn vị so với ô đầu của đường A*)
+  for (let k = pts.length - 2; k >= 1; k--) {
+    const [a, b, c] = [pts[k - 1], pts[k], pts[k + 1]];
+    if ((Math.abs(a[0] - b[0]) < 0.6 && Math.abs(b[0] - c[0]) < 0.6) || (Math.abs(a[1] - b[1]) < 0.6 && Math.abs(b[1] - c[1]) < 0.6)) {
+      pts.splice(k, 1);
+    }
+  }
   tuyen.push({ pts, day, km });
+}
+
+/* --- Bỏ nấc gấp khúc tí hon ---
+   Đầu ngăn lộ không nằm đúng đường lưới nên đôi khi còn một nấc ngang/dọc chỉ vài
+   đơn vị ngay trước đầu ngăn lộ. Dời cả đoạn song song phía trước sang cho thẳng
+   hàng với đầu ngăn lộ, nấc đó biến mất. */
+{
+  let bo = 0;
+  for (const t of tuyen) {
+    const p = t.pts;
+    for (let k = 1; k + 1 < p.length; k++) {
+      const a = p[k];
+      const b = p[k + 1];
+      const dx = Math.abs(a[0] - b[0]);
+      const dy = Math.abs(a[1] - b[1]);
+      if (Math.hypot(dx, dy) >= 6 || Math.hypot(dx, dy) < 0.01) continue;
+      const j = dx > dy ? 0 : 1; // trục của nấc
+      if (k + 1 === p.length - 1 && k - 1 >= 1) {
+        // nấc sát điểm cuối: dời đoạn (k-1, k) theo điểm cuối
+        p[k - 1][j] = b[j];
+        p[k][j] = b[j];
+      } else if (k === 1 && k + 2 < p.length - 1) {
+        // nấc sát điểm đầu: dời đoạn (k+1, k+2) theo điểm đầu
+        p[k + 1][j] = a[j];
+        p[k + 2][j] = a[j];
+      } else continue;
+      bo++;
+    }
+    // gộp điểm trùng + điểm thẳng hàng sinh ra sau khi dời
+    for (let k = p.length - 2; k >= 1; k--) {
+      const [u, v, w] = [p[k - 1], p[k], p[k + 1]];
+      const trung = Math.abs(u[0] - v[0]) < 0.6 && Math.abs(u[1] - v[1]) < 0.6;
+      const thang = (Math.abs(u[0] - v[0]) < 0.6 && Math.abs(v[0] - w[0]) < 0.6) || (Math.abs(u[1] - v[1]) < 0.6 && Math.abs(v[1] - w[1]) < 0.6);
+      if (trung || thang) p.splice(k, 1);
+    }
+  }
+  if (bo) console.log(`Đã bỏ ${bo} nấc gấp khúc tí hon sát đầu ngăn lộ.`);
+}
+
+/* --- Tách làn: hai tuyến chạy chồng lên nhau trên cùng một đường thẳng ---
+   Khe hở giữa hai trạm vẽ sát nhau (E6.20 với E6.21, E6.3) chỉ vừa một hàng ô
+   lưới, mấy tuyến buộc phải cùng đi qua. Khi đó dịch các đoạn chồng nhau lệch ra
+   từng làn cách nhau LAN đơn vị. Đoạn ngang dời lên/xuống thì hai đoạn dọc hai bên
+   chỉ dài ra hay ngắn đi, nên tuyến vẫn giữ gấp khúc vuông góc. */
+const LAN = 12;
+{
+  let tach = 0;
+  for (let luot = 0; luot < 4; luot++) {
+    const doan = [];
+    tuyen.forEach((t, i) => {
+      for (let k = 1; k < t.pts.length; k++) {
+        // không dời đoạn chạm đầu ngăn lộ (điểm đầu / cuối tuyến)
+        if (k === 1 || k === t.pts.length - 1) continue;
+        const a = t.pts[k - 1];
+        const b = t.pts[k];
+        if (Math.abs(a[1] - b[1]) < 0.6 && Math.abs(a[0] - b[0]) > 1) doan.push({ i, k, ngang: true, v: a[1], lo: Math.min(a[0], b[0]), hi: Math.max(a[0], b[0]) });
+        else if (Math.abs(a[0] - b[0]) < 0.6 && Math.abs(a[1] - b[1]) > 1) doan.push({ i, k, ngang: false, v: a[0], lo: Math.min(a[1], b[1]), hi: Math.max(a[1], b[1]) });
+      }
+    });
+    let doi = false;
+    const daXet = new Set();
+    for (const d of doan) {
+      if (daXet.has(d)) continue;
+      const nhom = doan.filter(
+        (e) => e.ngang === d.ngang && e.i !== d.i && Math.abs(e.v - d.v) < 1 && Math.min(e.hi, d.hi) - Math.max(e.lo, d.lo) > 1,
+      );
+      if (!nhom.length) continue;
+      const cung = [d, ...nhom.filter((e, z) => nhom.findIndex((f) => f.i === e.i) === z)];
+      cung.forEach((e) => daXet.add(e));
+      // Làn 0 giữ nguyên; các làn sau thử lần lượt -LAN, +LAN, -2LAN, +2LAN...,
+      // bỏ qua độ lệch làm góc rẽ trùng đúng vào đỉnh của tuyến khác.
+      const trungDinh = (i, q) =>
+        tuyen.some((t, x) => x !== i && t.pts.some((u) => Math.abs(u[0] - q[0]) < 0.6 && Math.abs(u[1] - q[1]) < 0.6));
+      const daDung = new Set([0]);
+      cung.forEach((e, z) => {
+        if (!z) return;
+        const pts = tuyen[e.i].pts;
+        const j = e.ngang ? 1 : 0;
+        for (let m = 1; m <= 8; m++) {
+          const lech = (m % 2 ? -1 : 1) * Math.ceil(m / 2) * LAN;
+          if (daDung.has(lech)) continue;
+          const a = [...pts[e.k - 1]];
+          const b = [...pts[e.k]];
+          a[j] = r2(a[j] + lech);
+          b[j] = r2(b[j] + lech);
+          if (trungDinh(e.i, a) || trungDinh(e.i, b)) continue;
+          pts[e.k - 1] = a;
+          pts[e.k] = b;
+          daDung.add(lech);
+          tach++;
+          doi = true;
+          break;
+        }
+      });
+    }
+    if (!doi) break;
+  }
+  if (tach) console.log(`Đã tách ${tach} đoạn chạy chồng lên tuyến khác ra làn riêng.`);
 }
 
 /* --- Tự kiểm: mọi đoạn phải là đường thẳng ngang hoặc dọc ---
@@ -710,7 +931,9 @@ function giaoNgangDoc(h, v) {
   const vy0 = Math.min(v[0][1], v[1][1]);
   const vy1 = Math.max(v[0][1], v[1][1]);
   if (!(x > hx0 + 4 && x < hx1 - 4 && y > vy0 + 2 && y < vy1 - 2)) return null;
-  const r = Math.min(R_NHAY, x - hx0 - 3, hx1 - x - 3);
+  // Nửa vòng tròn vồng lên phía +y: không để đỉnh vòng chạm vào góc rẽ ở đầu trên
+  // của đoạn dọc.
+  const r = Math.min(R_NHAY, x - hx0 - 3, hx1 - x - 3, vy1 - y - 3);
   return r >= 9 ? { x, r } : null;
 }
 

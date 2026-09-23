@@ -350,25 +350,50 @@ so le nhau nên không chốt cứng một hàng. Chạy `XEM=1 node tools/noi-d
 Lưu ý cách đọc nhãn nơi đến: **số trong nhãn là ngăn lộ của ĐẦU KIA**. Nhãn
 `171 E6.8` đặt ở ngăn 177 của E6.2 nghĩa là lộ 177E6.2 đi tới ngăn 171 của E6.8.
 
+Nhãn nơi đến được nhận ở ba cách ghi: `171 E6.22 ĐỊNH HÓA`, `174E6.20 LƯU XÁ` (dính
+liền số và mã, ở E6.5) và `GANG THÉP 17 E6.9` (tên trạm đứng trước, ở trạm 220kV Lưu
+Xá E6.20); mã định dạng MTEXT còn sót (`qc;`, `tz;`...) được bỏ đi. Với cách ghi thứ ba,
+nhãn nằm dưới cả dãy TU, chống sét vẽ bằng nét rời rất ngắn, nên chỉ nhận đầu mút của
+đoạn dây thật (dài từ 12 đơn vị) nằm bên phải điểm đầu nhãn.
+
 **Cách đi dây cho gọn mắt** (`tools/noi-duong-day-110.mjs`): mỗi đầu ngăn lộ đi
-thẳng ra khỏi trạm một đoạn 110 đơn vị, rồi tìm đường bằng thuật toán **A\*** trên
-lưới ô 60 đơn vị:
+thẳng ra khỏi trạm một đoạn tới 110 đơn vị - **co ngắn còn 30 đơn vị** nếu phía trước
+là thiết bị trung áp hoặc trạm bên cạnh - rồi tìm đường bằng thuật toán **A\*** trên
+lưới ô 60 đơn vị. Đường đi phải rời đầu ngăn lộ đúng theo hướng ngăn lộ chĩa ra và
+**không được quay đầu 180 độ** (trước đây ở E6.14 đường dây vươn lên rồi quay ngược
+xuống xuyên qua chính ngăn lộ):
 
 * ô nằm trong phạm vi trạm khác bị **cấm** - đường dây không bao giờ cắt qua trạm;
 * ô của chính hai trạm đầu cuối thì đi được nhưng **phạt nặng** (900/ô), nên đường
   dây thoát ra khỏi trạm ngay chứ không chạy dọc qua giữa trạm;
+* trong trạm đầu cuối, phần nằm **phía sau hàng đầu ngăn lộ** (phía thanh cái, các
+  ngăn lộ khác) bị phạt 9000/ô: đường dây phải chạy ngang **phía trước** các đầu
+  ngăn lộ cho tới khi ra khỏi trạm, không cắt qua dãy ngăn lộ;
+* hai trạm vẽ sát nhau thì ô ở khe hở thuộc về trạm **gần hơn**, để khe hở vẫn còn
+  đường cho dây đi (khe giữa E6.20 với E6.21, E6.3 chỉ rộng khoảng 110 đơn vị);
 * ô **đã có hình vẽ sẵn** của bản CAD (thanh cái, máy cắt, dao cách ly...) bị phạt
   1100/ô, nên đường dây không đè lên ký hiệu thiết bị;
-* ô có **thiết bị trung áp 35/22/10/6/0,4kV** (nới rộng thêm một ô) bị phạt 5200/ô -
-  đó chính là chỗ phải để dành cho việc đấu tiếp lưới trung áp;
+* ô có **thiết bị trung áp 35/22/10/6/0,4kV** bị phạt 5200/ô - đó chính là chỗ phải
+  để dành cho việc đấu tiếp lưới trung áp; ô sát bên (cách một ô) phạt nhẹ 1100/ô;
 * mỗi lần rẽ bị phạt, nên đường đi ít gấp khúc nhất;
-* ô đã có tuyến khác đi qua cũng bị phạt, nên các tuyến **tự tản ra song song** thay
-  vì đè lên nhau;
+* ô đã có tuyến khác đi qua cũng bị phạt, nên các tuyến **tự tản ra song song**;
+  chạy cùng chiều trong ô tuyến khác đã chạy bị phạt thêm 400/ô;
 * **dải để dành cho lưới trung áp** ngay dưới mỗi trạm (xem ngay dưới) bị phạt
   420/ô, nên đường dây 110kV tránh xuống vùng sẽ vẽ lộ 35/22/6kV.
 
+Sau khi tìm đường còn hai bước sửa hình:
+
+* **tách làn** - chỗ nhiều tuyến buộc phải đi chung một hàng ô (khe hở giữa hai
+  trạm), các đoạn chồng nhau được dịch lệch nhau từng 12 đơn vị thành bó song song;
+  đoạn ngang dời lên/xuống thì hai đoạn dọc hai bên chỉ dài ra hay ngắn đi, tuyến vẫn
+  gấp khúc vuông góc;
+* **bỏ nấc tí hon** - đầu ngăn lộ không nằm đúng đường lưới nên đôi khi còn một nấc
+  gấp khúc vài đơn vị sát đầu ngăn lộ; dời đoạn song song phía trước cho thẳng hàng.
+
 Chạy xong, công cụ tự kiểm và in ra số đỉnh rơi vào vùng trung áp / đè lên hình vẽ
-sẵn có, để dễ so sánh giữa hai lần chỉnh.
+sẵn có, để dễ so sánh giữa hai lần chỉnh. Kết quả hiện tại: 34/34 tuyến, **0 đoạn
+chồng nhau** (bản trước còn 14 đoạn, dài cộng lại khoảng 1.860 đơn vị), 0 đỉnh trùng,
+0 đoạn xiên, 0 chỗ giao chéo thiếu ký hiệu nhảy dây, 2 đỉnh nằm trong vùng trung áp.
 
 **Chỉ có đoạn thẳng ngang - dọc, gấp khúc vuông góc 90 độ** - đúng quy ước vẽ sơ
 đồ nguyên lý, không có đoạn xiên nào. Hai chỗ dễ sinh đoạn xiên đều đã xử lý:
