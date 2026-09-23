@@ -286,7 +286,7 @@ const TRAM_NGOAI = [
  * Trạm ngoài tỉnh được ĐƯA VÀO DANH MỤC TRẠM của phần mềm (bấm tên là phóng tới
  * trạm). Dòng danh mục: [mã, tiêu đề, x, y, x0, y0, x1, y1, 1 = ngoài tỉnh].
  */
-const VAO_DANH_MUC = new Set(['E26.5', 'E1.19']);
+const VAO_DANH_MUC = new Set(['E26.5', 'E16.2', 'E1.19']);
 const danhMucNgoai = [];
 
 for (const [ma, ten, x0Lo, yTC, dsLo] of TRAM_NGOAI) {

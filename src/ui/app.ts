@@ -1052,7 +1052,7 @@ export class App {
     return !!st;
   }
 
-  /** Danh mục trạm có trên tờ sơ đồ kết dây (25 trạm + 2 trạm 220kV ngoài địa bàn). */
+  /** Danh mục trạm có trên tờ sơ đồ kết dây (25 trạm + 3 trạm 220kV ngoài địa bàn). */
   private showStationIndex(): void {
     const list = stationsOf(MA_TO_TONG);
     if (!list.length) {

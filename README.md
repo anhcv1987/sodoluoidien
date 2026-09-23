@@ -441,10 +441,10 @@ giữ lại cấp điện áp để phân biệt **220kV Phú Bình (E6.16)** v�
 (E6.17)**.
 
 Cuối danh mục, dưới dòng *"Trạm 220kV ngoài địa bàn có đường dây 110kV nối về"*, có
-thêm **E1.19 220kV Sóc Sơn** và **E26.5 220kV Bắc Kạn**; bấm tên cũng phóng tới đúng
-trạm trên sơ đồ kết dây. Hai dòng này do `tools/noi-duong-day-110.mjs` ghi vào danh
+thêm **E1.19 220kV Sóc Sơn**, **E16.2 220kV Cao Bằng** và **E26.5 220kV Bắc Kạn**; bấm
+tên cũng phóng tới đúng trạm trên sơ đồ kết dây. Ba dòng này do `tools/noi-duong-day-110.mjs` ghi vào danh
 mục (cột thứ 9 của dòng trạm = 1 đánh dấu trạm ngoài tỉnh) và xoá đi khi chạy lại.
-Danh mục nay có **27 trạm**.
+Danh mục nay có **28 trạm**.
 
 Bốn trạm 220kV được sửa lại tên cho đúng danh mục của Phòng Điều độ (bản CAD ghi
 thiếu hoặc lẫn ký tự thừa); mã trạm giữ nguyên:

@@ -228,6 +228,7 @@ const SUA_TRAM: Record<string, { ma?: string; ten: string }> = {
   'E6.25': { ten: 'Trạm 220kV Phú Bình 2' },
   // Trạm 220kV ngoài địa bàn (do tools/noi-duong-day-110.mjs thêm vào danh mục)
   'E26.5': { ten: 'Trạm 220kV Bắc Kạn' },
+  'E16.2': { ten: 'Trạm 220kV Cao Bằng' },
   'E1.19': { ten: 'Trạm 220kV Sóc Sơn' },
 };
 
