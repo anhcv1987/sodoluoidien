@@ -443,7 +443,12 @@ export class App {
           text: 'Bấm tên trạm để phóng tới trạm đó trên sơ đồ kết dây. Nút "Bản đồ" chuyển sang trang đặt theo vị trí địa lý.',
         }),
       );
+      let daGhiNgoai = false;
       for (const st of cad) {
+        if (st.ngoaiTinh && !daGhiNgoai) {
+          daGhiNgoai = true;
+          list.append(el('p', { class: 'muted small hint', text: 'Trạm 220kV ngoài địa bàn có đường dây 110kV nối về:' }));
+        }
         const wrap = el('div', { class: 'tram-item' });
         // Giữ lại cấp điện áp trong tên rút gọn: trạm 220kV Phú Bình (E6.16) và
         // trạm 110kV Phú Bình (E6.17) chỉ khác nhau ở chỗ đó.
@@ -1047,7 +1052,7 @@ export class App {
     return !!st;
   }
 
-  /** Danh mục 25 trạm có trên tờ sơ đồ kết dây. */
+  /** Danh mục trạm có trên tờ sơ đồ kết dây (25 trạm + 2 trạm 220kV ngoài địa bàn). */
   private showStationIndex(): void {
     const list = stationsOf(MA_TO_TONG);
     if (!list.length) {

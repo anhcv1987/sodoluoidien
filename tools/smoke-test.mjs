@@ -45,6 +45,7 @@ const init = await page.evaluate(() => {
     tram: document.querySelectorAll('.tram-row').length,
     palette: document.querySelectorAll('.palette-item').length,
     khung: a.store.entities.filter((e) => e.layer === 'Khung bản vẽ').length,
+    doiChu: window.sodoDoiChu?.get('TONG'),
   };
 });
 check('Mở ra là sơ đồ kết dây tổng', init.active.includes('kết dây'), init.active);
@@ -55,9 +56,14 @@ check(
   ['110', '35', '22', '6'].every((k) => (init.kv[k] ?? 0) > 100),
   JSON.stringify(init.kv),
 );
-check('Danh mục có 25 trạm', init.tram === 25, `${init.tram} trạm`);
+check('Danh mục có 25 trạm + 2 trạm 220kV ngoài địa bàn', init.tram === 27, `${init.tram} trạm`);
 check('Có khung bản vẽ A0 + khung tên', init.khung >= 6, `${init.khung} đối tượng khung`);
 check('Thư viện thiết bị', init.palette >= 20, `${init.palette} block`);
+check(
+  'Không còn nhãn bị ký hiệu thiết bị che',
+  !!init.doiChu && init.doiChu.daDoi > 100 && init.doiChu.conLai === 0,
+  init.doiChu ? `dời ${init.doiChu.daDoi}/${init.doiChu.biLap} nhãn, còn ${init.doiChu.conLai} · ${init.doiChu.ms} ms` : 'không có số liệu',
+);
 
 /* ---------------- Nhay toi tung tram tren to tong ---------------- */
 

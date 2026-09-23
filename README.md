@@ -409,12 +409,42 @@ chúng **chỉ được đấu ở hai đầu**, đoạn giữa chỉ đi ngang 
 thì mọi điểm giao chéo sẽ bị coi là điểm đấu và **Shift+M** (tô sáng cả mạch) sẽ tô
 lem sang các tuyến không liên quan.
 
+### Dời chữ ra khỏi ký hiệu thiết bị
+
+Bản CAD gốc có nhiều nhãn nằm đè lên ký hiệu: số hiệu máy cắt ghi lọt vào trong thân
+máy cắt (`173`), tên dao cách ly vắt qua lưỡi dao (`173-7`), tên TU chồng lên cuộn
+dây, tên chống sét nằm trên thân chống sét (`CS1 T1`)... Trên AutoCAD nét mảnh nên
+còn đọc được, còn trong phần mềm ký hiệu vẽ đậm (máy cắt đóng có thể tô đặc) nên chữ
+bị lấp.
+
+Khi mở tờ sơ đồ, `src/core/doiChu.ts` rà từng nhãn:
+
+* nhãn **chạm nét vẽ** của thiết bị, hoặc **lọt vào trong thân** thiết bị (máy cắt,
+  cuộn dây, TI...) thì coi là bị lấp. Ký hiệu nhỏ mà bản CAD vẽ bằng nét rời chứ
+  không dùng block (chống sét, cầu chì) - đường gấp khúc khép kín, nhỏ - cũng tính;
+* với nhãn bị lấp, thử các vị trí xung quanh **từ gần ra xa** (ưu tiên dời ngang để
+  nhãn vẫn cùng hàng với thiết bị) và lấy chỗ đầu tiên **không chạm thiết bị nào,
+  không đè nhãn khác, không cắt thêm đường dây nào** so với chỗ cũ;
+* phạm vi tìm có giới hạn (sang ngang một bề rộng nhãn + 3 lần chiều cao chữ, lên
+  xuống 2,5 lần) để nhãn không bị đẩy xa khỏi thiết bị mà nó ghi tên; không có chỗ
+  thì giữ nguyên.
+
+Kết quả trên tờ sơ đồ kết dây: **193/193 nhãn bị lấp đã được dời**, còn 0; thời gian
+xử lý khoảng 0,3 giây khi mở phần mềm. Nhãn dời xa nhất là các dòng mô tả MBA dài
+(`MBA T2 - 40/40/40 MVA ...`), vẫn nằm ngay cạnh MBA của nó.
+
 ### Danh mục trạm
 
 Danh mục xếp theo số hiệu: **E6.2, E6.3 … E6.25 rồi mới tới E26.1, E26.2, E26.3**
 (so theo số chứ không so theo chữ, nếu không E6.10 sẽ đứng trước E6.2). Tên rút gọn
 giữ lại cấp điện áp để phân biệt **220kV Phú Bình (E6.16)** với **110kV Phú Bình
 (E6.17)**.
+
+Cuối danh mục, dưới dòng *"Trạm 220kV ngoài địa bàn có đường dây 110kV nối về"*, có
+thêm **E1.19 220kV Sóc Sơn** và **E26.5 220kV Bắc Kạn**; bấm tên cũng phóng tới đúng
+trạm trên sơ đồ kết dây. Hai dòng này do `tools/noi-duong-day-110.mjs` ghi vào danh
+mục (cột thứ 9 của dòng trạm = 1 đánh dấu trạm ngoài tỉnh) và xoá đi khi chạy lại.
+Danh mục nay có **27 trạm**.
 
 Bốn trạm 220kV được sửa lại tên cho đúng danh mục của Phòng Điều độ (bản CAD ghi
 thiếu hoặc lẫn ký tự thừa); mã trạm giữ nguyên:
@@ -552,6 +582,7 @@ src/
 ├── core/        types.ts (mô hình dữ liệu) · doc.ts (kho dữ liệu + Undo/Redo)
 │                voltage.ts (quy ước màu) · geom.ts (hình học)
 │                lienket.ts (nút điện - cực thiết bị - mạch, nền cho chiều công suất)
+│                doiChu.ts (dời nhãn ra khỏi ký hiệu thiết bị khi mở tờ sơ đồ)
 ├── symbols/     prims.ts (nguyên thuỷ hình học) · blocks.ts (23 ký hiệu thiết bị)
 ├── data/        geo.ts (phép chiếu, ranh giới, địa danh)
 │                grid110.ts (danh mục trạm + đường dây + mã hiệu dây)
@@ -568,8 +599,8 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật
                  noi-duong-day-110.mjs  — nối đường dây 110kV giữa các trạm (A*)
                  kiem-cap-dien-ap.mjs   — rà soát cấp điện áp theo số hiệu ngăn lộ
-                 xem-vung.mjs           — chụp một vùng sơ đồ để đối chiếu
-                 xem-cad.py             — vẽ nguyên bản vùng đó từ file DXF gốc
+                 xem-vung.mjs           — chụp một vùng sơ đồ để đối chiếu (MAN_HINH=1: như trên màn hình)
+                 xem-cad.py             — vẽ nguyên bản vùng đó (cả chữ) từ file DXF gốc
                  hoi-vung.mjs           — liệt kê đối tượng trong một vùng
 ```
 

@@ -1,5 +1,6 @@
 import raw from './tram-sld.json';
 import { newId } from '../core/doc';
+import { doiChuKhoiThietBi, type KetQuaDoiChu } from '../core/doiChu';
 import type {
   BranchEntity,
   CircleEntity,
@@ -40,7 +41,7 @@ interface CompactSheet {
   t: (number | string)[][];
   /** Hình tròn: [lớp, kV, x, y, bán kính, lớp CAD gốc] */
   c?: number[][];
-  /** Trạm trong tờ tổng: [mã, tiêu đề, x, y, x0, y0, x1, y1] */
+  /** Trạm trong tờ tổng: [mã, tiêu đề, x, y, x0, y0, x1, y1, ngoài tỉnh (0/1)] */
   st?: (number | string)[][];
 }
 
@@ -98,6 +99,9 @@ export function cadSheetName(code: string, tenTram?: string): string {
   const s = data.sheets.find((x) => x.code === code);
   return s ? s.title : code;
 }
+
+/** Kết quả dời nhãn ra khỏi ký hiệu thiết bị của từng tờ đã bung (để kiểm tra). */
+export const ketQuaDoiChu = new Map<string, KetQuaDoiChu>();
 
 /**
  * Bung một tờ sơ đồ ra thành trang bản vẽ đầy đủ.
@@ -185,6 +189,9 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
     put(t);
   }
 
+  // Nhãn nằm đè lên ký hiệu thiết bị thì dời ra chỗ thoáng gần nhất.
+  ketQuaDoiChu.set(code, doiChuKhoiThietBi(entities));
+
   const sheet: Sheet = {
     id: newId('sh'),
     name,
@@ -204,6 +211,8 @@ export interface CadStation {
   y: number;
   /** Phạm vi bản vẽ của trạm trên tờ tổng (để phóng tới vừa khít). */
   box?: { minX: number; minY: number; maxX: number; maxY: number };
+  /** Trạm ngoài địa bàn PCTN (220kV Bắc Kạn, 220kV Sóc Sơn...) - xếp cuối danh mục. */
+  ngoaiTinh?: boolean;
 }
 
 /**
@@ -217,11 +226,15 @@ const SUA_TRAM: Record<string, { ma?: string; ten: string }> = {
   'E6.20': { ten: 'Trạm 220kV Lưu Xá' },
   'E6.16': { ten: 'Trạm 220kV Phú Bình' },
   'E6.25': { ten: 'Trạm 220kV Phú Bình 2' },
+  // Trạm 220kV ngoài địa bàn (do tools/noi-duong-day-110.mjs thêm vào danh mục)
+  'E26.5': { ten: 'Trạm 220kV Bắc Kạn' },
+  'E1.19': { ten: 'Trạm 220kV Sóc Sơn' },
 };
 
 /**
- * Thứ tự danh mục: E6.2, E6.3 … E6.25 rồi mới tới E26.1, E26.2, E26.3.
- * So theo SỐ chứ không so theo chữ, nếu không E6.10 sẽ đứng trước E6.2.
+ * Thứ tự danh mục: E6.2, E6.3 … E6.25 rồi mới tới E26.1, E26.2, E26.3; các trạm
+ * ngoài địa bàn xếp cuối. So theo SỐ chứ không so theo chữ, nếu không E6.10 sẽ
+ * đứng trước E6.2.
  */
 function thuTuTram(ma: string): [number, number, string] {
   const m = ma.match(/^E(\d+)\.(\d+)/i);
@@ -229,11 +242,16 @@ function thuTuTram(ma: string): [number, number, string] {
   return [Number(m[1]), Number(m[2]), ma];
 }
 
-export function sapXepTram<T extends { code: string }>(ds: T[]): T[] {
+export function sapXepTram<T extends { code: string; ngoaiTinh?: boolean }>(ds: T[]): T[] {
   return [...ds].sort((a, b) => {
     const x = thuTuTram(a.code);
     const y = thuTuTram(b.code);
-    return x[0] - y[0] || x[1] - y[1] || x[2].localeCompare(y[2]);
+    return (
+      Number(!!a.ngoaiTinh) - Number(!!b.ngoaiTinh) ||
+      x[0] - y[0] ||
+      x[1] - y[1] ||
+      x[2].localeCompare(y[2])
+    );
   });
 }
 
@@ -258,6 +276,7 @@ export function stationsOf(code: string): CadStation[] {
         maxY: r[7] as number,
       };
     }
+    if (r[8]) st.ngoaiTinh = true;
     return st;
   }));
 }

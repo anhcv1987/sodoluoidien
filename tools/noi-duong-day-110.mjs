@@ -63,6 +63,8 @@ const r2 = (v) => Math.round(v * 100) / 100;
   to.b = to.b.filter((r) => !bo.has(r[3]));
   to.t = to.t.filter((r) => !bo.has(r[7]));
   to.d = to.d.filter((r) => !bo.has(r[8]));
+  // trạm ngoài tỉnh do script này thêm vào danh mục trạm (cờ ở cột thứ 9)
+  to.st = to.st.filter((r) => !r[8]);
   if (n0 !== to.b.length) console.log(`Đã xoá ${n0 - to.b.length} tuyến của lần chạy trước.`);
 }
 
@@ -280,6 +282,13 @@ const TRAM_NGOAI = [
   ['E16.2', '220kV CAO BẰNG (E16.2)', 2450, 7980, ['171']],
 ];
 
+/**
+ * Trạm ngoài tỉnh được ĐƯA VÀO DANH MỤC TRẠM của phần mềm (bấm tên là phóng tới
+ * trạm). Dòng danh mục: [mã, tiêu đề, x, y, x0, y0, x1, y1, 1 = ngoài tỉnh].
+ */
+const VAO_DANH_MUC = new Set(['E26.5', 'E1.19']);
+const danhMucNgoai = [];
+
 for (const [ma, ten, x0Lo, yTC, dsLo] of TRAM_NGOAI) {
   const xs = dsLo.map((_, i) => x0Lo + i * BUOC_LO);
   const xa = xs[0] - 120;
@@ -297,6 +306,9 @@ for (const [ma, ten, x0Lo, yTC, dsLo] of TRAM_NGOAI) {
   veNgoai.t.push([LOP, 110, (xa + xb) / 2, yTC + 30, 24, 0, CAN_GIUA, SRC_TN, ten]);
   hop.set(ma, { x0: xa, y0: yTC - SAU_LO, x1: xb, y1: yTC + 70 });
   ngoaiTinh.add(ma);
+  if (VAO_DANH_MUC.has(ma)) {
+    danhMucNgoai.push([ma, `TRẠM ${ten}`, (xa + xb) / 2, yTC + 30, xa - 150, yTC - SAU_LO - 200, xb + 150, yTC + 120, 1]);
+  }
 }
 
 /**
@@ -306,6 +318,9 @@ for (const [ma, ten, x0Lo, yTC, dsLo] of TRAM_NGOAI) {
 {
   hop.set('E1.19', { x0: -4816, y0: -6975, x1: -4610, y1: -6762 });
   ngoaiTinh.add('E1.19');
+  if (VAO_DANH_MUC.has('E1.19')) {
+    danhMucNgoai.push(['E1.19', 'TRẠM 220KV SÓC SƠN (E1.19)', -4789, -6895, -4900, -7060, -4520, -6700, 1]);
+  }
   veNgoai.b.push([LOP, 110, KIEU, SRC_TN, -4686.61, -6836.27, -4686.61, -6869.38]);
   const bayE119 = [
     // [số ngăn lộ, x, y đầu dây ra, y điểm phía trong]
@@ -815,6 +830,7 @@ for (const { pts, day, km } of tuyen) {
 for (const r of veNgoai.b) to.b.push(r);
 for (const r of veNgoai.d) to.d.push(r);
 for (const r of veNgoai.t) to.t.push(r);
+for (const r of danhMucNgoai) to.st.push(r);
 
 writeFileSync(duongDan, JSON.stringify(data));
 

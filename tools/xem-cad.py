@@ -38,6 +38,20 @@ inb = lambda p: x0-30<=p.x-OX<=x1+30 and y0-30<=p.y-OY<=y1+30
 L=[f'<line x1="{X(a.x):.1f}" y1="{Y(a.y):.1f}" x2="{X(b.x):.1f}" y2="{Y(b.y):.1f}"/>'
    for a,b in seg if inb(a) or inb(b)]
 L+= [f'<circle cx="{X(c.x):.1f}" cy="{Y(c.y):.1f}" r="{r*sc:.1f}" fill="none"/>' for c,r in circ if inb(c)]
+# Chu (TEXT/MTEXT) - de doi chieu vi tri chu voi ky hieu thiet bi
+import html
+T=[]
+for e in msp:
+    t=e.dxftype()
+    if t not in ('TEXT','MTEXT'): continue
+    p=e.dxf.insert
+    if not inb(p): continue
+    h=(e.dxf.char_height if t=='MTEXT' else e.dxf.height)*sc
+    rot=-(e.dxf.get('rotation',0) or 0)
+    s=e.plain_text() if t=='MTEXT' else e.dxf.text
+    T.append(f'<text x="{X(p.x):.1f}" y="{Y(p.y):.1f}" font-size="{h:.1f}" '
+             f'transform="rotate({rot:.1f} {X(p.x):.1f} {Y(p.y):.1f})">{html.escape(s)}</text>')
 open(out,'w').write(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">'
-  f'<rect width="{W}" height="{H}" fill="#fff"/><g stroke="#0a0" stroke-width="1.2" fill="none">'+''.join(L)+'</g></svg>')
+  f'<rect width="{W}" height="{H}" fill="#fff"/><g stroke="#0a0" stroke-width="1.2" fill="none">'+''.join(L)+'</g>'
+  f'<g fill="#000" font-family="Arial">'+''.join(T)+'</g></svg>')
 print(out, W, H, len(L))
