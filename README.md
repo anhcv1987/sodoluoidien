@@ -297,7 +297,7 @@ ghi nơi đến (`171 E6.22 ĐỊNH HÓA`). Phần mềm nay **nối các ngăn 
 * sơ đồ **"Lưới điện 220kV-110kV khu vực tỉnh Thái Nguyên"** của Phòng Điều độ
   (mã hiệu dây, chiều dài, số mạch).
 
-Tổng cộng **34 đường dây 110kV** được vẽ nối. Bảng đường dây trong
+Tổng cộng **40 đường dây 110kV** được vẽ nối. Bảng đường dây trong
 `tools/noi-duong-day-110.mjs` gọi tên hai đầu theo **số hiệu ngăn lộ** đúng như
 Phòng Điều độ vẫn gọi (177E6.2 - 171E6.8), ví dụ:
 
@@ -311,12 +311,23 @@ Phòng Điều độ vẫn gọi (177E6.2 - 171E6.8), ví dụ:
 | 172 E6.13 Yên Bình | 172 E6.25 220kV Phú Bình 2 | AC400 | 5,3 |
 | 171 E6.22 Định Hóa | 173 E26.1 Bắc Kạn | ACSR240 | 10,99 |
 | 171/172 E6.9 Gang Thép | 171/172 E6.20 220kV Lưu Xá | AC300 | 7,8 (2 mạch) |
+| 173 E6.20 220kV Lưu Xá | 172 E6.21 Sông Công 2 | ACSR400+AC400 | 5,72 |
+| 174 E6.20 220kV Lưu Xá | 171 E6.5 Lưu Xá | ACSR400+AC185 | 4,62 |
+| 172 E6.5 Lưu Xá | 172 E6.23 Yên Bình 8 | AC185+AC400 | (qua cột 27) |
+| 174 E6.16 220kV Phú Bình | 171 E6.7 Sông Công | AC400 | 4,36 |
+| 173 E6.16 220kV Phú Bình | 172 E6.18 Yên Bình 3 | AC400 | 8,38 |
+| 182 E6.16 220kV Phú Bình | 171 E6.17 Phú Bình | AC400 | 12,98 |
+| 172 E6.2 220kV Thái Nguyên | 171 A6.15 NM NĐ An Khánh | AC400 | 5,2 |
+| 176 E6.20 220kV Lưu Xá | 172 A6.15 NM NĐ An Khánh | AC400 | |
 
-#### Ba trạm 220kV ngoài địa bàn
+Chiều dài lấy theo số ghi trên sơ đồ kết lưới; tuyến gồm nhiều đoạn thì cộng các
+đoạn có ghi; đoạn nào sơ đồ không ghi thì để trống chiều dài, nhãn chỉ ghi mã hiệu dây.
 
-Lưới 110kV Thái Nguyên - Bắc Kạn còn nhận điện từ ba trạm 220kV **không thuộc địa
-bàn PCTN**, bản CAD gốc chưa vẽ (chỉ ghi nhãn nơi đến ở đầu ngăn lộ). Phần mềm bổ
-sung ba trạm đó và **08 đường dây 110kV**:
+#### Trạm 220kV ngoài địa bàn và NM Nhiệt điện An Khánh
+
+Lưới 110kV Thái Nguyên - Bắc Kạn còn nhận điện từ bốn trạm 220kV **không thuộc địa
+bàn PCTN** và NM Nhiệt điện An Khánh, bản CAD gốc chưa vẽ (chỉ ghi nhãn nơi đến ở
+đầu ngăn lộ). Phần mềm bổ sung các nút đó và **11 đường dây 110kV**:
 
 | Trạm | Ngăn lộ | Đi tới |
 |---|---|---|
@@ -328,10 +339,13 @@ sung ba trạm đó và **08 đường dây 110kV**:
 | **E1.19** 220kV Sóc Sơn | 172 | 172 E6.7 Sông Công (AC2x185 - 11km) |
 | | 174 | 171 E6.24 Đa Phúc (8,38km) |
 | | 176 | 176 E6.16 220kV Phú Bình (15,94km) |
+| **E14.1** 220kV Tuyên Quang | 171 | 171 E6.19 Đại Từ (AC185+240 - 32,9km) |
+| **A6.15** NM NĐ An Khánh | 171 | 172 E6.2 220kV Thái Nguyên (AC400 - 5,2km) |
+| | 172 | 176 E6.20 220kV Lưu Xá |
 
 E1.19 Sóc Sơn đã có sẵn một **sơ đồ thu nhỏ ở góc dưới bên trái** bản vẽ gốc nên
 chỉ lấy lại đầu ngăn lộ (và vẽ bù đoạn dây ra của ngăn 172 mà bản CAD bỏ sót).
-E26.5 và E16.2 được vẽ thêm **phần thanh cái 110kV** (thanh cái + máy cắt + ngăn
+E26.5, E16.2, E14.1 và A6.15 được vẽ thêm **phần thanh cái 110kV** (thanh cái + máy cắt + ngăn
 lộ có ghi số hiệu), đủ để thể hiện điểm đấu nối chứ không vẽ sâu vào trạm; hình
 này nằm trên lớp CAD riêng `Trạm ngoài tỉnh`. Sơ đồ kết lưới của Phòng Điều độ
 không ghi mã hiệu dây và chiều dài cho các lộ lên 220kV Bắc Kạn và 220kV Cao Bằng
@@ -391,7 +405,7 @@ Sau khi tìm đường còn hai bước sửa hình:
   gấp khúc vài đơn vị sát đầu ngăn lộ; dời đoạn song song phía trước cho thẳng hàng.
 
 Chạy xong, công cụ tự kiểm và in ra số đỉnh rơi vào vùng trung áp / đè lên hình vẽ
-sẵn có, để dễ so sánh giữa hai lần chỉnh. Kết quả hiện tại: 34/34 tuyến, **0 đoạn
+sẵn có, để dễ so sánh giữa hai lần chỉnh. Kết quả hiện tại: 40/40 tuyến, **0 đoạn
 chồng nhau** (bản trước còn 14 đoạn, dài cộng lại khoảng 1.860 đơn vị), 0 đỉnh trùng,
 0 đoạn xiên, 0 chỗ giao chéo thiếu ký hiệu nhảy dây, 2 đỉnh nằm trong vùng trung áp.
 
@@ -466,10 +480,10 @@ giữ lại cấp điện áp để phân biệt **220kV Phú Bình (E6.16)** v�
 (E6.17)**.
 
 Cuối danh mục, dưới dòng *"Trạm 220kV ngoài địa bàn có đường dây 110kV nối về"*, có
-thêm **E1.19 220kV Sóc Sơn**, **E16.2 220kV Cao Bằng** và **E26.5 220kV Bắc Kạn**; bấm
-tên cũng phóng tới đúng trạm trên sơ đồ kết dây. Ba dòng này do `tools/noi-duong-day-110.mjs` ghi vào danh
+thêm **E1.19 220kV Sóc Sơn**, **E14.1 220kV Tuyên Quang**, **E16.2 220kV Cao Bằng** và
+**E26.5 220kV Bắc Kạn**; bấm tên cũng phóng tới đúng trạm trên sơ đồ kết dây. Các dòng này do `tools/noi-duong-day-110.mjs` ghi vào danh
 mục (cột thứ 9 của dòng trạm = 1 đánh dấu trạm ngoài tỉnh) và xoá đi khi chạy lại.
-Danh mục nay có **28 trạm**.
+Danh mục nay có **29 trạm**. NM NĐ An Khánh (A6.15) là nhà máy nên không đưa vào danh mục trạm.
 
 Bốn trạm 220kV được sửa lại tên cho đúng danh mục của Phòng Điều độ (bản CAD ghi
 thiếu hoặc lẫn ký tự thừa); mã trạm giữ nguyên:

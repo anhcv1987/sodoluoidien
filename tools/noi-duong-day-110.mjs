@@ -314,37 +314,47 @@ const CAO_MC = 16; // cỡ ký hiệu máy cắt, bằng máy cắt 110kV trong 
 const veNgoai = { b: [], d: [], t: [] };
 
 const TRAM_NGOAI = [
-  // [mã, tên ghi trên bản vẽ, x ngăn lộ đầu, cao độ thanh cái, danh sách ngăn lộ]
+  // [mã, tên ghi trên bản vẽ, x ngăn lộ đầu, cao độ thanh cái, danh sách ngăn lộ,
+  //  hướng ngăn lộ (-1 = chĩa xuống, 1 = chĩa lên), khoảng cách ngăn lộ]
   ['E26.5', '220kV BẮC KẠN (E26.5)', -100, 7980, ['171', '173', '172', '174']],
   ['E16.2', '220kV CAO BẰNG (E16.2)', 2450, 7980, ['171']],
+  // Tuyên Quang: phía tây trạm Đại Từ, ngăn 171 nối 171E6.19
+  ['E14.1', '220kV TUYÊN QUANG (E14.1)', -4000, 4500, ['171']],
+  // Nhà máy nhiệt điện An Khánh: nằm giữa E6.2, E6.5 và E6.9, ngăn lộ chĩa lên
+  ['A6.15', 'NM NĐ AN KHÁNH (A6.15)', -150, -220, ['171', '172'], 1, 250],
 ];
 
 /**
  * Trạm ngoài tỉnh được ĐƯA VÀO DANH MỤC TRẠM của phần mềm (bấm tên là phóng tới
  * trạm). Dòng danh mục: [mã, tiêu đề, x, y, x0, y0, x1, y1, 1 = ngoài tỉnh].
  */
-const VAO_DANH_MUC = new Set(['E26.5', 'E16.2', 'E1.19']);
+const VAO_DANH_MUC = new Set(['E26.5', 'E16.2', 'E1.19', 'E14.1']);
 const danhMucNgoai = [];
-
-for (const [ma, ten, x0Lo, yTC, dsLo] of TRAM_NGOAI) {
-  const xs = dsLo.map((_, i) => x0Lo + i * BUOC_LO);
+for (const [ma, ten, x0Lo, yTC, dsLo, huong = -1, buoc = BUOC_LO] of TRAM_NGOAI) {
+  const xs = dsLo.map((_, i) => x0Lo + i * buoc);
   const xa = xs[0] - 120;
   const xb = xs[xs.length - 1] + 120;
+  const h = huong; // +1: ngăn lộ chĩa lên, -1: chĩa xuống
   veNgoai.b.push([LOP, 110, KIEU_TC, SRC_TN, xa, yTC, xb, yTC]);
   for (let i = 0; i < xs.length; i++) {
     const x = xs[i];
-    const yMC = yTC - 40 - CAO_MC / 2;
-    veNgoai.b.push([LOP, 110, KIEU, SRC_TN, x, yTC, x, yMC + CAO_MC / 2]);
+    const yMC = yTC + h * (40 + CAO_MC / 2);
+    const trong = yMC + h * (CAO_MC / 2); // đầu máy cắt phía ngoài
+    veNgoai.b.push([LOP, 110, KIEU, SRC_TN, x, yTC, x, yMC - h * (CAO_MC / 2)]);
     veNgoai.d.push([LOP, 110, I_MC, x, yMC, 0, CAO_MC, 0, SRC_TN, 0]);
-    veNgoai.b.push([LOP, 110, KIEU, SRC_TN, x, yMC - CAO_MC / 2, x, yTC - SAU_LO]);
+    veNgoai.b.push([LOP, 110, KIEU, SRC_TN, x, trong, x, yTC + h * SAU_LO]);
     veNgoai.t.push([LOP, 110, x + 14, yMC - 6, 13, 0, CAN_TRAI, SRC_TN, dsLo[i]]);
-    dauLo.set(`${ma}#${dsLo[i]}`, { p: [x, yTC - SAU_LO], truoc: [x, yMC - CAO_MC / 2] });
+    dauLo.set(`${ma}#${dsLo[i]}`, { p: [x, yTC + h * SAU_LO], truoc: [x, trong] });
   }
-  veNgoai.t.push([LOP, 110, (xa + xb) / 2, yTC + 30, 24, 0, CAN_GIUA, SRC_TN, ten]);
-  hop.set(ma, { x0: xa, y0: yTC - SAU_LO, x1: xb, y1: yTC + 70 });
+  // tên trạm ghi ở phía thanh cái không có ngăn lộ
+  const yTen = h < 0 ? yTC + 30 : yTC - 50;
+  veNgoai.t.push([LOP, 110, (xa + xb) / 2, yTen, 24, 0, CAN_GIUA, SRC_TN, ten]);
+  const yTren = h < 0 ? yTC + 70 : yTC + SAU_LO;
+  const yDuoi = h < 0 ? yTC - SAU_LO : yTC - 70;
+  hop.set(ma, { x0: xa, y0: yDuoi, x1: xb, y1: yTren });
   ngoaiTinh.add(ma);
   if (VAO_DANH_MUC.has(ma)) {
-    danhMucNgoai.push([ma, `TRẠM ${ten}`, (xa + xb) / 2, yTC + 30, xa - 150, yTC - SAU_LO - 200, xb + 150, yTC + 120, 1]);
+    danhMucNgoai.push([ma, `TRẠM ${ten}`, (xa + xb) / 2, yTen, xa - 150, yDuoi - 200, xb + 150, yTren + 120, 1]);
   }
 }
 
@@ -387,10 +397,11 @@ if (process.env.XEM) {
  *
  * Khoá đầu ngăn lộ ưu tiên dạng "trạm#số ngăn lộ" vì đó là cách Phòng Điều độ gọi
  * tên lộ (177E6.2, 171E6.8...). Dạng "trạm>trạm đến" chỉ dùng khi ngăn lộ không
- * ghi số hiệu trên bản vẽ. Để trống mã hiệu dây thì không ghi nhãn.
+ * ghi số hiệu trên bản vẽ. Để trống mã hiệu dây thì không ghi nhãn; chiều dài 0 (sơ đồ không ghi đủ) thì nhãn chỉ ghi mã hiệu dây.
  */
 const DUONG_DAY = [
   ['E6.19>E6.12', 'E6.12>E6.19', 'AC185+AC240', 10.7],
+  ['E6.19>E14.1', 'E14.1#171', 'AC185+AC240', 32.9],
   ['E6.12>E6.11', 'E6.11>E6.12', 'AC240 + AC185', 19.1],
   ['E6.11>E6.2', 'E6.2>E6.11', 'AC185', 6.7],
   ['E6.2>E6.6', 'E6.6>E6.2', 'AC185', 20.99],
@@ -398,15 +409,21 @@ const DUONG_DAY = [
   ['E6.22>E26.1', 'E26.1>E6.22', 'ACSR240', 10.99],
   ['E6.2#177', 'E6.8#171', 'AC185', 17.04],
   ['E6.2#178', 'E6.8#172', 'AC185', 17.04],
-  ['E6.2>E6.4', 'E6.4>E6.2', 'AC400', 5.2],
+  // ACSR400 (không ghi chiều dài) + AC400 3,3km trên sơ đồ kết lưới
+  ['E6.2>E6.4', 'E6.4>E6.2', 'ACSR400 + AC400/3,3km', 0],
   ['E6.4>E6.20', 'E6.20#175', 'AC400', 2.15],
   ['E6.9>E6.20#1', 'E6.20#171', 'AC300', 7.8],
   ['E6.9>E6.20#2', 'E6.20#172', 'AC300', 7.8],
-  ['E6.5#171', 'E6.20#173', 'AC185', 1.78],
-  ['E6.5#172', 'E6.20#174', 'AC185', 2.0],
+  // Theo sơ đồ kết lưới: 173E6.20 đi 172E6.21, 174E6.20 đi thẳng xuống 171E6.5,
+  // còn 172E6.5 vòng qua cột 27 đi 172E6.23 Yên Bình 8.
+  ['E6.20#173', 'E6.21#172', 'ACSR400+AC400', 5.72],
+  ['E6.20#174', 'E6.5#171', 'ACSR400+AC185', 4.62],
+  ['E6.5#172', 'E6.23#172', 'AC185+AC400', 0],
   ['E6.3#171', 'E6.21#171', 'AC400', 4.28],
   ['E6.3#172', 'E6.16#172', 'AC400', 4.34],
-  ['E6.7>E6.16', 'E6.16#173', 'AC400', 8.38],
+  ['E6.7>E6.16', 'E6.16#174', 'AC400', 4.36],
+  ['E6.16#173', 'E6.18>E6.16', 'AC400', 8.38],
+  ['E6.16#182', 'E6.17>E6.16', 'AC400', 12.98],
   ['E6.24>E6.16', 'E6.16>E6.24', 'AC400', 5.54],
   ['E6.13>E6.16', 'E6.16#178', 'AC400', 4.34],
   ['E6.14>E6.16#1', 'E6.16#180', 'AC400', 8.92],
@@ -429,6 +446,9 @@ const DUONG_DAY = [
   ['E1.19#176', 'E6.16#176', 'AC400+TACSR200', 15.94],
   ['E1.19#174', 'E6.24#171', 'AC400+TACSR200', 8.38],
   ['E1.19#172', 'E6.7#172', 'AC2x185', 11.0],
+  // NM Nhiệt điện An Khánh (A6.15)
+  ['E6.2#172', 'A6.15#171', 'AC400', 5.2],
+  ['E6.20#176', 'A6.15#172', 'AC400', 0],
 ];
 
 /* ------------------------------------------------------------------ */
@@ -1045,7 +1065,7 @@ for (const { pts, day, km } of tuyen) {
     doc ? 90 : 0,
     CAN_GIUA,
     SRC,
-    `${day} - ${String(km).replace('.', ',')}km`,
+    km ? `${day} - ${String(km).replace('.', ',')}km` : day,
   ]);
 }
 

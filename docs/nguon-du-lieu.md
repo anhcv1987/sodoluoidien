@@ -208,13 +208,36 @@ Chiều dài ba tuyến đi Sóc Sơn là **tổng các đoạn** ghi trên sơ 
 Các tuyến đi 220kV Bắc Kạn và 220kV Cao Bằng chưa có mã hiệu dây / chiều dài trên
 sơ đồ nên để trống.
 
+### Nối bổ sung theo sơ đồ kết lưới (bản ngày 24/9/2026)
+
+Đối chiếu từng ngăn lộ đường dây còn hở trên sơ đồ kết dây với sơ đồ PDF:
+
+| Tuyến | Căn cứ trên sơ đồ PDF |
+|---|---|
+| 171E6.19 - 171E14.1 Tuyên Quang | "AC185+240 - 32.9km", cột 111, 163 |
+| 173E6.20 - 172E6.21 | ACSR400/2.84 xuống, AC400/2.88 sang trái tới cột 18, lên ngăn 172 E6.21 |
+| 174E6.20 - 171E6.5 | ACSR400/2.84 + AC185-1.78 đi thẳng xuống |
+| 172E6.5 - 172E6.23 | AC185-2.0, AC400/2.88 sang cột 27, AC400/4.15 xuống, qua cột 33 |
+| 174E6.16 - 171E6.7 | AC400/4.28 tới cột 17, AC400/0.08 |
+| 173E6.16 - 172E6.18 | "173 AC400/8.38 Dưới" (nhãn 173 E6.16 ở E6.18 xác nhận) |
+| 182E6.16 - 171E6.17 | "182 AC400/12.98 Dưới" (nhãn 182 E6.16 ở E6.17 xác nhận) |
+| 172E6.2 - 171A6.15 | AC400/5.2 thẳng xuống NM NĐ An Khánh |
+| 176E6.20 - 172A6.15 | AC400/2.15 - cột 57 - AC400/4.2 - cột 52 - AC400/5.2 |
+
+Sửa lại ba tuyến trước đây nối sai: 171E6.7 nối 174E6.16 (không phải 173E6.16);
+hai lộ E6.5 không đi 173/174E6.20 như bản trước mà như bảng trên; tuyến 171E6.2 -
+172E6.4 bỏ chiều dài 5,2km (đó là của lộ đi An Khánh), ghi "ACSR400 + AC400/3,3km".
+
+Còn hai ngăn lộ 175, 176 E6.2 ghi nhãn đi "A60" nhưng sơ đồ PDF không có nên chưa nối;
+các ngăn 175-181 E6.25 sơ đồ PDF chưa vẽ (thuyết minh ghi E6.25 có 04 lộ 171-174).
+
 ### Chỗ còn phải rà soát
 
 * Nhãn `173 E26.1 Bắc Kạn` đặt ở E6.6 Phú Lương, nhưng sơ đồ kết lưới vẽ
   172E6.6 - 172E6.22 rồi mới 171E6.22 - 173E26.1. Phần mềm đang vẽ theo sơ đồ kết
   lưới (E6.6 - E6.22 - E26.1).
-* Sơ đồ kết lưới còn một tuyến 172E6.21 - 171E6.16 (Sông Công 2 - 220kV Phú Bình)
-  chưa có nhãn nơi đến trên file CAD nên chưa vẽ.
+* Ngăn 172 E6.21: đọc kỹ lại sơ đồ kết lưới thì lộ này đi 173E6.20 (qua cột 18),
+  không phải 171E6.16 như ghi chú trước; đã nối theo sơ đồ.
 
 ### Cách trình bày tuyến kết lưới
 
@@ -242,7 +265,7 @@ mỗi tuyến kết lưới mang cờ `khongNoiGiua`, nên trong mô hình đi�
 đầu** - 86 điểm giao chéo không bị hiểu nhầm là điểm đấu nối, Shift+M tô sáng mạch
 không còn lem sang tuyến khác.
 
-Số liệu sau khi chạy: 34/34 tuyến · 953 đỉnh · 73 ký hiệu nhảy dây · 0 đỉnh trùng ·
+Số liệu sau khi chạy: 40/40 tuyến · 1368 đỉnh · 113 ký hiệu nhảy dây · 0 đỉnh trùng ·
 0 đoạn chồng nhau · 0 đoạn xiên · 0 chỗ giao chéo thiếu ký hiệu · 2 đỉnh còn nằm trong
 vùng trung áp.
 

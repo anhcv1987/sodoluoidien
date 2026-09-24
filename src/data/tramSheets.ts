@@ -230,6 +230,7 @@ const SUA_TRAM: Record<string, { ma?: string; ten: string }> = {
   'E26.5': { ten: 'Trạm 220kV Bắc Kạn' },
   'E16.2': { ten: 'Trạm 220kV Cao Bằng' },
   'E1.19': { ten: 'Trạm 220kV Sóc Sơn' },
+  'E14.1': { ten: 'Trạm 220kV Tuyên Quang' },
 };
 
 /**

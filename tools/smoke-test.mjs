@@ -56,7 +56,7 @@ check(
   ['110', '35', '22', '6'].every((k) => (init.kv[k] ?? 0) > 100),
   JSON.stringify(init.kv),
 );
-check('Danh mục có 25 trạm + 3 trạm 220kV ngoài địa bàn', init.tram === 28, `${init.tram} trạm`);
+check('Danh mục có 25 trạm + 4 trạm 220kV ngoài địa bàn', init.tram === 29, `${init.tram} trạm`);
 check('Có khung bản vẽ A0 + khung tên', init.khung >= 6, `${init.khung} đối tượng khung`);
 check('Thư viện thiết bị', init.palette >= 20, `${init.palette} block`);
 check(
