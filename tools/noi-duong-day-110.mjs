@@ -96,6 +96,59 @@ for (const r of to.b) {
   }
 }
 /** Đầu mút tự do của tuyến 110kV: { p: [x,y], truoc: [x,y] }. */
+/**
+ * Lưới băm các đoạn thẳng của bản vẽ, để kiểm tra một đầu mút có bị đoạn nào khác
+ * chạm vào không.
+ */
+const CANH_BAM = 20;
+const bamDoan = new Map();
+for (const r of to.b) {
+  for (let i = 4; i + 3 < r.length; i += 2) {
+    const a = [r[i], r[i + 1]];
+    const b = [r[i + 2], r[i + 3]];
+    for (let gx = Math.floor(Math.min(a[0], b[0]) / CANH_BAM); gx <= Math.floor(Math.max(a[0], b[0]) / CANH_BAM); gx++) {
+      for (let gy = Math.floor(Math.min(a[1], b[1]) / CANH_BAM); gy <= Math.floor(Math.max(a[1], b[1]) / CANH_BAM); gy++) {
+        const k = `${gx}|${gy}`;
+        const ds = bamDoan.get(k);
+        if (ds) ds.push([a, b]);
+        else bamDoan.set(k, [[a, b]]);
+      }
+    }
+  }
+}
+/**
+ * Đầu mút p (đi tới từ q) có phải ĐẦU TẬN CÙNG không, dù bị đỉnh khác trùng vào:
+ * bản CAD hay có nét vẽ lặp (một đoạn vẽ đè lên chính đoạn dây, ký hiệu TU "||"
+ * vẽ bằng nét đi rồi quay lại). Nếu mọi đoạn khác chạm vào p đều nằm THẲNG HÀNG với
+ * đoạn dây và ở PHÍA SAU p thì p vẫn là đầu dây ra. Nét tí hon (dưới 4 đơn vị) của
+ * ký hiệu TU, mũi tên chạm vào đầu dây thì bỏ qua.
+ */
+function laDauTanCung(p, q) {
+  const dx = p[0] - q[0];
+  const dy = p[1] - q[1];
+  const L = Math.hypot(dx, dy);
+  if (L < 1e-6) return false;
+  const ux = dx / L;
+  const uy = dy / L;
+  const ds = bamDoan.get(`${Math.floor(p[0] / CANH_BAM)}|${Math.floor(p[1] / CANH_BAM)}`) ?? [];
+  for (const [a, b] of ds) {
+    // đoạn có chạm p không
+    const sx = b[0] - a[0];
+    const sy = b[1] - a[1];
+    const l2 = sx * sx + sy * sy;
+    if (l2 < 16) continue; // nét tí hon (< 4 đơn vị) của ký hiệu TU, mũi tên
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * sx + (p[1] - a[1]) * sy) / l2));
+    if (Math.hypot(a[0] + t * sx - p[0], a[1] + t * sy - p[1]) > 0.6) continue;
+    // thẳng hàng và nằm phía sau p (kể cả chính đoạn q-p)
+    for (const e of [a, b]) {
+      const ex = e[0] - p[0];
+      const ey = e[1] - p[1];
+      if (Math.abs(ex * uy - ey * ux) > 0.6 || ex * ux + ey * uy > 0.6) return false;
+    }
+  }
+  return true;
+}
+
 const dauMut = [];
 for (const r of to.b) {
   if (r[1] !== 110) continue;
@@ -107,7 +160,17 @@ for (const r of to.b) {
     [n - 1, n - 2],
   ]) {
     const p = at(i);
-    if ((dem.get(khoa(p[0], p[1])) ?? 0) === 1) dauMut.push({ p, truoc: at(j) });
+    const q = at(j);
+    if ((dem.get(khoa(p[0], p[1])) ?? 0) === 1 || laDauTanCung(p, q)) dauMut.push({ p, truoc: q });
+  }
+}
+// cùng một đầu mút có thể được thêm hai lần (hai nét vẽ lặp) - bỏ bản trùng
+{
+  const da = new Set();
+  for (let i = dauMut.length - 1; i >= 0; i--) {
+    const k = khoa(dauMut[i].p[0], dauMut[i].p[1]);
+    if (da.has(k)) dauMut.splice(i, 1);
+    else da.add(k);
   }
 }
 
@@ -153,6 +216,17 @@ function mutGanNhat(x, y, max = 260, chiDoanDai = false) {
   for (const m of dauMut) {
     // Nhãn kiểu này căn trái, chữ bắt đầu ở BÊN TRÁI đầu dây ra của chính nó.
     if (chiDoanDai && (cach(m.p, m.truoc) < 12 || m.p[0] < x - 5)) continue;
+    // Nhãn nơi đến đặt PHÍA TRƯỚC đầu dây ra: đầu mút chĩa ngược phía nhãn (đầu dưới
+    // của một đoạn trong ngăn lộ, chân dao tiếp địa...) không phải đầu dây ra.
+    {
+      const hx = m.p[0] - m.truoc[0];
+      const hy = m.p[1] - m.truoc[1];
+      const vx = x - m.p[0];
+      const vy = y - m.p[1];
+      const dh = Math.hypot(hx, hy);
+      const dv = Math.hypot(vx, vy);
+      if (dh > 0 && dv > 1 && (hx * vx + hy * vy) / (dh * dv) < -0.3) continue;
+    }
     const d = cach(m.p, [x, y]);
     if (d < bd) {
       bd = d;
@@ -223,7 +297,9 @@ for (const [khoa, m] of [...dauLo]) {
     }
   }
   if (lo) dauLo.set(`${g[1]}#${lo}`, m);
-  hangLo.set(g[1], { doc, v: doc ? m.p[1] : m.p[0] });
+  // chiều chĩa ra lấy theo chính đoạn dây ra, không đoán theo tâm khung trạm
+  const chieu = Math.sign(doc ? m.p[1] - m.truoc[1] : m.p[0] - m.truoc[0]) || 1;
+  hangLo.set(g[1], { doc, v: doc ? m.p[1] : m.p[0], chieu });
 }
 
 // (c) Theo số hiệu ngăn lộ - dùng cho ngăn lộ KHÔNG ghi nhãn nơi đến.
@@ -236,6 +312,7 @@ for (const [ma, b] of hop) {
   const trong = dauMut.filter((m) => tram(m.p[0], m.p[1]) === ma);
   const cx = (b.x0 + b.x1) / 2;
   const cy = (b.y0 + b.y1) / 2;
+  const hangBiet = hangLo.get(ma);
   const kem = [];
   for (const m of trong) {
     let t = '';
@@ -248,9 +325,11 @@ for (const [ma, b] of hop) {
       }
     }
     if (!t) continue;
-    // Đầu ngăn lộ là đầu mút CHĨA RA XA tâm trạm
-    const raNgoai =
-      (m.p[0] - m.truoc[0]) * (m.p[0] - cx) + (m.p[1] - m.truoc[1]) * (m.p[1] - cy) > 0;
+    // Đầu ngăn lộ là đầu mút chĩa ra ngoài: cùng chiều với các ngăn lộ có nhãn nơi
+    // đến; trạm không có nhãn nào thì đoán là chĩa ra xa tâm trạm.
+    const raNgoai = hangBiet
+      ? (hangBiet.doc ? m.p[1] - m.truoc[1] : m.p[0] - m.truoc[0]) * hangBiet.chieu > 0
+      : (m.p[0] - m.truoc[0]) * (m.p[0] - cx) + (m.p[1] - m.truoc[1]) * (m.p[1] - cy) > 0;
     if (raNgoai) kem.push({ m, t });
   }
   let hang = hangLo.get(ma);
@@ -272,7 +351,7 @@ for (const [ma, b] of hop) {
   }
   // Ngăn lộ chĩa về phía nào thì nhận các đầu mút từ hàng đó TRỞ RA (có trạm vẽ
   // đầu dây ra so le nhau), còn đầu mút nằm phía trong hàng thì bỏ.
-  const chieu = hang.v < (hang.doc ? cy : cx) ? -1 : 1;
+  const chieu = hang.chieu ?? (hang.v < (hang.doc ? cy : cx) ? -1 : 1);
   const xa = new Map();
   for (const k of kem) {
     const v = hang.doc ? k.m.p[1] : k.m.p[0];
@@ -905,6 +984,55 @@ const LAN = 12;
     if (!doi) break;
   }
   if (tach) console.log(`Đã tách ${tach} đoạn chạy chồng lên tuyến khác ra làn riêng.`);
+}
+
+/* --- Tách góc rẽ trùng: hai tuyến gấp khúc đúng tại cùng một điểm (hay gặp ở
+   sơ đồ thu nhỏ Sóc Sơn, các ngăn lộ chỉ cách nhau 35 đơn vị) thì dời một đoạn
+   của tuyến sau sang làn bên cạnh - vẫn giữ gấp khúc vuông góc. */
+{
+  const kh = (q) => `${Math.round(q[0] * 2)}|${Math.round(q[1] * 2)}`;
+  const coTuyenKhac = (i, q) =>
+    tuyen.some((t, x) => x !== i && t.pts.some((u) => Math.abs(u[0] - q[0]) < 0.6 && Math.abs(u[1] - q[1]) < 0.6));
+  let tach = 0;
+  for (let luot = 0; luot < 4; luot++) {
+    const kho = new Map();
+    tuyen.forEach((t, i) =>
+      t.pts.forEach((q, k) => {
+        const a = kho.get(kh(q)) ?? [];
+        a.push([i, k]);
+        kho.set(kh(q), a);
+      }),
+    );
+    let doi = false;
+    for (const ds of kho.values()) {
+      if (new Set(ds.map((x) => x[0])).size < 2) continue;
+      const [i, k] = ds[ds.length - 1];
+      const pts = tuyen[i].pts;
+      let xong = false;
+      // thử dời đoạn trước rồi đoạn sau của góc đó (không dời đoạn chạm đầu tuyến)
+      for (const [u, v] of [
+        [k - 1, k],
+        [k, k + 1],
+      ]) {
+        if (xong || u < 1 || v > pts.length - 2) continue;
+        const j = Math.abs(pts[u][1] - pts[v][1]) < 0.6 ? 1 : 0; // ngang -> dời y
+        for (const lech of [LAN, -LAN, 2 * LAN, -2 * LAN]) {
+          const a = [...pts[u]];
+          const b = [...pts[v]];
+          a[j] = r2(a[j] + lech);
+          b[j] = r2(b[j] + lech);
+          if (coTuyenKhac(i, a) || coTuyenKhac(i, b)) continue;
+          pts[u] = a;
+          pts[v] = b;
+          tach++;
+          doi = xong = true;
+          break;
+        }
+      }
+    }
+    if (!doi) break;
+  }
+  if (tach) console.log(`Đã tách ${tach} góc rẽ trùng nhau giữa hai tuyến.`);
 }
 
 /* --- Tự kiểm: mọi đoạn phải là đường thẳng ngang hoặc dọc ---

@@ -277,6 +277,9 @@ vùng trung áp.
 | E6.20 220kV Lưu Xá | đấu vào đầu mút giữa ngăn lộ (sát dao -2), đường dây cắt ngang qua dãy ngăn lộ giữa hai thanh cái | đấu vào đúng 6 mũi tên đầu dây ra phía dưới (nhãn "GANG THÉP 17 E6.9"...), đi trong khe hở dưới trạm |
 | E6.5 Lưu Xá | đấu vào hai điểm KHÔNG thuộc cột ngăn lộ 171/172 | đấu vào đầu trên của ngăn lộ 171, 172 (nhãn "173E6.20...", "174E6.20...") |
 | E6.17, E6.18 | chọn theo hàng đông đầu mút nhất | theo nhãn nơi đến (bỏ mã định dạng "qc;") |
+| E6.7 ngăn 172 | đầu dưới đoạn dây ngăn 132 (đường dây chui xuống qua ngăn MBA T2) | đỉnh ngăn 172 dưới TU172 - bản CAD có nét vẽ lặp đè lên đỉnh này |
+| E6.18 ngăn 171, 172 | chân dao tiếp địa -75 (đường dây chui xuống) | đỉnh ngăn lộ dưới TU |
+| E6.23 ngăn 172 | đầu dây MBA T1 | đỉnh ngăn 172 - chiều ngăn lộ lấy theo ngăn 171 có nhãn |
 
 Công cụ chạy lại được nhiều lần trên cùng một file: mở đầu nó xoá hết các đối tượng
 thuộc hai lớp CAD `Kết lưới 110kV` và `Trạm ngoài tỉnh` do chính nó sinh ra.
