@@ -16,6 +16,32 @@ Mở file **`dist/index.html`** bằng Microsoft Edge hoặc Google Chrome (nh�
 Toàn bộ phần mềm nằm gọn trong một file HTML duy nhất — có thể chép vào USB, gửi
 qua email hoặc đặt trên thư mục dùng chung của phòng.
 
+### Tài khoản và phân quyền
+
+Mở phần mềm ra là **CHẾ ĐỘ XEM** (góc trên bên phải ghi "CHẾ ĐỘ XEM"): xem, phóng to,
+tìm trạm, tô sáng mạch (Shift+M), điểm đấu nối (F4), đo, lưu và xuất file đều được,
+nhưng các công cụ vẽ, thư viện thiết bị, mục menu sửa đổi đều ẩn và bản vẽ không sửa
+được (kéo thả, xoá, hoàn tác, sửa thuộc tính đều bị chặn).
+
+Muốn hiệu chỉnh: bấm **Đăng nhập**.
+
+| Vai trò | Quyền |
+|---|---|
+| Chưa đăng nhập | Chỉ xem |
+| Biên tập | Hiệu chỉnh sơ đồ |
+| Quản trị | Hiệu chỉnh sơ đồ + thêm / xoá tài khoản, đặt lại mật khẩu, đổi vai trò |
+
+Tài khoản mặc định: **admin / dieudob6** - phần mềm nhắc đổi mật khẩu ngay khi đăng
+nhập bằng mật khẩu mặc định (menu tài khoản > *Đổi mật khẩu*). Không xoá hay hạ quyền
+được tài khoản quản trị cuối cùng. Đăng nhập giữ đến khi đóng thẻ trình duyệt.
+
+> **Lưu ý về an toàn:** phần mềm là một file HTML chạy trên máy người dùng, không có
+> máy chủ. Danh sách tài khoản lưu trong bộ nhớ của trình duyệt **trên từng máy**
+> (mật khẩu chỉ lưu dạng băm SHA-256 kèm muối, không lưu nguyên văn). Cơ chế này chặn
+> việc sửa nhầm sơ đồ, nhưng **không chống được người cố tình can thiệp** vào mã nguồn
+> trang. Muốn phân quyền thật sự cho nhiều người cùng dùng chung một sơ đồ thì phải
+> đặt phần mềm lên máy chủ có đăng nhập.
+
 ### Khi cần sửa mã nguồn
 
 ```bash
@@ -622,6 +648,7 @@ src/
 │                voltage.ts (quy ước màu) · geom.ts (hình học)
 │                lienket.ts (nút điện - cực thiết bị - mạch, nền cho chiều công suất)
 │                doiChu.ts (dời nhãn ra khỏi ký hiệu thiết bị khi mở tờ sơ đồ)
+│                taiKhoan.ts (tài khoản, phân quyền, băm mật khẩu SHA-256)
 ├── symbols/     prims.ts (nguyên thuỷ hình học) · blocks.ts (23 ký hiệu thiết bị)
 ├── data/        geo.ts (phép chiếu, ranh giới, địa danh)
 │                grid110.ts (danh mục trạm + đường dây + mã hiệu dây)

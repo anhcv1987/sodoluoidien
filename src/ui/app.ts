@@ -35,6 +35,7 @@ import { declutterSubstations, resetSubstationsToGeo } from '../editor/declutter
 import { buildPalette } from './palette';
 import { buildLayers, buildProps, conductorDatalist } from './props';
 import { button, checkbox, dialog, el, input, labeled, select, toast } from './dom';
+import { MK_MAC_DINH, QuanLyTaiKhoan, TEN_VAI_TRO, type VaiTro } from '../core/taiKhoan';
 
 const TOOLS: { id: ToolName; label: string; key: string; hint: string }[] = [
   { id: 'select', label: 'Chọn', key: 'S', hint: 'Chọn / di chuyển đối tượng' },
@@ -63,6 +64,10 @@ export class App {
   private autosaveTimer = 0;
   /** Bản vẽ quá lớn để lưu tạm -> chỉ nhắc một lần, không nhắc lại mỗi lần sửa. */
   private autosaveOff = false;
+  /** Tài khoản & phân quyền: chưa đăng nhập = chế độ xem. */
+  tk = new QuanLyTaiKhoan();
+  private taiKhoanHost = el('div', { class: 'tai-khoan' });
+  private lanBaoChan = 0;
 
   constructor(private root: HTMLElement) {
     const saved = loadAutosave();
@@ -87,7 +92,12 @@ export class App {
         this.refreshChrome();
       },
     });
+    // Mở ra là CHẾ ĐỘ XEM; đăng nhập mới được hiệu chỉnh.
+    this.store.chiXem = true;
+    this.store.onBiChan = (tt) => this.baoChiXem(tt);
     this.build();
+    this.apDungQuyen();
+    void this.tk.khoiTao().then(() => this.apDungQuyen());
     if (saved) this.setMsg('Đã khôi phục bản vẽ từ lần làm việc trước');
     requestAnimationFrame(() => {
       this.ed.resize();
@@ -154,28 +164,28 @@ export class App {
 
     menu.append(
       this.dropdown('Tệp', [
-        ['Tạo mới (sơ đồ tỉnh mẫu)', () => this.newProvince()],
-        ['Tạo mới (bản vẽ trắng)', () => this.newBlank()],
-        ['Mở file .sld…', () => void this.openFile()],
+        ['Tạo mới (sơ đồ tỉnh mẫu)', () => this.newProvince(), true],
+        ['Tạo mới (bản vẽ trắng)', () => this.newBlank(), true],
+        ['Mở file .sld…', () => void this.openFile(), true],
         ['Lưu bản vẽ (.sld)', () => this.saveFile()],
         ['—', () => undefined],
-        ['Nhập từ CAD (.dxf)…', () => void this.importDxfDialog()],
+        ['Nhập từ CAD (.dxf)…', () => void this.importDxfDialog(), true],
         ['Xuất ra CAD (.dxf)', () => this.doExportDxf()],
         ['Xuất hình vector (.svg)', () => this.doExportSvg()],
         ['Xuất ảnh (.png)', () => this.doExportPng()],
         ['—', () => undefined],
-        ['Xoá dữ liệu lưu tạm trong trình duyệt…', () => this.resetLocal()],
+        ['Xoá dữ liệu lưu tạm trong trình duyệt…', () => this.resetLocal(), true],
       ]),
     );
     menu.append(
       this.dropdown('Sửa', [
-        ['Hoàn tác (Ctrl+Z)', () => this.ed.store.undo()],
-        ['Làm lại (Ctrl+Y)', () => this.ed.store.redo()],
+        ['Hoàn tác (Ctrl+Z)', () => this.ed.store.undo(), true],
+        ['Làm lại (Ctrl+Y)', () => this.ed.store.redo(), true],
         ['Chọn tất cả (Ctrl+A)', () => this.ed.select(this.store.entities.filter((e) => e.kind !== 'node').map((e) => e.id))],
-        ['Xoá đối tượng đang chọn', () => this.ed.deleteSelection()],
+        ['Xoá đối tượng đang chọn', () => this.ed.deleteSelection(), true],
         ['—', () => undefined],
-        ['Quay 90° đối tượng đang chọn', () => this.ed.rotateSelection(90)],
-        ['Nhân bản sang phải 2km', () => this.ed.copySelection(2, 0)],
+        ['Quay 90° đối tượng đang chọn', () => this.ed.rotateSelection(90), true],
+        ['Nhân bản sang phải 2km', () => this.ed.copySelection(2, 0), true],
       ]),
     );
     menu.append(
@@ -200,7 +210,7 @@ export class App {
         ['Danh mục trạm trên sơ đồ kết dây…', () => this.showStationIndex()],
         ['Mở tờ bản vẽ khác từ CAD…', () => this.showCadSheetList()],
         ['—', () => undefined],
-        ['Gán cấp điện áp theo lớp CAD gốc…', () => this.showSrcLayerDialog()],
+        ['Gán cấp điện áp theo lớp CAD gốc…', () => this.showSrcLayerDialog(), true],
         ['—', () => undefined],
         ['Hiện điểm đấu nối của thiết bị (F4)', () => this.batDiemNoi()],
         ['Tô sáng mạch điện của đối tượng đang chọn (Shift+M)', () => this.toSangMach(false)],
@@ -209,31 +219,33 @@ export class App {
         ['—', () => undefined],
         ['Bảng trạm 110/220kV', () => this.showTramTable()],
         ['Bảng đường dây', () => this.showLineTable()],
-        ['Thêm trang sơ đồ trạm…', () => this.addSubstationSheet('tram')],
-        ['Thêm trang lưới trung áp…', () => this.addSubstationSheet('trung-ap')],
-        ['Xoá trang đang mở', () => this.removeSheet()],
+        ['Thêm trang sơ đồ trạm…', () => this.addSubstationSheet('tram'), true],
+        ['Thêm trang lưới trung áp…', () => this.addSubstationSheet('trung-ap'), true],
+        ['Xoá trang đang mở', () => this.removeSheet(), true],
         ['—', () => undefined],
-        ['Giãn các trạm chồng lấn', () => this.doDeclutter()],
-        ['Đưa trạm về đúng toạ độ địa lý', () => this.doResetGeo()],
+        ['Giãn các trạm chồng lấn', () => this.doDeclutter(), true],
+        ['Đưa trạm về đúng toạ độ địa lý', () => this.doResetGeo(), true],
         ['—', () => undefined],
-        ['Xoá toàn bộ đường dây sơ bộ', () => this.removeDraftLines()],
+        ['Xoá toàn bộ đường dây sơ bộ', () => this.removeDraftLines(), true],
       ]),
     );
     menu.append(this.dropdown('Trợ giúp', [['Phím tắt & hướng dẫn', () => this.showHelp()]]));
     h.append(menu);
+    h.append(this.taiKhoanHost);
     return h;
   }
 
-  private dropdown(label: string, items: [string, () => void][]): HTMLElement {
+  /** Mục đánh dấu `true` ở cột thứ ba là thao tác HIỆU CHỈNH - ẩn đi ở chế độ xem. */
+  private dropdown(label: string, items: [string, () => void, boolean?][]): HTMLElement {
     const wrap = el('div', { class: 'dropdown' });
     const btn = el('button', { class: 'menu-btn', type: 'button', text: label });
     const list = el('div', { class: 'dropdown-list' });
-    for (const [text, fn] of items) {
+    for (const [text, fn, canSua] of items) {
       if (text === '—') {
         list.append(el('div', { class: 'sep' }));
         continue;
       }
-      const it = el('button', { class: 'dropdown-item', type: 'button', text });
+      const it = el('button', { class: `dropdown-item${canSua ? ' can-sua' : ''}`, type: 'button', text });
       it.addEventListener('click', () => {
         list.classList.remove('open');
         fn();
@@ -256,7 +268,8 @@ export class App {
 
     const toolBox = el('div', { class: 'tool-grid' });
     for (const t of TOOLS) {
-      const b = el('button', { class: 'tool-btn', type: 'button', title: `${t.hint} (${t.key})` }, [
+      const chiXemDuoc = t.id === 'select' || t.id === 'measure';
+      const b = el('button', { class: `tool-btn${chiXemDuoc ? '' : ' can-sua'}`, type: 'button', title: `${t.hint} (${t.key})` }, [
         el('span', { class: 'tool-label', text: t.label }),
         el('span', { class: 'tool-key', text: t.key }),
       ]);
@@ -334,7 +347,9 @@ export class App {
         }),
       ),
     );
-    side.append(this.panel('Thiết lập vẽ', s));
+    const pnThietLap = this.panel('Thiết lập vẽ', s);
+    pnThietLap.classList.add('can-sua');
+    side.append(pnThietLap);
 
     this.paletteApi = buildPalette(
       () => this.ed.settings.block,
@@ -344,7 +359,9 @@ export class App {
         this.paletteApi.refresh();
       },
     );
-    side.append(this.panel('Thư viện thiết bị', this.paletteApi.root, true));
+    const pnThuVien = this.panel('Thư viện thiết bị', this.paletteApi.root, true);
+    pnThuVien.classList.add('can-sua');
+    side.append(pnThuVien);
     side.append(this.panel('Lớp (Layer)', this.layersHost, true));
     return side;
   }
@@ -428,6 +445,10 @@ export class App {
 
   refreshProps(): void {
     this.propsHost.replaceChildren(buildProps(this.ed, this.ed.selectedEntities()));
+    // Chế độ xem: thuộc tính chỉ để đọc
+    if (this.store.chiXem) {
+      for (const x of this.propsHost.querySelectorAll<HTMLInputElement>('input, select, textarea, button')) x.disabled = true;
+    }
   }
 
   refreshTram(): void {
@@ -528,6 +549,190 @@ export class App {
   }
 
   /* ============================== phim tat ============================ */
+
+  /* ============================ tài khoản ============================ */
+
+  /** Áp quyền theo phiên đăng nhập hiện tại: chưa đăng nhập thì chỉ xem. */
+  apDungQuyen(): void {
+    const sua = !!this.tk.phien;
+    if (!sua && this.ed.toolName !== 'select' && this.ed.toolName !== 'measure') this.ed.setTool('select');
+    this.store.chiXem = !sua;
+    this.root.classList.toggle('che-do-xem', !sua);
+    this.veTaiKhoan();
+    this.refreshProps();
+    this.refreshChrome();
+  }
+
+  /** Nhắc khi người chưa đăng nhập thử hiệu chỉnh (không nhắc dồn dập). */
+  private baoChiXem(thaoTac: string): void {
+    const now = Date.now();
+    if (now - this.lanBaoChan < 2500) return;
+    this.lanBaoChan = now;
+    toast(`Chế độ xem: "${thaoTac}" cần đăng nhập để hiệu chỉnh sơ đồ.`, 'warn');
+  }
+
+  private veTaiKhoan(): void {
+    const ph = this.tk.phien;
+    if (!ph) {
+      this.taiKhoanHost.replaceChildren(
+        el('span', { class: 'che-do che-do-xem-nhan', text: 'CHẾ ĐỘ XEM', title: 'Chỉ xem sơ đồ. Đăng nhập để hiệu chỉnh.' }),
+        button('Đăng nhập', () => this.hopDangNhap(), { class: 'btn btn-dang-nhap', title: 'Đăng nhập để hiệu chỉnh sơ đồ' }),
+      );
+      return;
+    }
+    const muc: [string, () => void, boolean?][] = [['Đổi mật khẩu…', () => this.hopDoiMatKhau()]];
+    if (this.tk.laQuanTri) muc.push(['Quản lý tài khoản…', () => this.hopQuanLyTaiKhoan()]);
+    muc.push(['—', () => undefined], ['Đăng xuất (về chế độ xem)', () => this.dangXuat()]);
+    const dd = this.dropdown(`${ph.ten} · ${TEN_VAI_TRO[ph.vaiTro]}`, muc);
+    dd.title = ph.hoTen ? `${ph.hoTen} (${ph.ten})` : ph.ten;
+    dd.classList.add('dropdown-phai');
+    this.taiKhoanHost.replaceChildren(
+      el('span', { class: 'che-do che-do-sua-nhan', text: 'ĐANG HIỆU CHỈNH', title: `Đăng nhập: ${ph.ten}` }),
+      dd,
+    );
+  }
+
+  private hopDangNhap(): void {
+    const ten = el('input', { class: 'input', type: 'text', placeholder: 'Tên đăng nhập', autocomplete: 'username' });
+    const mk = el('input', { class: 'input', type: 'password', placeholder: 'Mật khẩu', autocomplete: 'current-password' });
+    const loi = el('p', { class: 'loi-dang-nhap' });
+    const body = el('div', {}, [
+      el('p', { class: 'muted small', text: 'Mở phần mềm là chế độ xem. Đăng nhập để hiệu chỉnh sơ đồ.' }),
+      labeled('Tên đăng nhập', ten),
+      labeled('Mật khẩu', mk),
+      loi,
+    ]);
+    const thu = async (): Promise<void> => {
+      const ph = await this.tk.dangNhap(ten.value, mk.value);
+      if (!ph) {
+        loi.textContent = 'Sai tên đăng nhập hoặc mật khẩu.';
+        mk.select();
+        return;
+      }
+      close();
+      this.apDungQuyen();
+      toast(`Đã đăng nhập: ${ph.hoTen ?? ph.ten} (${TEN_VAI_TRO[ph.vaiTro]}) - được phép hiệu chỉnh.`);
+      if (mk.value === MK_MAC_DINH) {
+        setTimeout(() => toast('Tài khoản đang dùng mật khẩu mặc định - nên đổi ngay (menu tài khoản > Đổi mật khẩu).', 'warn'), 600);
+      }
+    };
+    for (const x of [ten, mk]) {
+      x.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') void thu();
+      });
+    }
+    const close = dialog('Đăng nhập', body, [
+      button('Huỷ', () => close()),
+      button('Đăng nhập', () => void thu(), { class: 'btn primary' }),
+    ]);
+    setTimeout(() => ten.focus(), 30);
+  }
+
+  private dangXuat(): void {
+    this.tk.dangXuat();
+    this.apDungQuyen();
+    toast('Đã đăng xuất - trở về chế độ xem.');
+  }
+
+  private hopDoiMatKhau(): void {
+    const cu = el('input', { class: 'input', type: 'password', autocomplete: 'current-password' });
+    const moi = el('input', { class: 'input', type: 'password', autocomplete: 'new-password' });
+    const lai = el('input', { class: 'input', type: 'password', autocomplete: 'new-password' });
+    const loi = el('p', { class: 'loi-dang-nhap' });
+    const close = dialog('Đổi mật khẩu', el('div', {}, [
+      labeled('Mật khẩu hiện tại', cu),
+      labeled('Mật khẩu mới (ít nhất 6 ký tự)', moi),
+      labeled('Nhập lại mật khẩu mới', lai),
+      loi,
+    ]), [
+      button('Huỷ', () => close()),
+      button('Đổi mật khẩu', () => {
+        if (moi.value !== lai.value) {
+          loi.textContent = 'Hai lần nhập mật khẩu mới không khớp.';
+          return;
+        }
+        void this.tk.doiMatKhau(cu.value, moi.value).then((l) => {
+          if (l) {
+            loi.textContent = l;
+            return;
+          }
+          close();
+          toast('Đã đổi mật khẩu.');
+        });
+      }, { class: 'btn primary' }),
+    ]);
+    setTimeout(() => cu.focus(), 30);
+  }
+
+  private hopQuanLyTaiKhoan(): void {
+    const vung = el('div', {});
+    const vaiTroChon = (v: VaiTro, onChange: (x: VaiTro) => void): HTMLSelectElement =>
+      select(
+        (Object.keys(TEN_VAI_TRO) as VaiTro[]).map((k) => ({ value: k, label: TEN_VAI_TRO[k] })),
+        v,
+        (x) => onChange(x as VaiTro),
+      );
+    const bao = (l: string | null, ok: string): void => {
+      if (l) toast(l, 'warn');
+      else toast(ok);
+      ve();
+    };
+    const ve = (): void => {
+      const t = el('table', { class: 'table' });
+      t.append(el('thead', {}, [el('tr', {}, [
+        el('th', { text: 'Tên đăng nhập' }),
+        el('th', { text: 'Họ tên' }),
+        el('th', { text: 'Vai trò' }),
+        el('th', { text: '' }),
+      ])]));
+      const tb = el('tbody');
+      for (const x of this.tk.danhSach()) {
+        const datLai = button('Đặt lại mật khẩu', () => {
+          const mk = window.prompt(`Mật khẩu mới cho "${x.ten}" (ít nhất 6 ký tự):`);
+          if (mk !== null) void this.tk.datLaiMatKhau(x.ten, mk).then((l) => bao(l, `Đã đặt lại mật khẩu cho ${x.ten}.`));
+        });
+        const xoa = button('Xoá', () => {
+          if (window.confirm(`Xoá tài khoản "${x.ten}"?`)) bao(this.tk.xoaTaiKhoan(x.ten), `Đã xoá tài khoản ${x.ten}.`);
+        }, { class: 'btn danger' });
+        tb.append(el('tr', {}, [
+          el('td', { text: x.ten + (x.ten === this.tk.phien?.ten ? ' (bạn)' : '') }),
+          el('td', { text: x.hoTen ?? '' }),
+          el('td', {}, [vaiTroChon(x.vaiTro, (v) => {
+            bao(this.tk.doiVaiTro(x.ten, v), `Đã đổi vai trò của ${x.ten}.`);
+            this.apDungQuyen();
+          })]),
+          el('td', {}, [datLai, xoa]),
+        ]));
+      }
+      t.append(tb);
+
+      const ten = el('input', { class: 'input', type: 'text', placeholder: 'vd: nguyenvana' });
+      const hoTen = el('input', { class: 'input', type: 'text', placeholder: 'Họ và tên' });
+      const mk = el('input', { class: 'input', type: 'password', autocomplete: 'new-password' });
+      let vt: VaiTro = 'bien-tap';
+      const them = button('Thêm tài khoản', () => {
+        void this.tk.themTaiKhoan(ten.value, hoTen.value, mk.value, vt).then((l) => bao(l, `Đã thêm tài khoản ${ten.value.trim().toLowerCase()}.`));
+      }, { class: 'btn primary' });
+      vung.replaceChildren(
+        el('p', { class: 'muted small', text:
+          'Quản trị: hiệu chỉnh sơ đồ và quản lý tài khoản. Biên tập: hiệu chỉnh sơ đồ. ' +
+          'Chưa đăng nhập: chỉ xem. Danh sách tài khoản lưu trong trình duyệt của máy này.' }),
+        t,
+        el('div', { class: 'them-tai-khoan' }, [
+          labeled('Tên đăng nhập', ten),
+          labeled('Họ tên', hoTen),
+          labeled('Mật khẩu (≥ 6 ký tự)', mk),
+          labeled('Vai trò', vaiTroChon(vt, (v) => (vt = v))),
+          them,
+        ]),
+      );
+      if (this.tk.khongLuuDuoc) {
+        vung.append(el('p', { class: 'loi-dang-nhap', text: 'Trình duyệt đang chặn bộ nhớ cục bộ: tài khoản chỉ giữ đến khi đóng trang.' }));
+      }
+    };
+    ve();
+    const close = dialog('Quản lý tài khoản', vung, [button('Đóng', () => close())]);
+  }
 
   private onKey(e: KeyboardEvent): void {
     const t = e.target as HTMLElement | null;
@@ -1376,6 +1581,11 @@ export class App {
   private showHelp(): void {
     const body = el('div', { class: 'help' });
     body.innerHTML = `
+      <h4>Tài khoản</h4>
+      <ul>
+        <li>Mở phần mềm là <b>chế độ xem</b>: xem, tìm trạm, tô sáng mạch, đo, lưu và xuất file.</li>
+        <li>Muốn hiệu chỉnh: bấm <b>Đăng nhập</b> (góc trên bên phải). Tài khoản quản trị quản lý được các tài khoản khác.</li>
+      </ul>
       <h4>Thao tác chuột (giống CAD)</h4>
       <ul>
         <li><b>Lăn chuột</b>: phóng to / thu nhỏ tại vị trí con trỏ.</li>

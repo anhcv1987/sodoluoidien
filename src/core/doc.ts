@@ -62,6 +62,14 @@ export class DocStore {
   private listeners = new Set<Listener>();
   /** Giao dich dang mo (neu co). */
   private pending: Patch | null = null;
+  /**
+   * CHẾ ĐỘ CHỈ XEM (chưa đăng nhập): mọi thay đổi đối tượng bản vẽ qua transact,
+   * hoàn tác / làm lại đều bị chặn. Đây là chốt chặn cuối cùng - giao diện cũng đã
+   * ẩn các công cụ hiệu chỉnh.
+   */
+  chiXem = false;
+  /** Gọi khi một thao tác hiệu chỉnh bị chặn vì đang ở chế độ xem. */
+  onBiChan?: (thaoTac: string) => void;
   private maxHistory = 200;
 
   constructor(drawing?: Drawing) {
@@ -139,6 +147,10 @@ export class DocStore {
    */
   transact<T>(label: string, fn: () => T): T {
     const nested = this.pending !== null;
+    if (this.chiXem && !nested) {
+      this.onBiChan?.(label);
+      return undefined as T;
+    }
     if (!nested) {
       this.pending = { sheetId: this.sheet.id, before: {}, after: {}, label };
     }
@@ -238,6 +250,7 @@ export class DocStore {
   }
 
   undo(): void {
+    if (this.chiXem) return this.onBiChan?.('Hoàn tác');
     const p = this.undoStack.pop();
     if (!p) return;
     this.drawing.activeSheet = p.sheetId;
@@ -247,6 +260,7 @@ export class DocStore {
   }
 
   redo(): void {
+    if (this.chiXem) return this.onBiChan?.('Làm lại');
     const p = this.redoStack.pop();
     if (!p) return;
     this.drawing.activeSheet = p.sheetId;

@@ -181,6 +181,11 @@ export class Editor {
   /* ============================ cong cu ============================= */
 
   setTool(name: ToolName): void {
+    // Chế độ xem: chỉ được chọn và đo
+    if (this.store.chiXem && name !== 'select' && name !== 'measure') {
+      this.store.onBiChan?.('Công cụ vẽ');
+      return;
+    }
     this.tool.cancel?.();
     this.tool = this.tools[name];
     this.events.onPrompt?.(this.tool.prompt);
@@ -683,11 +688,13 @@ export class Editor {
         downWorld = w;
         downScreen = self.screenOf(ev);
         const hit = self.pick(w);
+        // chế độ xem: chọn được để xem thuộc tính nhưng không kéo di chuyển
+        const keo = !self.store.chiXem;
         if (hit && self.selection.has(hit.id)) {
-          self.dragging = { start: w, last: w, moved: false, ids: [...self.selection] };
+          if (keo) self.dragging = { start: w, last: w, moved: false, ids: [...self.selection] };
         } else if (hit) {
           self.select([hit.id], ev.shiftKey);
-          self.dragging = { start: w, last: w, moved: false, ids: [...self.selection] };
+          if (keo) self.dragging = { start: w, last: w, moved: false, ids: [...self.selection] };
         } else {
           if (!ev.shiftKey) self.clearSelection();
           self.marquee = { x0: downScreen.x, y0: downScreen.y, x1: downScreen.x, y1: downScreen.y, cross: false };

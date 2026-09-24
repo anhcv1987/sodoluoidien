@@ -394,3 +394,33 @@ body {
 }
 .tram-open:hover { border-color: var(--accent); color: var(--fg); }
 .hint { margin: 0 0 8px; line-height: 1.45; }
+
+/* ------------------------- tài khoản & phân quyền ------------------------- */
+
+/* Chế độ xem (chưa đăng nhập): ẩn mọi công cụ / mục menu hiệu chỉnh */
+.che-do-xem .can-sua { display: none !important; }
+
+.tai-khoan { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.che-do {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.che-do-xem-nhan { color: var(--fg-dim); }
+.che-do-sua-nhan { color: #4ade80; }
+.btn-dang-nhap { width: auto; }
+.dropdown-phai .dropdown-list { left: auto; right: 0; }
+.loi-dang-nhap { color: var(--danger); min-height: 1.2em; margin: 6px 0 0; font-size: 12.5px; }
+.them-tai-khoan {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  margin-top: 12px;
+  align-items: end;
+}
+.them-tai-khoan .btn { grid-column: 1 / -1; }
+.dialog .table .btn { width: auto; margin: 0 4px 0 0; padding: 3px 8px; font-size: 12px; }

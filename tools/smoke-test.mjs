@@ -169,9 +169,43 @@ const chong = await page.evaluate(() => {
 });
 check('Không trạm nào đè lên nhau trên sơ đồ địa lý', chong === 0, `${chong} cặp chồng lấn`);
 
-/* ---------------- Cong cu ve ---------------- */
+/* ---------------- Tai khoan & phan quyen ---------------- */
 
 const box = await page.locator('canvas').boundingBox();
+const xem = await page.evaluate(() => ({
+  chiXem: window.sodo.store.chiXem,
+  lop: document.querySelector('#app')?.classList.contains('che-do-xem') ?? document.body.innerHTML.includes('che-do-xem'),
+  anCongCu: [...document.querySelectorAll('.tool-btn')].filter((b) => b.offsetParent !== null).map((b) => b.textContent),
+  nut: !!document.querySelector('.btn-dang-nhap'),
+}));
+check('Mở ra là chế độ xem, ẩn công cụ hiệu chỉnh', xem.chiXem && xem.nut && xem.anCongCu.length === 2, `công cụ còn hiện: ${xem.anCongCu.join(', ')}`);
+{
+  const n0 = await page.evaluate(() => window.sodo.store.entities.filter((e) => e.kind === 'branch').length);
+  await page.keyboard.press('l');
+  await page.mouse.click(box.x + 380, box.y + 260);
+  await page.mouse.click(box.x + 520, box.y + 340);
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
+  const n1 = await page.evaluate(() => {
+    const a = window.sodo;
+    const e0 = a.store.entities.length;
+    a.store.transact('thử', () => a.store.put({ id: 'thu', kind: 'text', layer: '0', p: { x: 0, y: 0 }, text: 'x', height: 1, rot: 0, align: 'left' }));
+    return { n: a.store.entities.filter((e) => e.kind === 'branch').length, them: a.store.entities.length - e0 };
+  });
+  check('Chế độ xem không sửa được sơ đồ', n1.n === n0 && n1.them === 0, `${n1.them} đối tượng lọt qua`);
+}
+const saiMk = await page.evaluate(async () => (await window.sodo.tk.dangNhap('admin', 'sai-mat-khau')) === null);
+check('Sai mật khẩu thì không đăng nhập được', saiMk);
+await page.click('.btn-dang-nhap');
+await page.fill('.dialog input[type=text]', 'admin');
+await page.fill('.dialog input[type=password]', 'dieudob6');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(400);
+const daVao = await page.evaluate(() => ({ chiXem: window.sodo.store.chiXem, nhan: document.querySelector('.tai-khoan')?.textContent ?? '' }));
+check('Đăng nhập admin / mật khẩu mặc định thì được hiệu chỉnh', !daVao.chiXem, daVao.nhan);
+
+/* ---------------- Cong cu ve ---------------- */
+
 const before = await page.evaluate(() => window.sodo.store.entities.filter((e) => e.kind === 'branch').length);
 await page.keyboard.press('l');
 await page.mouse.click(box.x + 380, box.y + 260);
