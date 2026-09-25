@@ -168,10 +168,17 @@ Dùng được cả ở chế độ xem, vẫn kéo / phóng bản vẽ bình th
   đấu nối khi có dao cách ly / máy cắt của ngăn lộ ngay sát chỗ cắt; cáp tổng từ MBA vắt
   qua thanh cái xuống máy cắt tổng (vd cáp vào MC 632 vắt qua C62 E6.8) không phải
   đấu nối.
-* Dây vẽ **nhảy qua** thanh cái / dây khác bằng nửa vòng tròn: đỉnh giữa vòng nhảy
-  nằm đúng trên thanh cái nhưng hai phía vòng nhảy nằm hai bên - đó là chỗ cắt ngang,
-  không phải rẽ chữ T (vd cáp tổng MBA T2 E6.4 nhảy qua C42 xuống MC 432: cắt MC 432
-  và MC 412 thì C42 mất điện).
+* Dây vẽ **nhảy qua** thanh cái / dây khác bằng nửa vòng tròn: đỉnh giữa hay chân
+  vòng nhảy nằm sát thanh cái / dây kia nhưng quãng dây quanh đó đi xuyên sang hai
+  phía - đó là chỗ cắt ngang, không phải rẽ chữ T. Đã sửa các chỗ cáp tổng MBA nhảy
+  qua thanh cái / dây ngăn khác bị nối nhầm: C42 E6.4 (cáp T2 xuống MC 432), E6.23 (cáp
+  vào MC 431 nhảy qua dây ngăn 413), E6.17 (cáp liên lạc C33 - C31 nhảy qua dây ngăn
+  332).
+* `node tools/ra-soat-co-lap-thanh-cai.mjs [--tram=E6.4] [--truy]` rà **thanh cái rò
+  điện**: với từng trạm, từng cấp điện áp, cắt hết thiết bị đóng cắt cấp đó trong trạm
+  (giữ nguyên các cấp khác) - thanh cái nào còn điện là có dây nối nhầm vào. Kết quả
+  hiện tại: 0 lỗi; 3 trường hợp đã biết không phải lỗi (đoạn thanh cái ngắn phía MBA
+  của MC 332 E6.5, E6.6; thanh cái 6kV NatSteel Vina E6.9 nhận thẳng từ MBA khách hàng).
 * `node tools/kiem-cong-suat.mjs --cat=<số thứ tự thiết bị> --diem=x,y --truy=x,y` thử
   cắt thiết bị, kiểm tra điểm có điện, lần ngược đường công suất tới một điểm.
 * Dây **vắt qua** thanh cái không phải là đấu nối: trạm vẽ có chấm đấu nối (vòng tròn
@@ -910,6 +917,7 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  ra-soat-cap-dien-ap.mjs — sửa màu (cấp điện áp) vẽ nhầm lớp theo liên kết điện
                  phuong-thuc-van-hanh.mjs — đặt các máy cắt cắt theo kết dây cơ bản, sửa tên trạm
                  bo-net-dau-tram.mjs    — bỏ 2 nét thừa ở đầu trạm 110kV ký hiệu 3 nét song song; vá dây hở trước vòng nhảy
+                 ra-soat-co-lap-thanh-cai.mjs — cô lập từng thanh cái, tìm chỗ nối nhầm (thanh cái rò điện)
                  ra-soat-mba.mjs        — gán cấp điện áp (màu) từng cuộn dây MBA theo nhãn tỷ số
                  ve-luoi-trung-ap.mjs   — vẽ lộ trung áp (trục + nhánh liên kết) từ tools/luoi-trung-ap/*.mjs
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật

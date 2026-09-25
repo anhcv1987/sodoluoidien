@@ -564,20 +564,27 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       // (vd đỉnh giữa nửa vòng tròn nhảy qua thanh cái - cáp tổng MBA T2 E6.4 nhảy qua
       // C42 xuống MC 432) - là chỗ cắt ngang, không phải rẽ chữ T. Cắt ngang thanh
       // cái xét riêng ở bước dưới (chấm nối / dao ngăn lộ sát chỗ cắt).
-      // (xét đỉnh đầu tiên mỗi bên đã ra xa tuyến kia quá sai số - các đỉnh sát
-      // bên cạnh của vòng nhảy cũng nằm gần như trên thanh cái)
+      // Xét các đỉnh lân cận trong quãng 3 lần sai số hai bên đỉnh (cả vòng nhảy nhỏ):
+      // có đỉnh nằm hẳn về hai phía tuyến kia là dây đi xuyên qua - kể cả khi đỉnh đang
+      // xét là chân vòng nhảy nằm sát tuyến kia (vòng nhảy qua dây ngăn 413 E6.23).
       const xuyenQua = (a: Pt, b: Pt): boolean => {
         if (k === 0 || k === n - 1) return false;
         const L = Math.hypot(b.x - a.x, b.y - a.y) || 1;
         const phia = (q: Pt): number => ((b.x - a.x) * (q.y - a.y) - (b.y - a.y) * (q.x - a.x)) / L;
-        const benCanh = (buoc: number): number => {
+        const e = saiSo * 0.05;
+        let duong = false;
+        let am = false;
+        for (const buoc of [-1, 1]) {
+          let di = 0;
           for (let m = k + buoc; m >= 0 && m < n; m += buoc) {
+            di += Math.hypot(t.p[m].x - t.p[m - buoc].x, t.p[m].y - t.p[m - buoc].y);
             const v = phia(t.p[m]);
-            if (Math.abs(v) > saiSo) return Math.sign(v);
+            if (v > e) duong = true;
+            if (v < -e) am = true;
+            if (di > saiSo * 3) break;
           }
-          return 0;
-        };
-        return benCanh(-1) * benCanh(1) < 0;
+        }
+        return duong && am;
       };
       // Chỉ nới sai số cho đầu dây TỰ DO (không nối tiếp với nét nào): đầu dây đã
       // nối tiếp nét khác là chỗ dây vẽ thành nhiều đoạn đi ngang qua, nới ra sẽ
