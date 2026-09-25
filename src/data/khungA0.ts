@@ -96,11 +96,28 @@ export function taoKhungA0(noiDung: HopBao, tt: ThongTinKhung, trong?: (h: HopBa
   out.push(hcn(x0, y0, x1, y1, 'Mép tờ giấy A0'));
   out.push(hcn(bx0, by0, bx1, by1, 'Khung bản vẽ'));
 
-  // Khung tên góc dưới phải
+  // Khung tên góc dưới phải: lấy cỡ lớn nhất không đè lên hình vẽ (thu nhỏ dần theo
+  // cùng tỷ lệ); nếu cỡ nào cũng vướng thì dùng cỡ nhỏ nhất.
+  const COC_KT: [number, number][] = [
+    [KT_RONG, KT_CAO],
+    [260, 104],
+    [230, 90],
+    [200, 78],
+    [180, 70],
+    [160, 62],
+  ];
+  const leKT = mm(4);
+  const [ktRong, ktCao] =
+    COC_KT.find(
+      ([w, h]) =>
+        !trong ||
+        trong({ minX: bx1 - mm(w) - leKT, minY: by0, maxX: bx1, maxY: by0 + mm(h) + leKT }),
+    ) ?? COC_KT[COC_KT.length - 1];
+  const k = ktRong / KT_RONG; // hệ số thu nhỏ cỡ chữ
   const kx1 = bx1;
   const ky0 = by0;
-  const kx0 = kx1 - mm(KT_RONG);
-  const ky1 = ky0 + mm(KT_CAO);
+  const kx0 = kx1 - mm(ktRong);
+  const ky1 = ky0 + mm(ktCao);
   out.push(hcn(kx0, ky0, kx1, ky1, 'Khung tên'));
   // Hai đường kẻ ngang chia khung tên
   for (const f of [0.42, 0.7]) {
@@ -110,8 +127,8 @@ export function taoKhungA0(noiDung: HopBao, tt: ThongTinKhung, trong?: (h: HopBa
       layer: LAYER,
       kv: 0.4,
       pts: [
-        { x: kx0, y: ky0 + mm(KT_CAO) * f },
-        { x: kx1, y: ky0 + mm(KT_CAO) * f },
+        { x: kx0, y: ky0 + mm(ktCao) * f },
+        { x: kx1, y: ky0 + mm(ktCao) * f },
       ],
       closed: false,
       dashed: false,
@@ -138,18 +155,18 @@ export function taoKhungA0(noiDung: HopBao, tt: ThongTinKhung, trong?: (h: HopBa
   });
 
   const gx = (kx0 + kx1) / 2;
-  out.push(chu(gx, ky0 + mm(KT_CAO * 0.86), tt.donVi, 6));
-  out.push(chu(gx, ky0 + mm(KT_CAO * 0.74), tt.phong, 7));
-  out.push(chu(gx, ky0 + mm(KT_CAO * 0.5), tt.tenBanVe, 9));
+  out.push(chu(gx, ky0 + mm(ktCao * 0.86), tt.donVi, 6 * k));
+  out.push(chu(gx, ky0 + mm(ktCao * 0.74), tt.phong, 7 * k));
+  out.push(chu(gx, ky0 + mm(ktCao * 0.5), tt.tenBanVe, 9 * k));
   out.push(
     chu(
       gx,
-      ky0 + mm(KT_CAO * 0.28),
+      ky0 + mm(ktCao * 0.28),
       `Khổ giấy A0 (841 x 1189)${tt.ngay ? '   ·   Ngày lập: ' + tt.ngay : ''}`,
-      5,
+      5 * k,
     ),
   );
-  if (tt.nguoiLap) out.push(chu(gx, ky0 + mm(KT_CAO * 0.14), `Người lập: ${tt.nguoiLap}`, 5));
+  if (tt.nguoiLap) out.push(chu(gx, ky0 + mm(ktCao * 0.14), `Người lập: ${tt.nguoiLap}`, 5 * k));
 
   /* --- Chú giải trạng thái thiết bị đóng cắt, bên trái khung tên --- */
   {

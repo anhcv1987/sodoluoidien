@@ -223,6 +223,7 @@ export interface CadStation {
  */
 const SUA_TRAM: Record<string, { ma?: string; ten: string }> = {
   'E6.2': { ten: 'Trạm 220kV Thái Nguyên' },
+  'E6.4': { ten: 'Trạm 110kV Thịnh Đán' },
   'E6.20': { ten: 'Trạm 220kV Lưu Xá' },
   'E6.16': { ten: 'Trạm 220kV Phú Bình' },
   'E6.25': { ten: 'Trạm 220kV Phú Bình 2' },

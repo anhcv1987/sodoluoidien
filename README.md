@@ -127,6 +127,40 @@ tiếp địa **Cắt**; Phòng tự chỉnh các dao cắt theo phương thức
 mũi tên điều áp bị nhận nhầm khi nhập từ CAD) đã được trả về nét vẽ thường.
 Nhật ký thao tác và cảnh báo liên động chưa làm ở đợt này.
 
+**Phương thức vận hành cơ bản** (theo kết dây): **MC 171 Thịnh Đán (E6.4), MC 112
+Xi măng Thái Nguyên (E6.8), MC 171 Định Hóa (E6.22)** đặt ở trạng thái **Cắt**.
+Danh sách ghi trong `tools/phuong-thuc-van-hanh.mjs` (tìm theo nhãn ngăn lộ trong
+đúng trạm, lấy máy cắt gần nhãn nhất) - sửa bảng `CAT` ở đầu file rồi chạy lại
+`node tools/phuong-thuc-van-hanh.mjs` khi phương thức thay đổi. Công cụ cũng đổi tên
+**Trạm 110kV Đán → Trạm 110kV Thịnh Đán** trên tờ sơ đồ.
+
+### Công suất chạy trên đường dây (trình chiếu)
+
+**F6** (hoặc nút **CHẠY CÔNG SUẤT** ở thanh trạng thái, menu **Xem**) bật vạch sáng
+chạy liên tục trên đường dây theo chiều công suất; **F11** vào chế độ **trình chiếu**
+toàn màn hình (ẩn thanh công cụ và các bảng, tự bật công suất chạy), **Esc** để thoát.
+Dùng được cả ở chế độ xem, vẫn kéo / phóng bản vẽ bình thường khi đang chạy.
+
+* Công suất đi từ **thanh cái 220kV** (các trạm 220kV trong tỉnh và ngoài tỉnh) →
+  máy biến áp tự ngẫu → thanh cái 110kV → đường dây 110kV → **xuyên qua MBA** (block
+  MBA hoặc các vòng tròn cuộn dây) → thanh cái trung áp → xuất tuyến. Mạch không nối
+  về được 220kV thì lấy thanh cái cấp cao nhất của mạch đó làm nguồn.
+* Gặp **thiết bị đang cắt** - máy cắt, máy cắt hợp bộ, **dao cách ly** (kể cả khi nét
+  dây vẽ liền xuyên qua ký hiệu dao) - vạch sáng **dừng lại** ở đó, có vòng tròn
+  màu cam nhấp nháy đánh dấu. Mạch vòng thì hai dòng gặp nhau ở giữa.
+* Nhánh cụt không mang tải (tới dao tiếp địa, chống sét van, TU, TUC…) không có
+  vạch chạy.
+* Đổi trạng thái thiết bị (tài khoản biên tập) là chiều công suất tính lại ngay
+  (khoảng 0,5 giây trên tờ sơ đồ tổng).
+* Chiều công suất là chiều **đi xa dần nguồn** trên sơ đồ (lưới trung áp vận hành
+  hình tia), chưa phải trào lưu công suất tính toán; khi có số liệu P, Q từ SCADA
+  sẽ gán thêm trị số và chiều thực cho từng nhánh.
+
+Vạch sáng vẽ trên một lớp canvas trong suốt riêng chồng lên bản vẽ nên chạy đều
+60 hình/giây kể cả khi xem toàn bộ tờ sơ đồ tổng. Mã nguồn: `src/core/dongCongSuat.ts`
+(đồ thị hình học, cắt tại thiết bị mở, nguồn, Dijkstra đa nguồn, tỉa nhánh cụt) và
+`src/render/chayCongSuat.ts` (vẽ).
+
 ---
 
 ## 4. Thao tác kiểu CAD
@@ -317,6 +351,11 @@ Tờ sơ đồ kết dây có sẵn khung bản vẽ khổ **A0 (841 x 1189 mm)*
 lề trái 20mm để đóng tập, ba lề còn lại 10mm, khung tên ở góc dưới bên phải ghi
 tên đơn vị, Phòng Điều độ, tên bản vẽ và ngày lập. Khung nằm trên lớp riêng
 **"Khung bản vẽ"**, tắt/bật được trong bảng Lớp và xuất sang DXF cùng bản vẽ.
+
+Khung tên **tự thu nhỏ** (300x120 → 260x104 → … → 160x62 mm, chữ nhỏ theo cùng tỷ lệ)
+tới cỡ lớn nhất không đè lên hình vẽ; tờ sơ đồ tổng hiện dùng cỡ 160x62 mm, nằm gọn
+dưới các đường dây 110kV ở góc dưới bên phải. Dòng chữ tên sơ đồ thừa của khung tên cũ
+trong bản CAD đã được xoá.
 
 ### Ký hiệu đặt theo đúng block trong bản CAD
 
@@ -636,10 +675,7 @@ lấy theo cỡ ký hiệu (0,45 lần cỡ ký hiệu, riêng máy biến áp l
 kéo dây vào tận tâm cuộn dây) - bản CAD gốc nhiều chỗ để hở vài đơn vị giữa ký hiệu
 và đường dây, siết chặt quá thì báo nhầm "chưa nối".
 
-Bước tiếp theo để hiện chiều công suất: đánh dấu ngăn lộ nguồn (110/220kV), duyệt
-cây từ nguồn đi ra - lưới trung áp vận hành hình tia nên chiều công suất trên mỗi
-nhánh chính là chiều đi xa dần nguồn - rồi vẽ mũi tên trên tuyến. Khi có số liệu
-P, Q từ SCADA thì chỉ cần gán thêm trị số vào từng nhánh.
+Hiển thị chiều công suất đã làm - xem mục **Công suất chạy trên đường dây** ở phần 3.
 
 ### Dựng lại bộ dữ liệu từ file CAD mới
 
@@ -653,6 +689,7 @@ node tools/dung-du-lieu-tram.mjs tram/ src/data/tram-sld.json
 node tools/chuan-hoa-dcl-lien-dong.mjs src/data/tram-sld.json
 node tools/ra-soat-cap-dien-ap.mjs src/data/tram-sld.json
 node tools/noi-duong-day-110.mjs src/data/tram-sld.json
+node tools/phuong-thuc-van-hanh.mjs src/data/tram-sld.json
 npm run build
 ```
 
@@ -719,6 +756,7 @@ src/
 ├── core/        types.ts (mô hình dữ liệu) · doc.ts (kho dữ liệu + Undo/Redo)
 │                voltage.ts (quy ước màu) · geom.ts (hình học)
 │                lienket.ts (nút điện - cực thiết bị - mạch, nền cho chiều công suất)
+│                dongCongSuat.ts (chiều công suất: dừng tại thiết bị cắt, qua MBA)
 │                doiChu.ts (dời nhãn ra khỏi ký hiệu thiết bị khi mở tờ sơ đồ)
 │                taiKhoan.ts (tài khoản, phân quyền, băm mật khẩu SHA-256)
 ├── symbols/     prims.ts (nguyên thuỷ hình học) · blocks.ts (23 ký hiệu thiết bị)
@@ -727,6 +765,7 @@ src/
 │                seed.ts (dựng bản vẽ mặc định)
 │                tram-sld.json + tramSheets.ts (sơ đồ kết dây trích từ file CAD)
 ├── render/      viewport.ts · shapes.ts (sinh hình + bắt điểm) · renderer.ts (canvas)
+│                chayCongSuat.ts (vạch sáng công suất chạy - trình chiếu)
 │                index2d.ts (chỉ mục không gian cho tờ hàng chục nghìn đối tượng)
 ├── editor/      editor.ts (công cụ vẽ) · snap.ts (bắt điểm) · declutter.ts (giãn trạm)
 ├── io/          dxfExport.ts · dxfImport.ts · file.ts
@@ -736,6 +775,7 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  dung-du-lieu-tram.mjs  — dựng src/data/tram-sld.json
                  chuan-hoa-dcl-lien-dong.mjs — vẽ lại DCL + dao tiếp địa kiểu liên động (110/35kV)
                  ra-soat-cap-dien-ap.mjs — sửa màu (cấp điện áp) vẽ nhầm lớp theo liên kết điện
+                 phuong-thuc-van-hanh.mjs — đặt các máy cắt cắt theo kết dây cơ bản, sửa tên trạm
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật
                  noi-duong-day-110.mjs  — nối đường dây 110kV giữa các trạm (A*)
                  kiem-cap-dien-ap.mjs   — rà soát cấp điện áp theo số hiệu ngăn lộ
@@ -756,8 +796,8 @@ Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và s�
 * Rà lại vài chỗ lẻ còn suy sai cấp điện áp (chạy `node tools/kiem-cap-dien-ap.mjs`)
   — sửa bằng công cụ ở mục 6.
 * Nhập lần lượt các sơ đồ lộ trung áp rời rạc và đấu nối về trạm 110kV tương ứng.
-* Hiện **chiều công suất** trên sơ đồ: đánh dấu ngăn lộ nguồn, duyệt cây từ nguồn
-  rồi vẽ mũi tên (mô hình liên kết điện đã có, xem mục 6).
+* Gán trị số P, Q (SCADA) cho công suất chạy trên đường dây; coi NM NĐ An Khánh
+  (A6.15) là nguồn phát.
 * Đấu nốt 40 thiết bị còn thiếu (bật **F4** hoặc `Dữ liệu → Kiểm tra liên kết
   điện…` để xem danh sách chi tiết) - phần lớn là dao cách ly đầu cáp và máy cắt hợp
   bộ vẽ tách rời đường dây trong bản CAD gốc.

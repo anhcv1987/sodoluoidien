@@ -170,7 +170,7 @@ await page.waitForTimeout(500);
 
 /* ---------------- Tai khoan & phan quyen ---------------- */
 
-const box = await page.locator('canvas').boundingBox();
+const box = await page.locator('canvas.canvas').boundingBox();
 const xem = await page.evaluate(() => ({
   chiXem: window.sodo.store.chiXem,
   lop: document.querySelector('#app')?.classList.contains('che-do-xem') ?? document.body.innerHTML.includes('che-do-xem'),
@@ -208,6 +208,58 @@ const tt0 = await page.evaluate(() => {
 check('Mọi dao cách ly ban đầu ở trạng thái Đóng', tt0.dclCat === 0 && tt0.soDcl > 500, `${tt0.soDcl} DCL, ${tt0.dclCat} đang cắt`);
 check('Có khung chú giải trạng thái thiết bị', tt0.chuGiai === 12, `${tt0.chuGiai} ký hiệu mẫu`);
 check('Chế độ xem không đổi được trạng thái thiết bị', tt0.doi === 0 && tt0.dtdSt === 'mo');
+
+/* ---------------- Phương thức vận hành, khung tên, công suất chạy ---------------- */
+
+const pt = await page.evaluate(() => {
+  const a = window.sodo;
+  const ents = a.store.entities;
+  // máy cắt đang cắt theo kết dây cơ bản
+  const mcCat = ents
+    .filter((e) => e.kind === 'device' && e.layer !== 'Khung bản vẽ' && e.block === 'MC' && e.state === 'mo')
+    .map((e) => `${e.p.x.toFixed(0)},${e.p.y.toFixed(0)}`)
+    .sort();
+  const tieuDe = ents.some((e) => e.kind === 'text' && e.text === 'TRẠM 110kV THỊNH ĐÁN (E6.4)');
+  const conDan = ents.some((e) => e.kind === 'text' && /TRẠM 110kV ĐÁN/.test(e.text));
+  // khung tên không đè lên hình vẽ
+  const kt = ents.find((e) => e.kind === 'boundary' && e.name === 'Khung tên');
+  const xs = kt.pts.map((p) => p.x);
+  const ys = kt.pts.map((p) => p.y);
+  const h = { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+  const trong = (p) => p && p.x >= h.minX && p.x <= h.maxX && p.y >= h.minY && p.y <= h.maxY;
+  const de = ents.filter(
+    (e) => e.layer !== 'Khung bản vẽ' && (((e.kind === 'device' || e.kind === 'text') && trong(e.p)) || (e.kind === 'node' && trong(e.p))),
+  ).length;
+  return { mcCat, tieuDe, conDan, de };
+});
+check(
+  'Kết dây cơ bản: MC 171 Thịnh Đán, 112 Xi măng TN, 171 Định Hóa cắt',
+  pt.mcCat.join(' ') === ['-1628,5059', '-2223,87', '1672,3018'].sort().join(' '),
+  pt.mcCat.join(' '),
+);
+check('Đổi tên trạm 110kV Đán thành Thịnh Đán', pt.tieuDe && !pt.conDan);
+check('Khung tên không đè lên sơ đồ', pt.de === 0, `${pt.de} đối tượng nằm trong khung tên`);
+
+await page.keyboard.press('F6');
+await page.waitForTimeout(1500);
+const cs = await page.evaluate(() => {
+  const a = window.sodo;
+  const lop = document.querySelector('.lop-cong-suat');
+  const d = a.congSuat.duLieu();
+  const gan = (x, y) => d.diemDung.some((q) => Math.hypot(q.x - x, q.y - y) < 12);
+  return {
+    hien: !!lop && lop.style.display !== 'none' && lop.width > 0,
+    chuoi: d.chuoi.length,
+    dung: [gan(-2222.59, 87.41), gan(1671.98, 3017.72), gan(-1628.16, 5059.23)],
+    kv: [...new Set(d.chuoi.map((c) => c.kv))].sort((x, y) => x - y).join(','),
+  };
+});
+check(
+  'Công suất chạy trên đường dây (F6), dừng tại các MC đang cắt',
+  cs.hien && cs.chuoi > 5000 && cs.dung.every(Boolean) && /220/.test(cs.kv) && /22/.test(cs.kv),
+  `${cs.chuoi} chuỗi, cấp ${cs.kv}, dừng tại MC cắt: ${cs.dung.join('/')}`,
+);
+await page.keyboard.press('F6');
 
 const saiMk = await page.evaluate(async () => (await window.sodo.tk.dangNhap('admin', 'sai-mat-khau')) === null);
 check('Sai mật khẩu thì không đăng nhập được', saiMk);

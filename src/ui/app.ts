@@ -15,6 +15,7 @@ import { allStyles, colorOf } from '../core/voltage';
 import { exportDxf, exportSvg } from '../io/dxfExport';
 import { defaultImportOptions, importDxf, inspectDxf } from '../io/dxfImport';
 import { cungMach, daoCua, dungMangDien, type MangDien } from '../core/lienket';
+import { ChayCongSuat } from '../render/chayCongSuat';
 import { getBlock, TEN_TRANG_THAI } from '../symbols/blocks';
 import {
   BUILD_ID,
@@ -74,6 +75,8 @@ export class App {
   tk = new QuanLyTaiKhoan();
   private taiKhoanHost = el('div', { class: 'tai-khoan' });
   private lanBaoChan = 0;
+  /** Lớp công suất chạy trên đường dây (trình chiếu). */
+  private congSuat!: ChayCongSuat;
 
   constructor(private root: HTMLElement) {
     const saved = loadAutosave();
@@ -100,6 +103,9 @@ export class App {
         this.refreshChrome();
       },
     });
+    this.congSuat = new ChayCongSuat(this.canvas, this.store, this.ed.vp, () => this.ed.renderer.opt.printMode);
+    this.congSuat.onTinh = (d, ms) =>
+      console.info(`Chiều công suất: ${d.soNguon} điểm nguồn, ${d.soDoan} đoạn, ${d.chuoi.length} chuỗi, ${d.diemDung.length} điểm dừng - ${ms.toFixed(0)} ms`);
     // Mở ra là CHẾ ĐỘ XEM; đăng nhập mới được hiệu chỉnh.
     this.store.chiXem = true;
     this.store.onBiChan = (tt) => this.baoChiXem(tt);
@@ -114,6 +120,10 @@ export class App {
     });
     window.addEventListener('resize', () => this.ed.resize());
     window.addEventListener('keydown', (e) => this.onKey(e));
+    // Thoát toàn màn hình bằng phím Esc của trình duyệt -> thôi trình chiếu
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && this.root.classList.contains('trinh-chieu')) this.trinhChieu(false);
+    });
     this.store.subscribe(() => {
       this.scheduleAutosave();
       this.capNhatBanDo();
@@ -131,7 +141,10 @@ export class App {
     if (bd === dangHien) return;
     this.canvas.style.display = bd ? 'none' : '';
     this.root.classList.toggle('dang-ban-do', bd);
-    if (bd) this.banDo.show();
+    if (bd) {
+      this.banDo.show();
+      if (this.congSuat.dangChay) this.batCongSuat(false);
+    }
     else {
       this.banDo.hide();
       requestAnimationFrame(() => this.ed.resize());
@@ -171,6 +184,7 @@ export class App {
     const center = el('div', { class: 'center' });
     center.append(this.tabs);
     center.append(this.canvas);
+    center.append(this.congSuat.layer);
     this.banDo.hide();
     center.append(this.banDo.root);
     main.append(center);
@@ -229,6 +243,9 @@ export class App {
         ['Bật/tắt tên thiết bị', () => this.toggleOpt('showDeviceLabels')],
         ['—', () => undefined],
         ['Chế độ in (nền trắng)', () => this.toggleOpt('printMode')],
+        ['—', () => undefined],
+        ['Công suất chạy trên đường dây (F6)', () => this.batCongSuat()],
+        ['Trình chiếu toàn màn hình - chạy công suất (F11)', () => this.trinhChieu()],
         ['Bật/tắt con trỏ chữ thập', () => {
           this.ed.crosshair = !this.ed.crosshair;
           this.ed.requestDraw();
@@ -449,6 +466,7 @@ export class App {
       this.toggleChip('LƯỚI', this.ed.snap.grid, () => (this.ed.snap.grid = !this.ed.snap.grid), 'F9'),
       this.toggleChip('HIỆN LƯỚI', this.ed.renderer.opt.showGrid, () => this.toggleOpt('showGrid'), 'F7'),
       this.toggleChip('ĐIỂM ĐẤU NỐI', this.ed.renderer.opt.showTerminals, () => this.batDiemNoi(), 'F4'),
+      this.toggleChip('CHẠY CÔNG SUẤT', this.congSuat.dangChay, () => this.batCongSuat(), 'F6'),
       this.toggleChip('CHẾ ĐỘ IN', this.ed.renderer.opt.printMode, () => this.toggleOpt('printMode'), ''),
     );
     this.layersHost.replaceChildren(buildLayers(this.ed, () => this.refreshChrome()));
@@ -778,6 +796,20 @@ export class App {
     }
     // Trang bản đồ GIS: phím tắt vẽ không áp dụng (Leaflet tự xử lý phím mũi tên, +/-)
     if (this.laTrangBanDo()) return;
+    if (e.key === 'F6') {
+      e.preventDefault();
+      this.batCongSuat();
+      return;
+    }
+    if (e.key === 'F11') {
+      e.preventDefault();
+      this.trinhChieu();
+      return;
+    }
+    if (e.key === 'Escape' && this.root.classList.contains('trinh-chieu')) {
+      this.trinhChieu(false);
+      return;
+    }
     if (e.key === 'F4') {
       e.preventDefault();
       this.batDiemNoi();
@@ -842,6 +874,45 @@ export class App {
         ? 'Hiện điểm đấu nối: ô xanh = đã nối vào dây, ô đỏ = chưa nối.'
         : 'Đã tắt lớp điểm đấu nối.',
     );
+  }
+
+  /**
+   * Bật / tắt hiển thị CÔNG SUẤT CHẠY TRÊN ĐƯỜNG DÂY: vạch sáng chạy liên tục từ
+   * nguồn 220kV qua máy biến áp xuống trung áp, dừng tại thiết bị đang cắt.
+   */
+  private batCongSuat(bat = !this.congSuat.dangChay): void {
+    if (this.laTrangBanDo()) {
+      this.setMsg('Công suất chạy trên đường dây hiển thị trên tờ sơ đồ kết dây (không áp dụng cho bản đồ GIS).');
+      return;
+    }
+    if (bat) {
+      this.congSuat.bat();
+      const d = this.congSuat.duLieu();
+      this.setMsg(
+        `Đang hiển thị công suất chạy trên đường dây: ${d.diemDung.length} điểm dừng tại thiết bị đang cắt. Đổi trạng thái thiết bị là chiều công suất cập nhật ngay. F6 để tắt.`,
+      );
+    } else {
+      this.congSuat.tat();
+      if (this.root.classList.contains('trinh-chieu')) this.trinhChieu(false);
+      this.setMsg('Đã tắt hiển thị công suất chạy trên đường dây.');
+    }
+    this.refreshChrome();
+  }
+
+  /** Chế độ trình chiếu: toàn màn hình, ẩn thanh công cụ, bật công suất chạy. */
+  private trinhChieu(bat = !this.root.classList.contains('trinh-chieu')): void {
+    if (bat && this.laTrangBanDo()) {
+      this.setMsg('Mở tờ sơ đồ kết dây rồi mới trình chiếu công suất chạy.');
+      return;
+    }
+    this.root.classList.toggle('trinh-chieu', bat);
+    if (bat) {
+      if (!this.congSuat.dangChay) this.batCongSuat(true);
+      void document.documentElement.requestFullscreen?.().catch(() => undefined);
+    } else if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+    }
+    requestAnimationFrame(() => this.ed.resize());
   }
 
   /** Tính lại vị trí và trạng thái các cực đấu nối để vẽ lên bản vẽ. */
@@ -1792,7 +1863,7 @@ export class App {
       <h4>Phím tắt</h4>
       <ul>
         <li><b>S / L / B / D / T / G / M</b>: Chọn · Đường dây · Thanh cái · Thiết bị · Trạm · Ghi chú · Đo</li>
-        <li><b>F3</b> bắt điểm · <b>F4</b> hiện điểm đấu nối · <b>F7</b> hiện lưới · <b>F8</b> ORTHO · <b>F9</b> bắt lưới</li>
+        <li><b>F3</b> bắt điểm · <b>F4</b> hiện điểm đấu nối · <b>F6</b> công suất chạy trên đường dây · <b>F11</b> trình chiếu (Esc thoát) · <b>F7</b> hiện lưới · <b>F8</b> ORTHO · <b>F9</b> bắt lưới</li>
          <li><b>Shift+M</b> tô sáng cả mạch điện nối thông với đối tượng đang chọn</li>
         <li><b>R</b>: xoay 90° khi đang đặt thiết bị</li>
         <li><b>Enter</b> kết thúc tuyến · <b>Esc</b> huỷ lệnh · <b>Delete</b> xoá</li>

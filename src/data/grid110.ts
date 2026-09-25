@@ -35,7 +35,7 @@ export const TRAM_220_110: TramData[] = [
   /* ---------------- Khu vuc TP. Thai Nguyen ---------------- */
   { code: 'E6.2', name: 'TBA 220kV Thái Nguyên', loai: 'TBA 220kV', levels: [220, 110, 35, 22], mba: '2x250 MVA', lat: 21.6, lon: 105.838, khuVuc: 'TP. Thái Nguyên', viTri: 'Ước lượng' },
   { code: 'E6.20', name: 'TBA 220kV Lưu Xá', loai: 'TBA 220kV', levels: [220, 110, 22], mba: '2x250 MVA', lat: 21.541, lon: 105.852, khuVuc: 'TP. Thái Nguyên', viTri: 'Ước lượng' },
-  { code: 'E6.4', name: 'TBA 110kV Đán', loai: 'TBA 110kV', levels: [110, 35, 22], mba: '2x63 MVA', lat: 21.583, lon: 105.795, khuVuc: 'TP. Thái Nguyên', viTri: 'Ước lượng' },
+  { code: 'E6.4', name: 'TBA 110kV Thịnh Đán', loai: 'TBA 110kV', levels: [110, 35, 22], mba: '2x63 MVA', lat: 21.583, lon: 105.795, khuVuc: 'TP. Thái Nguyên', viTri: 'Ước lượng' },
   { code: 'E6.5', name: 'TBA 110kV Lưu Xá', loai: 'TBA 110kV', levels: [110, 35, 22], mba: '2x40 MVA', lat: 21.552, lon: 105.845, khuVuc: 'TP. Thái Nguyên', viTri: 'Ước lượng' },
   { code: 'E6.9', name: 'TBA 110kV Gang Thép', loai: 'TBA 110kV', levels: [110, 35, 22], mba: '3x63 MVA', lat: 21.548, lon: 105.866, khuVuc: 'TP. Thái Nguyên', viTri: 'Ước lượng' },
   { code: 'E6.11', name: 'TBA 110kV Xi măng Quán Triều', loai: 'TBA 110kV', levels: [110, 22], mba: '1x20 MVA', lat: 21.632, lon: 105.806, khuVuc: 'TP. Thái Nguyên', viTri: 'Ước lượng' },
