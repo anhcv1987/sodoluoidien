@@ -45,6 +45,8 @@ interface CompactSheet {
   st?: (number | string)[][];
   /** Thanh cái đường vòng (C19, C29…): đỉnh đầu [x0, y0] của từng thanh cái. */
   vong?: number[][];
+  /** Máy biến áp (block): [x, y, kV cuộn cao áp, kV cuộn phải, kV cuộn dưới]. */
+  kvCuon?: number[][];
 }
 
 interface CompactData {
@@ -117,6 +119,7 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
   const put = (e: Entity): void => void (entities[e.id] = e);
   // thanh cái đường vòng: ghi theo đỉnh đầu (tools/phuong-thuc-van-hanh.mjs)
   const vong = new Set((s.vong ?? []).map(([x, y]) => `${x}|${y}`));
+  const kvCuon = new Map((s.kvCuon ?? []).map(([x, y, ...kv]) => [`${x}|${y}`, kv as VoltageKv[]]));
 
   for (const row of s.b) {
     const layer = data.layers[row[0]] ?? '0';
@@ -160,6 +163,8 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
     const sl = data.srcLayers[row[8]];
     if (sl) d.srcLayer = sl;
     if (row[9]) d.mirror = true;
+    const kc = kvCuon.get(`${row[3]}|${row[4]}`);
+    if (kc) d.kvCuon = kc;
     put(d);
   }
 

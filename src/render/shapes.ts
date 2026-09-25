@@ -1,14 +1,15 @@
 import type { DocStore } from '../core/doc';
-import type { Entity, Pt, DeviceEntity, BranchEntity, SubstationEntity } from '../core/types';
+import type { Entity, Pt, DeviceEntity, BranchEntity, SubstationEntity, VoltageKv } from '../core/types';
 import { emptyBox, growBox, type Box, dist, distToSeg } from '../core/geom';
 import { getBlock, primsFor } from '../symbols/blocks';
 import { rotate } from '../core/geom';
 
 /** Mot thao tac ve trong toa do THE GIOI (chua doi sang man hinh). */
+/** `kv`: nét vẽ riêng một cấp điện áp (cuộn dây máy biến áp), bỏ trống = theo đối tượng. */
 export type WOp =
-  | { t: 'path'; pts: Pt[]; close?: boolean; fill?: boolean }
-  | { t: 'circle'; c: Pt; r: number; fill?: boolean }
-  | { t: 'arc'; c: Pt; r: number; a0: number; a1: number }
+  | { t: 'path'; pts: Pt[]; close?: boolean; fill?: boolean; kv?: VoltageKv }
+  | { t: 'circle'; c: Pt; r: number; fill?: boolean; kv?: VoltageKv }
+  | { t: 'arc'; c: Pt; r: number; a0: number; a1: number; kv?: VoltageKv }
   | { t: 'text'; p: Pt; s: string; h: number; align: 'left' | 'center' | 'right'; rot: number };
 
 /** Lay danh sach diem cua mot nhanh tu cac nut. */
@@ -32,7 +33,9 @@ export function deviceOps(d: DeviceEntity): WOp[] {
     return { x: r.x + d.p.x, y: r.y + d.p.y };
   };
   const ops: WOp[] = [];
+  const cuon = d.kvCuon?.length && def.cuonCuaPrim ? def.cuonCuaPrim : null;
   for (const p of primsFor(def, d.state)) {
+    const n0 = ops.length;
     switch (p.t) {
       case 'line':
       case 'poly': {
@@ -57,6 +60,12 @@ export function deviceOps(d: DeviceEntity): WOp[] {
         // Chu trong block luon ve xuoi chieu, khong lat guong.
         ops.push({ t: 'text', p: tx(p.p[0], p.p[1]), s: p.s, h: p.h * s, align: 'left', rot: 0 });
         break;
+    }
+    // nét thuộc cuộn dây nào thì mang cấp điện áp của cuộn đó
+    if (cuon && ops.length > n0) {
+      const kv = d.kvCuon?.[cuon[def.prims.indexOf(p)] ?? -1];
+      const op = ops[ops.length - 1];
+      if (kv !== undefined && op.t !== 'text') op.kv = kv;
     }
   }
   // May cat (hop bo) dang dong: to dac than may cat; dang cat de rong - nhin hinh

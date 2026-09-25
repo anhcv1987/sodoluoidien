@@ -56,6 +56,11 @@ export interface BlockDef {
    * ap co hai hoac ba cuc theo so cuon day.
    */
   cuc: [number, number][];
+  /**
+   * Máy biến áp: nét vẽ thuộc cuộn dây nào (theo thứ tự `cuc`) - để tô mỗi cuộn dây
+   * một màu theo cấp điện áp của cuộn đó (DeviceEntity.kvCuon).
+   */
+  cuonCuaPrim?: number[];
   /** Cac cuc khi thiet bi o trang thai MO (hinh ve khac nen dai ngan khac). */
   cucMo?: [number, number][];
   /** Co to dac khi dang dong hay khong (may cat). */
@@ -228,7 +233,10 @@ const CAD_TU3P: Prim[] = [
 ];
 
 
-/** MBA 110-35-22: ba cuon day (110 dau Y, 35 dau tam giac, 22 dau Y). */
+/**
+ * MBA 110-35-22: ba cuon day (110 dau Y, 35 dau tam giac, 22 dau Y). Cuon cao ap co
+ * mui ten dieu ap duoi tai (nam gon trong khung ky hieu, khong doi co ky hieu).
+ */
 const CAD_MBA3: Prim[] = [
   C(21.91, 0, 21.91),
   L(21.91, 0, 24.418, -13.893),
@@ -240,7 +248,11 @@ const CAD_MBA3: Prim[] = [
   L(22.512, -34.319, 25.02, -48.212),
   L(22.512, -34.319, 32.572, -24.41),
   L(22.512, -34.319, 10.189, -30.191),
+  L(4, -13, 40, 14),
+  L(33.4, 13.2, 40, 14, 37.2, 8.2),
 ];
+/** Cuộn dây của từng nét trong CAD_MBA3: 0 = cao áp, 1 = cuộn phải, 2 = cuộn dưới. */
+const CUON_MBA3 = [0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 0, 0];
 
 /** MBA 2 cuon (lay theo ty le cua MBA 110-35-22, cuon tren Y, cuon duoi tam giac). */
 const CAD_MBA2: Prim[] = [
@@ -250,7 +262,10 @@ const CAD_MBA2: Prim[] = [
   L(0, 0, -12.323, 4.128),
   C(0, -34.319, 21.91),
   P(true, false, -12.5, -27.5, 12.5, -27.5, 0, -47.5),
+  L(-18, -13, 18, 14),
+  L(11.4, 13.2, 18, 14, 15.2, 8.2),
 ];
+const CUON_MBA2 = [0, 0, 0, 0, 1, 1, 0, 0];
 
 /** MBA phan phoi 22/0,4kV (hai vong tron nho). */
 const CAD_MBAPP: Prim[] = [C(0, -6.423, 6.423), C(-0.061, -14.663, 6.423)];
@@ -358,6 +373,7 @@ function make(
     openRot?: number;
     fillWhenClosed?: boolean;
     cuc?: [number, number][];
+    cuonCuaPrim?: number[];
     source: string;
   },
 ): BlockDef {
@@ -379,6 +395,7 @@ function make(
     source: opts.source,
   };
   if (opts.fillWhenClosed) def.fillWhenClosed = true;
+  if (opts.cuonCuaPrim) def.cuonCuaPrim = opts.cuonCuaPrim;
   if (opts.open) {
     // Hinh "mo" phai dung CHUNG he toa do voi hinh "dong": cung goc xoay chuan hoa,
     // cung phep doi tam. Neu chuan hoa rieng thi hai trang thai lech nhau 90 do va
@@ -488,6 +505,7 @@ export const BLOCKS: BlockDef[] = [
       [-0.704, -0.919],
     ],
     source: 'CAD: block "MBA 110-35-22"',
+    cuonCuaPrim: CUON_MBA3,
   }),
   make('MBA2', 'MBA 2 cuộn dây', 'MBA', 'Máy biến áp - Bù', CAD_MBA2, {
     cuc: [
@@ -495,6 +513,7 @@ export const BLOCKS: BlockDef[] = [
       [0, -0.919],
     ],
     source: 'Theo tỷ lệ block "MBA 110-35-22"',
+    cuonCuaPrim: CUON_MBA2,
   }),
   make('MBAPP', 'MBA phân phối', 'MBA', 'Máy biến áp - Bù', CAD_MBAPP, {
     source: 'CAD: block "MBA phân phối 22-0.4"',

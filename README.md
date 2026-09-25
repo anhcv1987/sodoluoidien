@@ -672,6 +672,24 @@ thiếu hoặc lẫn ký tự thừa); mã trạm giữ nguyên:
 | E6.16 | Trạm 220kV Phú Bình | TRẠM 220KV PHÚ BÌNH |
 | E6.25 | Trạm 220kV Phú Bình 2 | TRẠM 220KV PHÚ BÌNH 2 |
 
+#### Màu cuộn dây máy biến áp 110kV
+
+Mỗi cuộn dây máy biến áp tô **màu theo cấp điện áp của cuộn đó** (như E6.8: cuộn 110kV
+đỏ, 35kV vàng, 22kV xanh dương, 6kV xanh lá, 10kV nâu). `tools/ra-soat-mba.mjs` đọc nhãn
+tỷ số cạnh máy (vd "T1: 63000kVA 115/38,5/23 kV", "T2: 63000kVA 115/23/(6,3) kV",
+"MBA T1: 63/63/21 MVA 115/23/11 kV") rồi gán cấp cho từng cuộn:
+
+* cuộn có dây trung áp đấu vào giữ cấp của dây; cuộn còn lại (cuộn tam giác 38,5kV,
+  11kV, 6,3kV chỉ đấu chống sét van hoặc để hở) lấy cấp còn lại trong nhãn - sửa
+  E6.4 T1 (cuộn Δ 38,5kV), E6.4 T2 (Δ 6,3kV), E6.14 T4 và E6.23 T1, T2 (cuộn 11kV),
+  E26.2 T1;
+* **20 máy vẽ bằng block** (E6.5, E6.6, E6.7, E6.11, E6.12, E6.14, E6.18, E6.19,
+  E6.21, E6.22, E6.24) trước đây tô một màu đỏ: nay mỗi cuộn một màu, cuộn cao áp có
+  thêm mũi tên điều áp dưới tải; máy tự ngẫu 220kV (AT) giữ nguyên;
+* dây trung tính, chống sét van đấu vào cuộn đổi màu theo cuộn.
+
+Xuất DXF / SVG cũng giữ màu từng cuộn.
+
 #### Đầu trạm 110kV vẽ ba nét song song
 
 Đầu ra đường dây của ngăn lộ 110kV ở một số trạm vẽ bằng **ba nét song song**: nét giữa
@@ -746,6 +764,7 @@ python3 tools/tach-so-do-tram.py tong.dxf tram/ --min-x 999999999 \
 node tools/dung-du-lieu-tram.mjs tram/ src/data/tram-sld.json
 node tools/chuan-hoa-dcl-lien-dong.mjs src/data/tram-sld.json
 node tools/ra-soat-cap-dien-ap.mjs src/data/tram-sld.json
+node tools/ra-soat-mba.mjs src/data/tram-sld.json
 node tools/bo-net-dau-tram.mjs src/data/tram-sld.json
 node tools/noi-duong-day-110.mjs src/data/tram-sld.json
 node tools/phuong-thuc-van-hanh.mjs src/data/tram-sld.json
@@ -836,6 +855,7 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  ra-soat-cap-dien-ap.mjs — sửa màu (cấp điện áp) vẽ nhầm lớp theo liên kết điện
                  phuong-thuc-van-hanh.mjs — đặt các máy cắt cắt theo kết dây cơ bản, sửa tên trạm
                  bo-net-dau-tram.mjs    — bỏ 2 nét thừa ở đầu trạm 110kV ký hiệu 3 nét song song
+                 ra-soat-mba.mjs        — gán cấp điện áp (màu) từng cuộn dây MBA theo nhãn tỷ số
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật
                  noi-duong-day-110.mjs  — nối đường dây 110kV giữa các trạm (A*)
                  kiem-cap-dien-ap.mjs   — rà soát cấp điện áp theo số hiệu ngăn lộ

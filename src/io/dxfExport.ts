@@ -1,7 +1,7 @@
 import type { DocStore } from '../core/doc';
 import type { Entity, VoltageKv } from '../core/types';
 import { entityOps, kheCat } from '../render/shapes';
-import { MAU_KXD_IN } from '../core/voltage';
+import { colorOf, MAU_KXD_IN } from '../core/voltage';
 
 /**
  * Xuat ban ve ra DXF R12 (ASCII) - dinh dang moi phan mem CAD deu doc duoc
@@ -152,6 +152,7 @@ export function exportDxf(store: DocStore): string {
               w.g(0, 'LINE');
               w.g(8, layer);
               if (kxd) w.g(62, 30);
+              else if (op.kv !== undefined) w.g(62, aci(op.kv));
               w.g(10, a.x + (b.x - a.x) * t0);
               w.g(20, a.y + (b.y - a.y) * t0);
               w.g(30, 0);
@@ -166,6 +167,7 @@ export function exportDxf(store: DocStore): string {
           if (op.r <= 0) break;
           w.g(0, 'CIRCLE');
           w.g(8, layer);
+          if (op.kv !== undefined) w.g(62, aci(op.kv));
           w.g(10, op.c.x);
           w.g(20, op.c.y);
           w.g(30, 0);
@@ -258,7 +260,7 @@ export function exportSvg(store: DocStore, colorFor: (e: Entity) => string): str
   const body: string[] = [];
   for (const e of ents) {
     const kxd = e.kind === 'device' && e.state === 'khong-xac-dinh';
-    const color = kxd ? MAU_KXD_IN : colorFor(e);
+    const mau = kxd ? MAU_KXD_IN : colorFor(e);
     const net = kxd ? ' stroke-dasharray="0.6 0.45"' : '';
     // Dao cách ly đang cắt: che phần dây trong khe hở bằng màu nền trắng
     const khe = e.kind === 'device' ? kheCat(e) : null;
@@ -268,6 +270,8 @@ export function exportSvg(store: DocStore, colorFor: (e: Entity) => string): str
       );
     }
     for (const op of entityOps(store, e)) {
+      // cuộn dây máy biến áp: màu theo cấp điện áp của cuộn
+      const color = op.t !== 'text' && op.kv !== undefined && !kxd ? colorOf(op.kv, true) : mau;
       if (op.t === 'path' && op.pts.length >= 2) {
         for (const p of op.pts) {
           minX = Math.min(minX, p.x);

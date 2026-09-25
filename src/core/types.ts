@@ -136,6 +136,11 @@ export interface DeviceEntity extends EntityBase {
   scale: number;
   /** Lat guong theo truc doc cua block (CAD dung he so ty le am). */
   mirror?: boolean;
+  /**
+   * May bien ap: cap dien ap tung cuon day (theo thu tu cuc: cao ap, cuon phai, cuon
+   * duoi) - moi cuon to mot mau. Bo trong thi ca ky hieu mot mau theo `kv`.
+   */
+  kvCuon?: VoltageKv[];
   /** Nhan thiet bi: "131", "471-7", "DCL 371-7". */
   label?: string;
   /** Trang thai dong/mo (chi co y nghia voi thiet bi dong cat). */

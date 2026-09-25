@@ -1,6 +1,6 @@
 import type { DocStore } from '../core/doc';
-import type { Entity, Pt, SubstationEntity, BranchEntity } from '../core/types';
-import { colorOf, MAU_KXD, MAU_KXD_IN, styleOf } from '../core/voltage';
+import type { Entity, Pt, SubstationEntity, BranchEntity, VoltageKv } from '../core/types';
+import { colorOf, layerOf, MAU_KXD, MAU_KXD_IN, styleOf } from '../core/voltage';
 import type { Box } from '../core/geom';
 import { Index2D, type Indexed } from './index2d';
 import { branchPoints, entityBox, entityOps, kheCat, type WOp } from './shapes';
@@ -343,7 +343,15 @@ export class Renderer {
       }
     }
 
+    // Cuộn dây máy biến áp: mỗi cuộn một màu theo cấp điện áp (trừ khi đang chọn)
+    const mauRieng = e.kind === 'device' && !!e.kvCuon?.length && !state.selected.has(e.id);
+    const mauKv = (kv: VoltageKv): string => this.store.layer(layerOf(kv))?.color ?? colorOf(kv, this.opt.printMode);
     for (const op of ops) {
+      if (mauRieng && op.t !== 'text') {
+        const m = op.kv !== undefined ? mauKv(op.kv) : st.color;
+        ctx.strokeStyle = m;
+        ctx.fillStyle = m;
+      }
       switch (op.t) {
         case 'path': {
           if (op.pts.length < 2) break;

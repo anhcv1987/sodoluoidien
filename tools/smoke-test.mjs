@@ -209,6 +209,22 @@ check('Dao cách ly đều Đóng, trừ dao thanh cái đường vòng (-9) C�
 check('Có khung chú giải trạng thái thiết bị', tt0.chuGiai === 12, `${tt0.chuGiai} ký hiệu mẫu`);
 check('Chế độ xem không đổi được trạng thái thiết bị', tt0.doi === 0 && tt0.dtdSt === 'mo');
 
+/* ---------------- Màu cuộn dây máy biến áp ---------------- */
+
+const mba = await page.evaluate(() => {
+  const a = window.sodo;
+  const ds = a.store.entities.filter((e) => e.kind === 'device' && /^MBA[23]$/.test(e.block) && e.kvCuon?.length);
+  const e67 = ds.find((e) => Math.hypot(e.p.x + 2295.66, e.p.y + 5977.96) < 1);
+  // cuộn tam giác 6,3kV của T2 E6.4 (vẽ bằng vòng tròn) tô màu 6kV
+  const t2e64 = a.store.entities.find((e) => e.kind === 'circle' && Math.hypot(e.c.x + 1967.85, e.c.y + 139.02) < 1);
+  return { so: ds.length, e67: e67?.kvCuon?.join('/'), t2e64: t2e64?.kv };
+});
+check(
+  'Máy biến áp 110kV tô màu từng cuộn dây theo cấp điện áp',
+  mba.so >= 18 && mba.e67 === '110/35/22' && mba.t2e64 === 6,
+  `${mba.so} block MBA, T1 E6.7 ${mba.e67}, cuộn Δ T2 E6.4 ${mba.t2e64}kV`,
+);
+
 /* ---------------- Phương thức vận hành, khung tên, công suất chạy ---------------- */
 
 const pt = await page.evaluate(() => {
