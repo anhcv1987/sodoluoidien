@@ -129,6 +129,8 @@ Nhật ký thao tác và cảnh báo liên động chưa làm ở đợt này.
 
 **Phương thức vận hành cơ bản** (theo kết dây): **MC 171 Thịnh Đán (E6.4), MC 112
 Xi măng Thái Nguyên (E6.8), MC 171 Định Hóa (E6.22)** đặt ở trạng thái **Cắt**.
+Ngoài ra **51 dao cách ly nối thanh cái đường vòng (nhãn “xxx-9”)** ở E6.2, E6.16,
+E6.20, E6.25 đặt **Cắt** theo phương thức bình thường (đóng lại khi dùng máy cắt vòng).
 Danh sách ghi trong `tools/phuong-thuc-van-hanh.mjs` (tìm theo nhãn ngăn lộ trong
 đúng trạm, lấy máy cắt gần nhãn nhất) - sửa bảng `CAT` ở đầu file rồi chạy lại
 `node tools/phuong-thuc-van-hanh.mjs` khi phương thức thay đổi. Công cụ cũng đổi tên
@@ -148,6 +150,16 @@ Dùng được cả ở chế độ xem, vẫn kéo / phóng bản vẽ bình th
 * Gặp **thiết bị đang cắt** - máy cắt, máy cắt hợp bộ, **dao cách ly** (kể cả khi nét
   dây vẽ liền xuyên qua ký hiệu dao) - vạch sáng **dừng lại** ở đó, có vòng tròn
   màu cam nhấp nháy đánh dấu. Mạch vòng thì hai dòng gặp nhau ở giữa.
+* **Tách hai đầu thì đoạn giữa mất điện**: đoạn dây, ngăn lộ, phân đoạn thanh cái bị
+  cắt ra khỏi lưới có điện bằng thiết bị đang cắt thì không có công suất chạy (không
+  lấy thanh cái của đoạn đó làm nguồn riêng). Chỉ mạch nào không nối được về lưới vì
+  bản vẽ đứt nét mới lấy thanh cái cấp cao nhất của mạch làm nguồn.
+* Dây **vắt qua** thanh cái không phải là đấu nối: trạm vẽ có chấm đấu nối (vòng tròn
+  nhỏ / block chấm) thì chỗ cắt không có chấm là vắt qua; trạm không dùng chấm thì chỉ
+  chỗ dây cắt sát đầu thanh cái mới là đấu nối. Nét nằm ngang ngắn của ký hiệu nối
+  đất, ký hiệu TU không còn bị nhận nhầm là thanh cái (nguồn).
+* Tốc độ chạy 42 điểm ảnh/giây (bằng 0,6 lần bản đầu) - chỉnh ở `tocDo` trong
+  `src/render/chayCongSuat.ts`.
 * Nhánh cụt không mang tải (tới dao tiếp địa, chống sét van, TU, TUC…) không có
   vạch chạy; xuất tuyến có máy cắt thì vẫn chạy tới cuối dù kết thúc bằng dao tiếp
   địa đầu cáp. Máy biến áp (kể cả MBA phân phối, tự dùng) là phụ tải: công suất

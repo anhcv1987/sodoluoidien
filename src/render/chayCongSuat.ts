@@ -21,8 +21,8 @@ export class ChayCongSuat {
   private raf = 0;
   private batDau = 0;
   private mo: { sheet: string; rev: number; d: DongCongSuat } | null = null;
-  /** Tốc độ chạy (điểm ảnh / giây). */
-  tocDo = 70;
+  /** Tốc độ chạy (điểm ảnh / giây) - chậm vừa mắt khi trình chiếu (0,6 lần bản đầu). */
+  tocDo = 42;
   /** Được gọi sau khi tính lại chiều công suất (để báo số liệu). */
   onTinh?: (d: DongCongSuat, ms: number) => void;
 

@@ -442,6 +442,84 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     return tot < 0 ? null : [chiaTai(tot, tt), tot];
   };
 
+  /** Số nhánh dây toả ra từ một điểm (dây đi xuyên qua tính 2, đầu dây tính 1). */
+  const soNhanh = (p: Pt): number => {
+    const e = saiSo * 0.3;
+    let n = 0;
+    for (const s of luoi.quanh(p.x, p.y, e)) {
+      const a = A(s);
+      const b = B(s);
+      const [t, d] = chieu(p.x, p.y, a.x, a.y, b.x, b.y);
+      if (d > e) continue;
+      const L = Math.hypot(b.x - a.x, b.y - a.y);
+      n += t * L <= e || (1 - t) * L <= e ? 1 : 2;
+    }
+    return n;
+  };
+
+  /* --- chấm đấu nối (vòng tròn nhỏ) --- */
+  const luoiCham = new LuoiO(Math.max(co / 300, saiSo * 4));
+  // vòng tròn nhỏ, hoặc block "35-Cot" (chấm tròn đặc) đặt tại chỗ nối
+  const cham: { c: Pt; r: number }[] = [
+    ...entities.filter((e): e is CircleEntity => e.kind === 'circle' && e.r < 5),
+    ...devices.filter((d) => d.block === 'COT').map((d) => ({ c: d.p, r: d.scale * 0.2 })),
+    // có trạm vẽ chấm nối bằng block vòng tròn (nhập về thành TI): TI đặt đúng chỗ
+    // rẽ chữ T (từ 3 nhánh dây trở lên gặp nhau tại tâm) là chấm đấu nối
+    ...devices.filter((d) => d.block === 'TI' && soNhanh(d.p) >= 3).map((d) => ({ c: d.p, r: saiSo * 0.5 })),
+  ];
+  cham.forEach((c, i) => luoiCham.them(c.c.x, c.c.y, c.c.x, c.c.y, i));
+  const coCham = (x: number, y: number): boolean => {
+    for (const i of luoiCham.quanh(x, y, saiSo * 2)) {
+      const c = cham[i];
+      if (Math.hypot(c.c.x - x, c.c.y - y) <= c.r + saiSo * 0.5) return true;
+    }
+    return false;
+  };
+
+  /**
+   * Tuyến có vẽ chấm đấu nối ở đâu đó trên nó không. Trạm vẽ theo kiểu có chấm (vd
+   * E6.20) thì chỗ dây cắt qua thanh cái mà KHÔNG có chấm là dây vắt qua; trạm vẽ
+   * không dùng chấm (vd E6.4) thì dây cắt qua thanh cái là đấu vào thanh cái.
+   */
+  const tuyenCoCham = new Set<number>();
+  for (const c of cham) {
+    for (const s of luoi.quanh(c.c.x, c.c.y, saiSo)) {
+      const a = A(s);
+      const b = B(s);
+      if (chieu(c.c.x, c.c.y, a.x, a.y, b.x, b.y)[1] <= c.r + saiSo * 0.5) tuyenCoCham.add(doanTuyen[s]);
+    }
+  }
+
+  /**
+   * Đầu p của tuyến i chạm tuyến j - nhưng có một nét khác đi XUYÊN qua p và kéo
+   * tiếp sang phía bên kia tuyến j theo đúng hướng của tuyến i: đó là dây vẽ thành
+   * nhiều đoạn chồng nhau đi ngang qua (không có chấm đấu nối), không phải rẽ nhánh.
+   */
+  const vatQua = (i: number, p: Pt, j: number): boolean => {
+    const q = tuyen[i].p;
+    const k0 = q[0] === p ? 1 : q[q.length - 1] === p ? q.length - 2 : -1;
+    if (k0 < 0) return false;
+    const dx = p.x - q[k0].x;
+    const dy = p.y - q[k0].y;
+    const L = Math.hypot(dx, dy);
+    if (L < 1e-9) return false;
+    const x = p.x + (dx / L) * saiSo * 1.5;
+    const y = p.y + (dy / L) * saiSo * 1.5;
+    const e = saiSo * 0.3;
+    for (const s of luoi.quanh(p.x, p.y, saiSo * 2)) {
+      const k = doanTuyen[s];
+      if (k === i || k === j) continue;
+      const a = A(s);
+      const b = B(s);
+      const [t, d] = chieu(p.x, p.y, a.x, a.y, b.x, b.y);
+      const Ls = Math.hypot(b.x - a.x, b.y - a.y);
+      // p nằm GIỮA đoạn của tuyến k (không phải đầu mút) và đoạn đó kéo qua phía kia
+      if (d > e || t * Ls <= e || (1 - t) * Ls <= e) continue;
+      if (chieu(x, y, a.x, a.y, b.x, b.y)[1] <= e) return true;
+    }
+    return false;
+  };
+
   /* --- chữ T: đỉnh của tuyến này chạm vào giữa tuyến khác --- */
   // Bản vẽ CAD nhiều chỗ để hụt vài đơn vị giữa đầu thanh cái và ngăn lộ: nới thêm.
   const saiSoT = saiSo * 1.5;
@@ -451,7 +529,21 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     const ds = t.b.khongNoiGiua ? [t.p[0], t.p[t.p.length - 1]] : t.p;
     for (const p of ds) {
       const u = dinh(p.x, p.y);
-      for (const s of luoi.quanh(p.x, p.y, saiSoT)) {
+      // Chỉ nới sai số cho đầu dây TỰ DO (không nối tiếp với nét nào): đầu dây đã
+      // nối tiếp nét khác là chỗ dây vẽ thành nhiều đoạn đi ngang qua, nới ra sẽ
+      // "hàn" nhầm vào thanh cái nó vắt qua.
+      let tuDo = true;
+      for (const s of luoi.quanh(p.x, p.y, saiSo * 0.3)) {
+        if (doanTuyen[s] === i) continue;
+        const a = A(s);
+        const b = B(s);
+        if (chieu(p.x, p.y, a.x, a.y, b.x, b.y)[1] <= saiSo * 0.3) {
+          tuDo = false;
+          break;
+        }
+      }
+      const lim = tuDo ? saiSoT : saiSo;
+      for (const s of luoi.quanh(p.x, p.y, lim)) {
         const j = doanTuyen[s];
         if (j === i) continue;
         const a = A(s);
@@ -461,11 +553,12 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
           const q = tuyen[j].p;
           const dau = doanSo[s] === 0 ? a : null;
           const cuoi = doanSo[s] === q.length - 2 ? b : null;
-          for (const e of [dau, cuoi]) if (e && Math.hypot(e.x - p.x, e.y - p.y) <= saiSoT) noi(u, dinh(e.x, e.y));
+          for (const e of [dau, cuoi]) if (e && Math.hypot(e.x - p.x, e.y - p.y) <= lim) noi(u, dinh(e.x, e.y));
           continue;
         }
         const [tt, d] = chieu(p.x, p.y, a.x, a.y, b.x, b.y);
-        if (d <= saiSoT) {
+        if (d <= lim) {
+          if (tuyenCoCham.has(j) && vatQua(i, p, j) && !coCham(p.x, p.y)) continue;
           noi(u, chiaTai(s, tt));
           reVao[j].add(i);
         }
@@ -473,7 +566,10 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     }
   });
 
-  /* --- ngăn lộ vẽ cắt ngang qua thanh cái (nét dây liền vắt qua thanh cái) --- */
+  /* --- ngăn lộ vẽ cắt ngang qua thanh cái (nét dây liền vắt qua thanh cái) ---
+   * Thanh cái có vẽ chấm đấu nối thì chỉ tính là đấu nối khi có chấm tại chỗ cắt;
+   * không có chấm là dây đi ngang qua (vd lộ 175 E6.20 đi Thịnh Đán vắt qua thanh
+   * cái đường vòng rồi mới ra đường dây). */
   for (let s = 0; s < doanTuyen.length; s++) {
     const tb = tuyen[doanTuyen[s]].b;
     if (tb.lineKind !== 'Thanh cái') continue;
@@ -496,6 +592,18 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / den;
       const u = ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)) / den;
       if (t < 0 || t > 1 || u < 0 || u > 1) continue;
+      const X = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      if (!coCham(X.x, X.y)) {
+        // Không có chấm: chỉ coi là đấu nối khi thanh cái vẽ kiểu không dùng chấm VÀ
+        // chỗ cắt ở sát đầu thanh cái (thanh cái kéo lố qua ngăn lộ cuối vài đơn vị,
+        // vd C12 E6.4). Dây cắt ngang GIỮA thanh cái là dây vắt qua (vd các ngăn lộ
+        // vắt qua thanh cái đường vòng C19 E6.2).
+        if (tuyenCoCham.has(doanTuyen[s])) continue;
+        const q = tuyen[doanTuyen[s]].p;
+        const dau = q[0];
+        const cuoi = q[q.length - 1];
+        if (Math.min(Math.hypot(X.x - dau.x, X.y - dau.y), Math.hypot(X.x - cuoi.x, X.y - cuoi.y)) > saiSo * 3) continue;
+      }
       noi(chiaTai(s, t), chiaTai(s2, u));
     }
   }
@@ -533,6 +641,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   const diemThietBi = new Set<number>(); // đỉnh có bắt cực thiết bị
   const cucCat = new Set<number>(); // cực của thiết bị đang cắt
   const cucMayCat = new Set<number>(); // cực của máy cắt đang đóng
+  const capCat: [number, number][] = []; // hai cực của từng thiết bị đang cắt
   const doanCat: [number, number, number, number][] = []; // khoảng dây nằm giữa hai cực thiết bị cắt
   const cucTreo: { v: number; x: number; y: number; dev: Id; r: number }[] = [];
   const tatCaCuc: { v: number; x: number; y: number; dev: Id }[] = [];
@@ -603,6 +712,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     if (dinhCuc.length >= 2) {
       const [u, v] = dinhCuc;
       doanCat.push([vx[u], vy[u], vx[v], vy[v]]);
+      capCat.push([u, v]);
     }
   }
 
@@ -731,24 +841,68 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   const laThanhCai = (i: number): boolean => {
     const t = tuyen[i];
     if (t.b.lineKind === 'Thanh cái') return true;
-    if (t.b.khongNoiGiua || t.p.length !== 2 || reVao[i].size < 3) return false;
-    const [a, b] = t.p;
-    return Math.abs(a.y - b.y) <= Math.abs(a.x - b.x) * 0.01;
+    if (t.b.khongNoiGiua || reVao[i].size < 3) return false;
+    // một nét thẳng nằm ngang (có thể nhiều đỉnh thẳng hàng), đủ dài - nét ký hiệu
+    // nối đất, ký hiệu TU cũng nằm ngang và có nét chạm vào nhưng rất ngắn
+    const xs = t.p.map((q) => q.x);
+    const ys = t.p.map((q) => q.y);
+    const w = Math.max(...xs) - Math.min(...xs);
+    if (w < saiSo * 10) return false;
+    return Math.max(...ys) - Math.min(...ys) <= w * 0.01;
   };
   // Nguồn: đỉnh trên thanh cái cấp điện áp cao nhất của mỗi mạch (ưu tiên 220kV)
   const capCao = new Float64Array(soMach).fill(-1);
-  const dinhThanhCai: [number, number][] = [];
+  const dinhThanhCai: [number, number, boolean][] = [];
   for (let s = 0; s < doanTuyen.length; s++) {
     const b = tuyen[doanTuyen[s]].b;
     if (!laThanhCai(doanTuyen[s])) continue;
     for (const v of chia.get(s)?.values() ?? []) {
       if (mach[v] < 0) continue;
-      dinhThanhCai.push([v, b.kv]);
+      dinhThanhCai.push([v, b.kv, b.srcLayer === 'Trạm ngoài tỉnh']);
       capCao[mach[v]] = Math.max(capCao[mach[v]], b.kv);
     }
   }
+  // Nguồn chính: thanh cái 220kV. Mạch không nối được về 220kV (bản vẽ đứt nét) thì
+  // lấy thanh cái cấp cao nhất của mạch làm nguồn - TRỪ mạch bị TÁCH khỏi lưới có
+  // điện bằng thiết bị đang cắt (cắt hai đầu một đoạn dây, cắt dao hai phía một
+  // ngăn…): đoạn đó mất điện, không được coi là có nguồn riêng.
   const nguon = new Set<number>();
-  for (const [v, kv] of dinhThanhCai) if (kv >= 110 && (kv === capCao[mach[v]] || kv >= 220)) nguon.add(v);
+  const coNguon = new Uint8Array(soMach);
+  for (const [v, kv, ngoai] of dinhThanhCai) {
+    // thanh cái 220kV, và thanh cái các trạm 220kV ngoài tỉnh (chỉ vẽ phía 110kV)
+    if (kv >= 220 || ngoai) {
+      nguon.add(v);
+      coNguon[mach[v]] = 1;
+    }
+  }
+  const biTach = new Uint8Array(soMach);
+  {
+    const keCat = new Map<number, number[]>();
+    for (const [u, v] of capCat) {
+      const a = mach[u];
+      const b = mach[v];
+      if (a < 0 || b < 0 || a === b) continue;
+      (keCat.get(a) ?? keCat.set(a, []).get(a)!).push(b);
+      (keCat.get(b) ?? keCat.set(b, []).get(b)!).push(a);
+    }
+    const hangM: number[] = [];
+    for (let m = 0; m < soMach; m++) if (coNguon[m]) hangM.push(m);
+    const tham = new Uint8Array(soMach);
+    for (const m of hangM) tham[m] = 1;
+    while (hangM.length) {
+      const m = hangM.pop() as number;
+      for (const m2 of keCat.get(m) ?? []) {
+        if (tham[m2]) continue;
+        tham[m2] = 1;
+        biTach[m2] = 1;
+        hangM.push(m2);
+      }
+    }
+  }
+  for (const [v, kv] of dinhThanhCai) {
+    const m = mach[v];
+    if (!coNguon[m] && !biTach[m] && kv >= 110 && kv === capCao[m]) nguon.add(v);
+  }
 
   /* ---------- 6. Dijkstra đa nguồn ---------- */
   const kc = new Float64Array(n).fill(Infinity);

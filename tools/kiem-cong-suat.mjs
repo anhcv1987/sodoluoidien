@@ -37,7 +37,7 @@ s.b.forEach((r, i) => {
     diem.set(id, { x: r[k], y: r[k + 1] });
     nodes.push(id);
   }
-  const b = { id: `b${i}`, kind: 'branch', layer: data.layers[r[0]], kv: r[1], nodes, lineKind: data.lineKinds[r[2]] };
+  const b = { id: `b${i}`, kind: 'branch', layer: data.layers[r[0]], kv: r[1], nodes, lineKind: data.lineKinds[r[2]], srcLayer: data.srcLayers[r[3]] };
   if (data.srcLayers[r[3]] === 'Kết lưới 110kV') b.khongNoiGiua = true;
   ents.push(b);
 });

@@ -7,6 +7,9 @@
  * thiết bị CẮT theo kết dây cơ bản của Phòng Điều độ ghi trong bảng CAT dưới đây:
  * tìm theo nhãn ngăn lộ trong đúng trạm, lấy máy cắt gần nhãn nhất. Chạy lại bao nhiêu
  * lần cũng được.
+ *
+ * Ngoài ra mọi dao cách ly nối thanh cái đường vòng (nhãn "xxx-9") đặt CẮT - đúng
+ * phương thức bình thường; Phòng đóng lại trên phần mềm khi dùng máy cắt vòng.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -54,6 +57,31 @@ for (const [ma, nhan, ten] of CAT) {
   }
   console.log(`  ${ten}: CẮT`);
 }
+
+// Dao cách ly nối thanh cái ĐƯỜNG VÒNG (nhãn "xxx-9"): bình thường cắt, chỉ đóng khi
+// dùng máy cắt vòng thay cho máy cắt ngăn lộ. Để đóng thì đường dây "hai đầu đã cắt"
+// vẫn có điện qua thanh cái vòng.
+const iDCL = data.blocks.indexOf('DCL');
+let dao9 = 0;
+for (const t of s.t) {
+  const nhan = String(t[8]).trim();
+  if (!/^(\d{3}\s*)?-\s*9$/.test(nhan)) continue;
+  const h = t[4];
+  // tâm dòng chữ (chữ canh trái: điểm chèn ở đầu dòng)
+  const cx = t[2] + (data.aligns[t[6]] === 'left' || t[6] === undefined ? nhan.length * h * 0.3 : 0);
+  const cy = t[3] + h * 0.5;
+  let tot = null;
+  for (const r of s.d) {
+    if (r[2] !== iDCL || tram(r[3], r[4]) !== tram(t[2], t[3])) continue;
+    const d = Math.hypot(r[3] - cx, r[4] - cy);
+    if (d <= h * 2.5 + r[6] * 0.6 && (!tot || d < tot.d)) tot = { d, r };
+  }
+  if (tot && tot.r[7] !== iMo) {
+    tot.r[7] = iMo;
+    dao9++;
+  }
+}
+console.log(`  Dao cách ly thanh cái đường vòng (-9): cắt thêm ${dao9}`);
 
 let chu = 0;
 for (const [cu, moi] of DOI_CHU) {

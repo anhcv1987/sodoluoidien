@@ -205,7 +205,7 @@ const tt0 = await page.evaluate(() => {
   const doi = a.ed.doiTrangThai([dtd.id]);
   return { dclCat: dcl.filter((e) => e.state === 'mo').length, soDcl: dcl.length, chuGiai, doi, dtdId: dtd.id, dtdSt: a.store.get(dtd.id).state };
 });
-check('Mọi dao cách ly ban đầu ở trạng thái Đóng', tt0.dclCat === 0 && tt0.soDcl > 500, `${tt0.soDcl} DCL, ${tt0.dclCat} đang cắt`);
+check('Dao cách ly đều Đóng, trừ dao thanh cái đường vòng (-9) Cắt', tt0.dclCat === 51 && tt0.soDcl > 500, `${tt0.soDcl} DCL, ${tt0.dclCat} đang cắt`);
 check('Có khung chú giải trạng thái thiết bị', tt0.chuGiai === 12, `${tt0.chuGiai} ký hiệu mẫu`);
 check('Chế độ xem không đổi được trạng thái thiết bị', tt0.doi === 0 && tt0.dtdSt === 'mo');
 
@@ -286,6 +286,32 @@ const tt1 = await page.evaluate((id) => {
   return { sau, hoan };
 }, tt0.dtdId);
 check('Đổi trạng thái thiết bị và hoàn tác (Ctrl+Z)', tt1.sau === 'dong' && tt1.hoan === 'mo', `${tt1.sau} → hoàn tác → ${tt1.hoan}`);
+
+// Cắt nốt MC 175 E6.20 (MC 171 Thịnh Đán đã cắt): đường dây 175 E6.20 - 171 E6.4
+// tách cả hai đầu -> không còn điện, không có công suất chạy
+const tachHaiDau = await page.evaluate(() => {
+  const a = window.sodo;
+  const mc = a.store.entities.find((e) => e.kind === 'device' && e.block === 'MC' && Math.hypot(e.p.x + 2578.2, e.p.y + 1106.2) < 1);
+  // có khúc công suất đi qua điểm (-2456, 250) trên tuyến đường dây
+  const coDien = () =>
+    a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [x0, y0, x1, y1] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        if (Math.abs(x0 + 2456) < 0.5 && Math.abs(x1 + 2456) < 0.5 && Math.min(y0, y1) <= 250 && Math.max(y0, y1) >= 250) return true;
+      }
+      return false;
+    });
+  const truoc = coDien();
+  a.ed.doiTrangThai([mc.id], 'mo');
+  const sau = coDien();
+  a.store.undo();
+  return { truoc, sau, lai: coDien() };
+});
+check(
+  'Cắt hai đầu đường dây thì đoạn giữa mất điện',
+  tachHaiDau.truoc && !tachHaiDau.sau && tachHaiDau.lai,
+  `trước ${tachHaiDau.truoc}, cắt MC 175 E6.20 ${tachHaiDau.sau}, hoàn tác ${tachHaiDau.lai}`,
+);
 
 /* ---------------- Cong cu ve ---------------- */
 
