@@ -19,8 +19,12 @@ cfg = json.load(open(sys.argv[1]))
 TC = cfg.get('thanh_cai', [])   # vùng thanh cái trạm (chặn, không phải điểm liên thông)
 # đường dẫn PDF: tương đối so với thư mục PDF_DIR (mặc định: thư mục chạy lệnh)
 PDF = os.path.join(os.environ.get('PDF_DIR', '.'), cfg['pdf'])
-G = dothi.dung(PDF, CAM=cfg.get('cam', []), VUNG=list(cfg.get('vung', [])) + TC, MO=cfg.get('mo', []), tu_chan=cfg.get('tu_chan', True))
+# điểm ngắt không có thiết bị (cột dừng, lèo tháo): chặn như thiết bị thường cắt nhưng
+# không nối hai phía, không đặt thiết bị nào thành Cắt
+NGAT = cfg.get('ngat', [])
+G = dothi.dung(PDF, CAM=cfg.get('cam', []), VUNG=list(cfg.get('vung', [])) + TC + NGAT, MO=cfg.get('mo', []), tu_chan=cfg.get('tu_chan', True))
 VUNG_MO = [v for v in G['vung'] if not any(abs(v[0]-t[0])<0.01 and abs(v[1]-t[1])<0.01 for t in TC)]
+la_ngat = lambda v: any(abs(v[0]-t[0])<0.01 and abs(v[1]-t[1])<0.01 for t in NGAT)
 xy, p, M, chieu, ke = G['xy'], G['p'], G['M'], G['chieu'], G['ke']
 bo_chu = [re.compile(r) for r in cfg.get('bo_chu', [])]
 
@@ -101,8 +105,16 @@ for e in tex:
     for u in bien:
         w = abs(xy[u][0] - (x0 + x1) / 2) + 1
         ke[c].append((u, w)); ke[u].append((c, w))
+    # "(Thường cắt)" ghi dưới tên ngăn -> ngăn đó thường cắt
+    ten_mo = [f for f in ngan if RE_MO.match(f['t'])]
+    ngan = [f for f in ngan if not RE_MO.match(f['t'])]
+    ds_ngan = [dict(t=f['t'], x=round(f['x'], 2), y=round(f['y'], 2), h=f['h']) for f in ngan]
+    for m in ten_mo:
+        if ds_ngan: min(ds_ngan, key=lambda g: abs(g['x'] - m['x']) + abs(g['y'] - m['y']))['mo'] = True
+    for g in ds_ngan:
+        if g['t'] in cfg.get('ngan_mo', []): g['mo'] = True
     TU.append(dict(ten=e['t'], khung=[x0, y0, x1, y1], tam=c, tieude=dict(x0=e['x0'], y0=e['y0'], x1=e['x1'], y1=e['y1'], h=e['h'], t=e['t']),
-                   ngan=[dict(t=f['t'], x=round(f['x'], 2), y=round(f['y'], 2), h=f['h']) for f in ngan]))
+                   ngan=ds_ngan))
 TAM = {t["tam"]: t for t in TU}
 print("tủ:", [(t["ten"], [round(v) for v in t["khung"]]) for t in TU])
 
@@ -158,18 +170,24 @@ for lo in cfg['lo']:
         # cáp: đoạn dài <1.8 liên tiếp
         out.append(dict(pts=[list(map(lambda v: round(v, 2), q)) for q in pts],
                         ngan=[round(s[2], 2) for s in seg]))
-        # tủ RMU trên chuỗi: đỉnh tâm tủ, ngăn vào = đỉnh trước, ngăn ra = đỉnh sau
+        # tủ RMU trên chuỗi: mỗi đỉnh kề tâm tủ là chân một ngăn có dây nối ra
         for k_, n_ in enumerate(c):
-            if n_ in TAM and 0 < k_ < len(c) - 1:
-                tu = TAM[n_]
-                ket['rmu'].append(dict(ten=tu['ten'], ij=[len(ket['lo']), len(out) - 1], k0=k_ - 1, k1=k_ + 1,
-                                       khung=[round(v, 2) for v in tu['khung']], tieude=tu['tieude'], ngan=tu['ngan']))
+            if n_ not in TAM: continue
+            tu = TAM[n_]
+            r_ = next((r for r in ket['rmu'] if r['tam'] == n_), None)
+            if not r_:
+                r_ = dict(ten=tu['ten'], tam=n_, khung=[round(v, 2) for v in tu['khung']], tieude=tu['tieude'],
+                          ngan=tu['ngan'], cua=[])
+                ket['rmu'].append(r_)
+            for kk in (k_ - 1, k_ + 1):
+                if 0 <= kk < len(c): r_['cua'].append(dict(ij=[len(ket['lo']), len(out) - 1], k=kk, kc=k_))
     ket['lo'].append(dict(ten=lo['ten'], kv=lo.get('kv', 22), nguon=list(xy[s0]), chuoi=out,
                           cuoi=lo.get('cuoi', {})))
 
 # ---------------- đoạn qua thiết bị thường cắt ----------------
 ket['lien'] = []
 for v in VUNG_MO:
+    if la_ngat(v): continue
     cx, cy = (v[0] + v[2]) / 2, (v[1] + v[3]) / 2
     k = G['vung'].index(v)
     bien_xy = [xy[n] for n in G['bien'][k]]
@@ -275,12 +293,15 @@ for d_ in tb:
     x, y = d_['q'][0], d_['q'][1]
     d_['mo'] = False
 for v in VUNG_MO:
+    if la_ngat(v): continue
     cx, cy = (v[0] + v[2]) / 2, (v[1] + v[3]) / 2
     ung = [d_ for d_ in tb if not d_.get('bo')]
     if not ung: break
     g = min(ung, key=lambda d_: math.hypot(d_['q'][0] - cx, d_['q'][1] - cy))
     if math.hypot(g['q'][0] - cx, g['q'][1] - cy) < 6: g['mo'] = True
+trong_tu = lambda x, y: any(t['khung'][0] <= x <= t['khung'][2] and t['khung'][1] <= y <= t['khung'][3] for t in TU)
 for m in mo:
+    if trong_tu(m['x'], m['y']): continue
     ung = [d_ for d_ in tb if not d_.get('bo')]
     if not ung: break
     g = min(ung, key=lambda d_: math.hypot(d_['q'][0] - m['x'], d_['q'][1] - m['y']))

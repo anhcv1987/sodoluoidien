@@ -500,6 +500,14 @@ function vePdf(dat) {
   const W = ([x, y]) => [X0 + k * (x - gx), Y0 - k * (y - gy)];
   const bo = new Set(dat.bo_tb ?? []); // tên thiết bị bỏ (nhãn bắt nhầm)
   // chữ theo khung chữ trên bản vẽ
+  // nửa khoảng hở dây ở thiết bị (đơn vị tờ tổng): tới cực xa nhất (kể cả cực khi CẮT) và
+  // không nhỏ hơn 1,2 lần sai số bắt điểm của mô hình công suất (~3) - hai đầu dây gần nhau
+  // hơn sai số sẽ bị coi là nối liền, dao cắt cũng không hở mạch
+  const nuaPdf = (loai) => {
+    const def = getBlock(loai);
+    const r = Math.max(...[...(def?.cuc ?? []), ...(def?.cucMo ?? [])].map((c) => Math.hypot(c[0], c[1])), 0.5);
+    return Math.max(r * SC_PDF[loai] * k, 3.7);
+  };
   const chuPdf = (n, canh = 'trai') => {
     const h = Math.max(n.h, 2.5) * k * 0.92; // chữ quá nhỏ trên PDF nâng lên cho đều
     if (n.doc) {
@@ -510,6 +518,47 @@ function vePdf(dat) {
       chu(x, y, h, n.t, canh);
     }
   };
+  // Nắn thẳng: đường dò bắc qua tâm ký hiệu nên dây gần ngang / gần dọc hay lệch 1-2pt.
+  // Mỗi quãng dài >= 8pt mà các đỉnh lệch nhau <= 2pt (độ dốc tổng <= 5%) được đặt đúng
+  // ngang / dọc. Ghi theo toạ độ gốc của đỉnh để đỉnh chung giữa các chuỗi (điểm rẽ,
+  // chân tủ) nắn giống nhau.
+  {
+    const khoa = (p) => `${p[0]}|${p[1]}`;
+    const nanX = new Map(), nanY = new Map();
+    const quet = (P, tr) => {
+      // tr = 1: quãng ngang (nắn y); tr = 0: quãng dọc (nắn x)
+      const doc = 1 - tr;
+      let s0 = 0;
+      while (s0 < P.length - 1) {
+        let e = s0;
+        let lo = P[s0][tr], hi = P[s0][tr];
+        while (e + 1 < P.length) {
+          const v = P[e + 1][tr];
+          if (Math.max(hi, v) - Math.min(lo, v) > 2) break;
+          lo = Math.min(lo, v); hi = Math.max(hi, v); e++;
+        }
+        const dai = Math.abs(P[e][doc] - P[s0][doc]);
+        if (e > s0 && dai >= 8 && Math.abs(P[e][tr] - P[s0][tr]) <= 0.05 * dai) {
+          // giá trị nắn: trung bình theo chiều dài các đoạn con
+          let tong = 0, w = 0;
+          for (let m = s0; m < e; m++) {
+            const l = Math.abs(P[m + 1][doc] - P[m][doc]);
+            tong += ((P[m][tr] + P[m + 1][tr]) / 2) * l; w += l;
+          }
+          const g = w ? tong / w : P[s0][tr];
+          for (let m = s0; m <= e; m++) (tr ? nanY : nanX).set(khoa(P[m]), g);
+          s0 = e;
+        } else s0++;
+      }
+    };
+    const tatCa = J.lo.flatMap((lo) => lo.chuoi.map((c) => c.pts));
+    for (const P of tatCa) { quet(P, 1); quet(P, 0); }
+    const doi = (p) => { const kk = khoa(p); return [nanX.get(kk) ?? p[0], nanY.get(kk) ?? p[1]]; };
+    for (const lo of J.lo) for (const c of lo.chuoi) {
+      c.pts = c.pts.map(doi);
+      for (const t of c.tb ?? []) t.p = doi(t.p);
+    }
+  }
   // đầu mút các chuỗi (điểm rẽ nhánh / điểm cuối) - cột tại đó mới ghi số
   const dauMut = [];
   for (const lo of J.lo) for (const c of lo.chuoi) dauMut.push(c.pts[0], c.pts.at(-1));
@@ -517,10 +566,16 @@ function vePdf(dat) {
   const daVeTb = [];
   // tủ RMU: bỏ nét trong khung tủ (đường dò đi qua khung, thanh cái của bản vẽ)
   const boQua = new Map(); // "i,j" -> [[k0,k1]]
+  // bỏ nét từ chân ngăn tới tâm tủ (đỉnh ảo): khoảng (a, b) chứa đỉnh tâm, a/b là chân ngăn
   for (const r of J.rmu ?? []) {
-    const key = r.ij.join(',');
-    if (!boQua.has(key)) boQua.set(key, []);
-    boQua.get(key).push([r.k0, r.k1]);
+    for (const c of r.cua) {
+      const key = c.ij.join(',');
+      if (!boQua.has(key)) boQua.set(key, []);
+      const ds = boQua.get(key);
+      const iv = c.k < c.kc ? [c.k, c.kc + 1] : [c.kc - 1, c.k];
+      // tủ nằm giữa chuỗi: hai chân cho cùng khoảng (kc-1, kc+1)
+      if (!ds.some(([a, b]) => a === iv[0] && b === iv[1])) ds.push(iv);
+    }
   }
   J.lo.forEach((lo, i) => {
     kv = lo.kv ?? 22;
@@ -540,9 +595,19 @@ function vePdf(dat) {
       const cat = [];
       for (const t of c.tb ?? []) {
         if (bo.has(t.ten[0])) continue;
-        const def = getBlock(t.loai);
-        const nua = Math.hypot(...(def?.cuc?.[0] ?? [0, 0.5])) * SC_PDF[t.loai];
+        const nua = nuaPdf(t.loai);
         cat.push([t.s - (nua / k) * 1.35, t.s + (nua / k) * 1.35, t, nua]);
+      }
+      // hai thiết bị sát nhau: khoảng cắt chồng lên nhau -> chia đôi tại điểm giữa hai tâm
+      // (a0, b0 giữ khoảng đối xứng để đặt tâm thiết bị)
+      cat.sort((u, v) => u[2].s - v[2].s);
+      for (const c of cat) c.push(c[0], c[1]);
+      for (let m = 1; m < cat.length; m++) {
+        if (cat[m - 1][1] > cat[m][0]) {
+          const g = (cat[m - 1][2].s + cat[m][2].s) / 2;
+          cat[m - 1][1] = g;
+          cat[m][0] = g;
+        }
       }
       // nét đứt (cáp): đoạn ngắn liền nhau; tách chuỗi thành các quãng cùng loại
       const cap = [];
@@ -569,6 +634,10 @@ function vePdf(dat) {
         while (i + 1 < P.length && acc[i + 1] <= a + 1e-6) i++;
         while (j - 1 >= 0 && acc[j - 1] >= b - 1e-6) j--;
         if (j <= i) return tai(sv);
+        // chỉ nắn thẳng khi các đỉnh giữa lệch ít (đỉnh gãy ở tâm ký hiệu); chỗ rẽ góc thì giữ
+        const [dx, dy] = [P[j][0] - P[i][0], P[j][1] - P[i][1]];
+        const dd = Math.hypot(dx, dy) || 1;
+        for (let m = i + 1; m < j; m++) if (Math.abs((P[m][0] - P[i][0]) * dy - (P[m][1] - P[i][1]) * dx) / dd > 2) return tai(sv);
         const t = (Math.min(L, Math.max(0, sv)) - acc[i]) / Math.max(1e-9, acc[j] - acc[i]);
         return [P[i][0] + t * (P[j][0] - P[i][0]), P[i][1] + t * (P[j][1] - P[i][1])];
       };
@@ -585,7 +654,7 @@ function vePdf(dat) {
             if (Math.abs(cr) > 0.02 * Math.hypot(cc[0] - a[0], cc[1] - a[1])) g.push(b);
           }
           g.push(cur.at(-1));
-          net(g.map(W), curCap);
+          if (g.some((q) => Math.hypot(q[0] - g[0][0], q[1] - g[0][1]) > 1e-6)) net(g.map(W), curCap);
         }
         cur = [];
       };
@@ -605,10 +674,16 @@ function vePdf(dat) {
             cur = q ? [q] : [];
           }
           curCap = c1;
-          // các điểm cắt nằm trong đoạn này
-          for (const [a, b] of cat) {
-            if (a > acc[m - 1] && a < acc[m]) { cur.push(taiCat(a, a, b)); xong(); }
-            if (b > acc[m - 1] && b < acc[m]) { cur = [taiCat(b, a, b)]; }
+          // các điểm cắt nằm trong đoạn này - xử lý theo thứ tự dọc chuỗi
+          const sk = [];
+          for (const [a, b, , , a0, b0] of cat) {
+            if (a > acc[m - 1] && a < acc[m]) sk.push([a, 0, a0, b0]);
+            if (b > acc[m - 1] && b < acc[m]) sk.push([b, 1, a0, b0]);
+          }
+          sk.sort((u, v) => u[0] - v[0] || v[1] - u[1]);
+          for (const [sv, loai, a0, b0] of sk) {
+            if (loai === 0) { cur.push(taiCat(sv, a0, b0)); xong(); }
+            else cur = [taiCat(sv, a0, b0)];
           }
         }
         if (trongTu(m)) { xong(); continue; }
@@ -622,8 +697,8 @@ function vePdf(dat) {
       // vị trí + hướng đặt thiết bị (trên tờ tổng): nằm giữa hai đầu dây bị cắt, thẳng hàng
       // với dây (tâm ký hiệu trên PDF thường lệch khỏi dây một chút -> dây gãy chéo)
       const datTb = new Map();
-      for (const [a, b, t, nua] of cat) {
-        const pa = W(taiCat(a, a, b)), pb = W(taiCat(b, a, b));
+      for (const [a, b, t, nua, a0, b0] of cat) {
+        const pa = W(taiCat(a0, a0, b0)), pb = W(taiCat(b0, a0, b0));
         let c, u;
         const d = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
         if (a >= 0 && b <= L && d > 1e-6) {
@@ -638,8 +713,9 @@ function vePdf(dat) {
         if (Math.abs(u[1]) < 0.09) u = [Math.sign(u[0]) || 1, 0];
         else if (Math.abs(u[0]) < 0.09) u = [0, Math.sign(u[1])];
         datTb.set(t, { c, u });
-        net([pa, [c[0] - u[0] * nua, c[1] - u[1] * nua]], curCap);
-        net([[c[0] + u[0] * nua, c[1] + u[1] * nua], pb], curCap);
+        // dây từ đầu cắt (có thể đã rút về điểm giữa hai thiết bị sát nhau) tới cực
+        net([W(taiCat(a, a0, b0)), [c[0] - u[0] * nua, c[1] - u[1] * nua]], curCap);
+        net([[c[0] + u[0] * nua, c[1] + u[1] * nua], W(taiCat(b, a0, b0))], curCap);
       }
       // thiết bị
       for (const t of c.tb ?? []) {
@@ -673,16 +749,23 @@ function vePdf(dat) {
   });
   // vẽ tủ RMU theo mẫu: khung, tên tủ, 2 ngăn (vào, ra), thanh cái, DCL, tiếp địa -76
   for (const r of J.rmu ?? []) {
-    const lo = J.lo[r.ij[0]];
+    const lo = J.lo[r.cua[0].ij[0]];
     kv = lo.kv ?? 22;
     lop = data.layers.indexOf(`${kv}kV`);
-    const P = lo.chuoi[r.ij[1]].pts;
-    const A = P[r.k0], B = P[r.k1];
     const T = r.tieude;
-    let [xa, xb] = [A[0], B[0]];
-    if (Math.abs(xa - xb) < 8) { const m = (xa + xb) / 2; xa = m - 5; xb = m + 5; }
-    const trai = Math.min(xa - 6, T.x0 - 2), phai = Math.max(xb + 6, T.x1 + 2);
-    const day = Math.max(A[1], B[1]);
+    const tenGan = (x) => (r.ngan.length ? r.ngan.reduce((a, b) => (Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a)) : null);
+    // chân các ngăn có dây nối ra (không trùng nhau), xếp trái -> phải
+    const chan = [];
+    for (const c of r.cua) {
+      const q = J.lo[c.ij[0]].chuoi[c.ij[1]].pts[c.k];
+      if (!chan.some((p) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.5)) chan.push(q);
+    }
+    chan.sort((p, q) => p[0] - q[0]);
+    // cột ngăn: theo x chân ngăn, giãn cho cách nhau >= 10pt
+    const cot = chan.map((p) => p[0]);
+    for (let m = 1; m < cot.length; m++) if (cot[m] - cot[m - 1] < 10) cot[m] = cot[m - 1] + 10;
+    const trai = Math.min(cot[0] - 6, T.x0 - 2), phai = Math.max(cot.at(-1) + 6, T.x1 + 2);
+    const day = Math.max(...chan.map((p) => p[1]));
     const dinh = T.y0 - 1.5;
     const yTen = T.y1 + 1;           // hàng tên ngăn
     const yTc = T.y1 + 9;            // thanh cái trong tủ
@@ -691,28 +774,33 @@ function vePdf(dat) {
     net([[trai, day], [trai, dinh], [phai, dinh]].map(W), false);
     net([[phai, dinh], [phai, day], [trai, day]].map(W), false);
     net([[trai, yTen], [phai, yTen]].map(W), false);
-    net([[xa, yTc], [xb, yTc]].map(W), false);
-    for (const [x0, y0] of [A, B]) {
-      const xc = x0 === A[0] ? xa : xb;
-      net([[xc, yTc], [xc, day], [x0, y0]].map(W), false);
+    net([[cot[0], yTc], [cot.at(-1), yTc]].map(W), false);
+    chan.forEach(([x0, y0], m) => {
+      const xc = cot[m];
+      const n = tenGan(x0);
       const yd = (yTc + day) / 2 - 2;
+      const nd = nuaPdf('DCL') / k;
+      net([[xc, yTc], [xc, yd - nd]].map(W), false);
+      net([[xc, yd + nd], [xc, day], [x0, y0]].map(W), false);
       const [dx, dy] = W([xc, yd]);
-      thietBi('DCL', dx, dy, gocDat('DCL', 90), false, SC_PDF.DCL * k);
+      thietBi('DCL', dx, dy, gocDat('DCL', 90), !!n?.mo, SC_PDF.DCL * k);
       const [ex, ey] = W([xc - 2.2, day - 4]);
       thietBi('DTD', ex, ey, 90, true, 3.4 * k);
       const [lx, ly] = W([xc - 5.5, day - 1]);
       chu(lx, ly, 1.8 * k, '-76', 'giua');
-    }
+      trongRmu = false;
+      if (n) {
+        const [x, y] = W([xc, yTen + 3.2]);
+        chu(x, y, 1.9 * k, n.t, 'giua');
+        if (n.mo) {
+          const [x2, y2] = W([xc, yTen + 5.6]);
+          chu(x2, y2, 1.6 * k, '(Thường cắt)', 'giua');
+        }
+      }
+      trongRmu = true;
+    });
     trongRmu = false;
     chuPdf({ t: T.t ?? r.ten, x0: T.x0, y0: T.y0, x1: T.x1, y1: T.y1, h: T.h, doc: false });
-    // tên ngăn vào / ra
-    const tenGan = (x) => (r.ngan.length ? r.ngan.reduce((a, b) => (Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a)) : null);
-    for (const [xc, x0] of [[xa, A[0]], [xb, B[0]]]) {
-      const n = tenGan(x0);
-      if (!n) continue;
-      const [x, y] = W([xc, yTen + 3.2]);
-      chu(x, y, 1.9 * k, n.t, 'giua');
-    }
   }
   // ranh giới quản lý
   for (const r of J.ranh ?? []) {
