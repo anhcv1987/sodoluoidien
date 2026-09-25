@@ -764,7 +764,9 @@ function vePdf(dat) {
     // cột ngăn: theo x chân ngăn, giãn cho cách nhau >= 10pt
     const cot = chan.map((p) => p[0]);
     for (let m = 1; m < cot.length; m++) if (cot[m] - cot[m - 1] < 10) cot[m] = cot[m - 1] + 10;
-    const trai = Math.min(cot[0] - 6, T.x0 - 2), phai = Math.max(cot.at(-1) + 6, T.x1 + 2);
+    // bề rộng chữ tiêu đề khi hiển thị (font trên tờ tổng rộng hơn font bản vẽ PDF ~0,5 em/ký tự)
+    const rongTen = (T.t ?? r.ten).length * Math.max(T.h, 2.5) * 0.92 * 0.5;
+    const trai = Math.min(cot[0] - 6, T.x0 - 2), phai = Math.max(cot.at(-1) + 6, T.x1 + 2, T.x0 + rongTen + 2);
     const day = Math.max(...chan.map((p) => p[1]));
     const dinh = T.y0 - 1.5;
     const yTen = T.y1 + 1;           // hàng tên ngăn

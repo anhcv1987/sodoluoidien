@@ -14,6 +14,9 @@ export default {
   duong: [
     [-1437.4, 499.3],
     [-1437.4, 250],
+    // cột 65 (nhánh LT 476E6.4 đi xuống) đặt vào khoảng trống giữa MC 472E6.4/73 và
+    // tủ RMU Công an tỉnh của bản vẽ 18
+    [-1058, 250],
     [-663.16, 250],
     [-663.16, 217.32],
   ],
@@ -27,7 +30,8 @@ export default {
       { ghi: '(cột 04-474E6.2 cách 2m)', rong: 4 },
       { khoang: 30 },
       { tb: 'DCL', ten: ['DCL 473E6.2-7/42'] },
-      { khoang: 14 },
+    ],
+    [
       {
         coc: '65',
         nhanh: {
