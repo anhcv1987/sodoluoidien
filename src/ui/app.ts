@@ -35,6 +35,7 @@ import { declutterSubstations, resetSubstationsToGeo } from '../editor/declutter
 import { buildPalette } from './palette';
 import { buildLayers, buildProps, conductorDatalist } from './props';
 import { button, checkbox, dialog, el, input, labeled, select, toast } from './dom';
+import { BanDoDiaLy } from './banDoDiaLy';
 import { MK_MAC_DINH, QuanLyTaiKhoan, TEN_VAI_TRO, type VaiTro } from '../core/taiKhoan';
 
 const TOOLS: { id: ToolName; label: string; key: string; hint: string }[] = [
@@ -51,6 +52,11 @@ export class App {
   store: DocStore;
   ed: Editor;
   private canvas: HTMLCanvasElement;
+  /** Trang "theo vị trí địa lý": bản đồ nền + dữ liệu GIS (thay cho vẽ trên canvas). */
+  private banDo = new BanDoDiaLy((ma) => {
+    this.gotoStation(ma);
+    this.refreshTabs();
+  });
   private propsHost = el('div', { class: 'panel-body' });
   private layersHost = el('div', { class: 'panel-body' });
   private tramHost = el('div', { class: 'panel-body' });
@@ -106,7 +112,28 @@ export class App {
     });
     window.addEventListener('resize', () => this.ed.resize());
     window.addEventListener('keydown', (e) => this.onKey(e));
-    this.store.subscribe(() => this.scheduleAutosave());
+    this.store.subscribe(() => {
+      this.scheduleAutosave();
+      this.capNhatBanDo();
+    });
+  }
+
+  /** Trang loại 'tinh' (theo vị trí địa lý) hiển thị bản đồ GIS thay cho canvas. */
+  private laTrangBanDo(): boolean {
+    return this.store.sheet.type === 'tinh';
+  }
+
+  private capNhatBanDo(): void {
+    const bd = this.laTrangBanDo();
+    const dangHien = this.banDo.root.style.display !== 'none';
+    if (bd === dangHien) return;
+    this.canvas.style.display = bd ? 'none' : '';
+    this.root.classList.toggle('dang-ban-do', bd);
+    if (bd) this.banDo.show();
+    else {
+      this.banDo.hide();
+      requestAnimationFrame(() => this.ed.resize());
+    }
   }
 
   /** Dua khung nhin ve dung pham vi tinh (bo qua cac tram lien ket ngoai tinh). */
@@ -142,6 +169,8 @@ export class App {
     const center = el('div', { class: 'center' });
     center.append(this.tabs);
     center.append(this.canvas);
+    this.banDo.hide();
+    center.append(this.banDo.root);
     main.append(center);
     main.append(this.buildRight());
     this.root.append(main);
@@ -455,13 +484,12 @@ export class App {
     const list = el('div', { class: 'tram-list' });
     const cad: CadStation[] = stationsOf(MA_TO_TONG);
     const subs = this.store.entities.filter((e): e is SubstationEntity => e.kind === 'substation');
-    const viTri = new Map(subs.map((s) => [s.code, s.id]));
 
     if (cad.length) {
       list.append(
         el('p', {
           class: 'muted small hint',
-          text: 'Bấm tên trạm để phóng tới trạm đó trên sơ đồ kết dây. Nút "Bản đồ" chuyển sang trang đặt theo vị trí địa lý.',
+          text: 'Bấm tên trạm để phóng tới trạm đó trên sơ đồ kết dây. Nút "Bản đồ" mở vị trí địa lý của trạm trên bản đồ nền (dữ liệu GIS).',
         }),
       );
       let daGhiNgoai = false;
@@ -486,8 +514,7 @@ export class App {
         (row.firstChild as HTMLElement).style.color = colorOf(capTram === '220' ? 220 : 110);
         row.addEventListener('click', () => this.gotoStation(st.code));
         wrap.append(row);
-        const id = viTri.get(st.code);
-        if (id) {
+        if (this.banDo.coTram(st.code)) {
           const map = el('button', {
             class: 'tram-open',
             type: 'button',
@@ -497,9 +524,8 @@ export class App {
           map.addEventListener('click', () => {
             const geo = this.store.drawing.sheets.find((x) => x.type === 'tinh');
             if (geo) this.store.setActiveSheet(geo.id);
-            this.ed.select([id]);
-            this.ed.zoomToEntity(id);
             this.refreshTabs();
+            this.banDo.denTram(st.code);
           });
           wrap.append(map);
         }
@@ -512,6 +538,7 @@ export class App {
   }
 
   refreshTabs(): void {
+    this.capNhatBanDo();
     this.tabs.replaceChildren();
     for (const sh of this.store.drawing.sheets) {
       const b = el('button', {
@@ -747,6 +774,8 @@ export class App {
       this.saveFile();
       return;
     }
+    // Trang bản đồ GIS: phím tắt vẽ không áp dụng (Leaflet tự xử lý phím mũi tên, +/-)
+    if (this.laTrangBanDo()) return;
     if (e.key === 'F4') {
       e.preventDefault();
       this.batDiemNoi();

@@ -18,7 +18,8 @@ const browser = await chromium.launch(
 );
 const page = await browser.newPage({ viewport: { width: 1680, height: 980 } });
 const errors = [];
-page.on('console', (m) => m.type() === 'error' && errors.push('CONSOLE: ' + m.text()));
+// Bỏ qua lỗi tải ô bản đồ nền (máy kiểm thử không có Internet) - không phải lỗi phần mềm.
+page.on('console', (m) => m.type() === 'error' && !/^Failed to load resource/.test(m.text()) && errors.push('CONSOLE: ' + m.text()));
 page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
 
 const check = (name, cond, detail = '') => {
@@ -143,31 +144,29 @@ check(
 
 /* ---------------- Trang so do dia ly ---------------- */
 
-const geo = await page.evaluate(() => {
-  const a = window.sodo;
-  const s = a.store.drawing.sheets.find((x) => x.type === 'tinh');
-  a.store.setActiveSheet(s.id);
-  a.zoomProvince();
-  const c = {};
-  for (const e of a.store.entities) c[e.kind] = (c[e.kind] || 0) + 1;
-  return c;
+// Trang "theo vị trí địa lý" là bản đồ nền (Leaflet) + dữ liệu GIS; trong môi trường
+// kiểm thử không có Internet nên bản đồ nền tự chuyển về "Không nền".
+await page.locator('.tabs .tab', { hasText: 'địa lý' }).click();
+await page.waitForTimeout(1500);
+const geo = await page.evaluate(() => ({
+  tram: document.querySelectorAll('.bddl .bddl-ico').length,
+  tuyen: document.querySelectorAll('.bddl path.leaflet-interactive').length,
+  canvasAn: getComputedStyle(document.querySelector('canvas.canvas')).display === 'none',
+  ds: [...document.querySelectorAll('.bddl-list li b')].map((x) => x.textContent),
+}));
+check('Bản đồ địa lý có trạm (GIS)', geo.tram >= 29 && geo.canvasAn, `${geo.tram} trạm`);
+check('Bản đồ địa lý có đường dây (GIS)', geo.tuyen >= 50, `${geo.tuyen} tuyến`);
+const soMa = (m) => m.match(/^E(\d+)\.(\d+)/).slice(1).map(Number);
+const trongTinh = geo.ds.slice(0, geo.ds.indexOf('A6.15'));
+const dungThuTu = trongTinh.length >= 25 && trongTinh.every((m, i) => {
+  if (!i) return true;
+  const [a1, a2] = soMa(trongTinh[i - 1]);
+  const [b1, b2] = soMa(m);
+  return a1 < b1 || (a1 === b1 && a2 < b2);
 });
-check('Sơ đồ địa lý có trạm', (geo.substation ?? 0) >= 25, `${geo.substation} trạm`);
-check('Sơ đồ địa lý có đường dây', (geo.branch ?? 0) >= 25, `${geo.branch} tuyến`);
-
-const chong = await page.evaluate(() => {
-  const subs = window.sodo.store.entities.filter((e) => e.kind === 'substation');
-  let n = 0;
-  for (let i = 0; i < subs.length; i++) {
-    for (let j = i + 1; j < subs.length; j++) {
-      const A = subs[i];
-      const B = subs[j];
-      if (Math.abs(A.p.x - B.p.x) < (A.w + B.w) / 2 && Math.abs(A.p.y - B.p.y) < (A.h + B.h) / 2) n++;
-    }
-  }
-  return n;
-});
-check('Không trạm nào đè lên nhau trên sơ đồ địa lý', chong === 0, `${chong} cặp chồng lấn`);
+check('Danh sách trạm trên bản đồ xếp theo thứ tự danh mục', dungThuTu && geo.ds.at(-1) === 'E26.5', geo.ds.join(' '));
+await page.locator('.tabs .tab').first().click();
+await page.waitForTimeout(500);
 
 /* ---------------- Tai khoan & phan quyen ---------------- */
 

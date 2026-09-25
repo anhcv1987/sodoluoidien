@@ -119,39 +119,32 @@ theo hướng tuyến**.
 
 ---
 
-## 5. Trang phụ: sơ đồ 220-110kV theo vị trí địa lý
+## 5. Trang phụ: lưới 220-110kV theo vị trí địa lý (bản đồ nền + GIS)
 
-Ngoài tờ sơ đồ kết dây (mục 6), phần mềm còn một trang đặt các trạm **gần đúng vị trí
-địa lý**: 28 trạm/nút nguồn (26 trong tỉnh + 220kV Tuyên Quang và 220kV Sóc Sơn để
-thể hiện liên kết), ranh giới tỉnh sơ hoạ, địa danh tham chiếu và 29 đường dây
-110/220kV. Trang này để hình dung không gian lưới; nhấn đúp vào một khối trạm sẽ
-nhảy sang đúng trạm đó trên sơ đồ kết dây.
+Trang **"Lưới 220-110kV theo vị trí địa lý"** là bản đồ số (Leaflet) dựng từ dữ liệu
+**GIS EVNNPC** (PA3504 khu vực Thái Nguyên cũ + PA3526 khu vực Bắc Kạn cũ, trích
+xuất 25/9/2026): 31 trạm/điểm nút và 50 tuyến 110/220kV với **toạ độ và hướng tuyến
+thật**, vẽ trên bản đồ nền.
 
-**Mức độ tin cậy của dữ liệu — cần đọc kỹ:**
+* **Bản đồ nền** (nút lớp góc trên bên phải): Google Maps, Google vệ tinh, Esri
+  (đường / địa hình / ảnh vệ tinh), Carto nền sáng, bản đồ nền NPC (mạng nội bộ),
+  hoặc không nền. Nền đang dùng không tải được thì tự chuyển sang nền kế tiếp; không
+  có mạng vẫn xem được trạm và tuyến trên nền trống.
+* **Thanh bên trái**: thống kê (số TBA 220kV, 110kV, tổng km đường dây), bật/tắt lớp
+  trạm và đường dây từng cấp, nhãn tên trạm (110kV hiện từ zoom ≥ 11), nhãn đường
+  dây (zoom ≥ 12), nút **Toàn cảnh**, ô tìm kiếm (tên trạm, mã trạm, lộ đường dây).
+* **Danh sách trạm xếp đúng thứ tự danh mục trạm** của phần mềm: E6.1, E6.2 … E6.25,
+  E26.1 … E26.3 (so theo số), nhà máy A6.15, rồi các trạm ngoài địa bàn (E1.19 Sóc
+  Sơn, E14.3 Sơn Dương, E26.5 Bắc Kạn), cuối cùng là điểm nút N1.
+* Bấm một trạm/tuyến để phóng tới và xem thông tin (mã, số hiệu GIS, công suất, toạ
+  độ, các đường dây đấu nối / chiều dài, đầu – cuối). Khung thông tin trạm có nút
+  **Sơ đồ kết dây E6.x** để nhảy sang đúng trạm đó trên tờ kết dây.
+* Trong **Danh mục trạm** (tờ kết dây), nút **Bản đồ** mở vị trí của trạm trên trang này.
 
-| Dữ liệu | Nguồn | Tin cậy |
-|---|---|---|
-| Tên trạm, mã trạm (E6.x, E26.x), công suất MBA | Trích xuất trực tiếp từ file CAD của Phòng Điều độ | **Cao** |
-| Toạ độ địa lý từng trạm | Người lập trình ước lượng theo địa danh | **Cần rà soát** |
-| Kết lưới 110/220kV (đấu nối giữa các trạm) | Suy luận sơ bộ | **Cần rà soát** |
-| Ranh giới tỉnh | Đường bao sơ hoạ | Chỉ để định hướng |
-
-Toàn bộ đường dây tạo sẵn đều mang ghi chú *"Kết lưới sơ bộ – cần rà soát"*, vẽ
-nét đứt và hiện cảnh báo trong bảng thuộc tính. Sau khi đối chiếu hồ sơ quản lý
-vận hành, xoá dòng ghi chú đó để đường dây chuyển sang nét liền.
-
-Sửa nhanh:
-
-* **Kéo thả trạm** trên màn hình, hoặc nhập lại **vĩ độ/kinh độ** trong bảng thuộc tính.
-* **Dữ liệu → Giãn các trạm chồng lấn**: đẩy các khối trạm nằm sát nhau (khu Lưu Xá –
-  Gang Thép, KCN Yên Bình…) ra vừa đủ để đọc được nhãn, vẫn giữ lệch tối đa 7 km so
-  với vị trí thật.
-* **Dữ liệu → Đưa trạm về đúng toạ độ địa lý**: trả lại đúng vị trí đã khai báo.
-* **Dữ liệu → Xoá toàn bộ đường dây sơ bộ**: xoá sạch để tự vẽ lại theo hồ sơ.
-* **Dữ liệu → Bảng trạm / Bảng đường dây**: xem dạng bảng, xuất ra `.csv` cho Excel.
-
-Dữ liệu gốc đặt tại `src/data/grid110.ts` — sửa thẳng trong đó nếu muốn đổi bộ mẫu
-dùng chung cho cả phòng.
+Dữ liệu đặt tại `src/data/gisLuoi110.json` (trường `ma` là mã trạm theo danh mục của
+Phòng Điều độ). Khi có bản trích xuất GIS mới, thay file này rồi build lại. Toạ độ
+220kV Bắc Kạn (E26.5) trong GIS còn ghi chú *"ước lượng theo bản đồ Google, cần xác
+nhận"*.
 
 ---
 
@@ -169,10 +162,9 @@ tuyến, nhãn ngăn lộ và mã hiệu cáp ở đủ các cấp **220 / 110 /
 
 * Bấm tên trạm trong bảng **Danh mục trạm** (bên phải) để phóng tới đúng trạm đó.
 * Hoặc **Dữ liệu → Danh mục trạm trên sơ đồ kết dây…**
-* Trang thứ hai — **"Lưới 220-110kV theo vị trí địa lý"** — đặt các trạm gần đúng vị
-  trí thật; nhấn đúp vào khối trạm ở đó sẽ nhảy sang đúng trạm trên sơ đồ kết dây.
-  Các khối trạm 220/110kV được giãn sẵn nên **không khối nào đè lên khối nào**
-  (kiểm thử tự động xác nhận 0 cặp chồng lấn), lệch tối đa 18 km so với vị trí thật.
+* Trang thứ hai — **"Lưới 220-110kV theo vị trí địa lý"** — là bản đồ nền + dữ liệu
+  GIS EVNNPC (mục 5); từ khung thông tin trạm trên bản đồ bấm **Sơ đồ kết dây** để
+  quay về đúng trạm trên tờ này.
 
 ### Ký hiệu thiết bị dựng lại đúng bản CAD
 
@@ -676,8 +668,7 @@ Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và s�
 
 ## 10. Việc còn phải làm
 
-* Rà soát toạ độ thực tế của 28 trạm trên sơ đồ địa lý (mục 5). Danh mục đường dây
-  110/220kV đã cập nhật theo sơ đồ kết lưới của Phòng Điều độ.
+* Xác nhận toạ độ 220kV Bắc Kạn (E26.5) trên GIS (mục 5).
 * Bổ sung công suất MBA cho E6.22 Định Hoá, E6.23 Yên Bình 8, E6.24 Đa Phúc,
   E6.25 Phú Bình 2 và ba trạm khu vực Bắc Kạn (E26.1–E26.3) — file CAD gốc chưa ghi.
 * Rà lại vài chỗ lẻ còn suy sai cấp điện áp (chạy `node tools/kiem-cap-dien-ap.mjs`)

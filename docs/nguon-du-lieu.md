@@ -71,6 +71,10 @@ TACSR200 — kèm chiều dài từng đoạn. Đã đưa vào thư viện gợi
 
 ### 3.1 Toạ độ địa lý các trạm
 
+> **Cập nhật 25/9/2026:** trang "theo vị trí địa lý" nay dùng dữ liệu **GIS EVNNPC**
+> (PA3504 + PA3526) trong `src/data/gisLuoi110.json` — toạ độ trạm và hướng tuyến là
+> vị trí thật. Phần dưới đây chỉ còn áp dụng cho bộ mẫu cũ `src/data/grid110.ts`.
+
 File CAD vẽ theo lối sơ đồ nguyên lý, **không theo toạ độ địa lý**, nên không
 trích được vị trí thật. Toạ độ trong `src/data/grid110.ts` do người lập trình ước
 lượng theo địa danh (TP. Thái Nguyên, TP. Sông Công, KCN Yên Bình, Đại Từ, Định

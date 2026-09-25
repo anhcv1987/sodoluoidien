@@ -424,3 +424,109 @@ body {
 }
 .them-tai-khoan .btn { grid-column: 1 / -1; }
 .dialog .table .btn { width: auto; margin: 0 4px 0 0; padding: 3px 8px; font-size: 12px; }
+
+/* ------------- trang "theo vị trí địa lý": bản đồ nền + dữ liệu GIS ------------- */
+
+.dang-ban-do .side { display: none; }
+.bddl {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  position: relative;
+}
+.bddl-aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.bddl-sec { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.bddl-sec h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-dim);
+}
+.bddl-tieu-de { font-weight: 600; font-size: 13px; }
+.bddl-nguon { font-size: 11px; color: var(--fg-dim); margin-top: 3px; }
+.bddl-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.bddl-stat { background: var(--bg-3); border: 1px solid var(--line); border-radius: 8px; padding: 7px 4px; text-align: center; }
+.bddl-stat b { display: block; font-size: 17px; }
+.bddl-stat span { font-size: 11px; color: var(--fg-dim); }
+.bddl-chk { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
+.bddl-sw { width: 22px; height: 0; border-top: 4px solid; display: inline-block; }
+.bddl-tri {
+  width: 0; height: 0; display: inline-block;
+  border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 12px solid;
+}
+.bddl-note { font-size: 11px; color: var(--fg-dim); margin-top: 6px; }
+.bddl-fit, .bddl-tabs button, .bddl-mo {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 5px 10px;
+}
+.bddl-fit { margin-top: 8px; width: 100%; }
+.bddl-fit:hover, .bddl-tabs button:hover { border-color: var(--accent); }
+.bddl-q {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+.bddl-tabs { display: flex; gap: 4px; margin-top: 8px; }
+.bddl-tabs button { flex: 1; }
+.bddl-tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.bddl-list { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; overflow-y: auto; min-height: 120px; }
+.bddl-list li { padding: 6px 12px; border-bottom: 1px solid var(--line); cursor: pointer; line-height: 1.35; }
+.bddl-list li:hover { background: var(--bg-3); }
+.bddl-list li small { display: block; color: var(--fg-dim); font-size: 11px; }
+.bddl-ma { font-variant-numeric: tabular-nums; }
+.bddl-map { min-height: 0; background: #e8ecef; }
+.bddl-coord {
+  position: absolute; right: 10px; bottom: 22px; z-index: 500;
+  background: rgba(255, 255, 255, 0.9); color: #1d2433;
+  border: 1px solid #ccd; border-radius: 6px; padding: 2px 8px; font-size: 11px;
+  pointer-events: none;
+}
+.bddl-coord:empty { display: none; }
+.bddl .leaflet-container { font: 12px/1.4 "Segoe UI", system-ui, sans-serif; color: #1d2433; }
+.bddl .leaflet-control-layers, .bddl .leaflet-popup-content-wrapper, .bddl .leaflet-popup-tip { color: #1d2433; }
+.bddl-ico { background: none; border: 0; }
+.bddl-lbl {
+  background: rgba(255, 255, 255, 0.85);
+  border: 0;
+  box-shadow: none;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1d2433;
+}
+.bddl-lbl::before { display: none; }
+.bddl-lbl-line {
+  background: rgba(255, 255, 255, 0.8);
+  border: 0;
+  box-shadow: none;
+  padding: 0 3px;
+  font-size: 10px;
+  color: #444;
+}
+.bddl-lbl-line::before { display: none; }
+.bddl-pop h4 { margin: 0 0 6px; font-size: 13px; color: #8b1a1a; }
+.bddl-pop table { border-collapse: collapse; font-size: 12px; }
+.bddl-pop td { padding: 2px 6px 2px 0; vertical-align: top; }
+.bddl-pop td:first-child { color: #667085; white-space: nowrap; }
+.bddl-mo { margin-top: 8px; background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+@media (max-width: 800px) {
+  .bddl { grid-template-columns: 1fr; grid-template-rows: 40% 60%; }
+}
