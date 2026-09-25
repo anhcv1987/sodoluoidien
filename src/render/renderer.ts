@@ -596,12 +596,29 @@ export class Renderer {
   private drawSnap(ctx: CanvasRenderingContext2D, snap: { p: Pt; kind: string }): void {
     const s = this.vp.toScreen(snap.p);
     ctx.save();
-    ctx.strokeStyle = '#f5d90a';
-    ctx.lineWidth = 1.6;
+    // Cực đấu nối / đầu dây: ô lớn màu xanh (giống lớp điểm đấu nối F4) để thấy rõ
+    // là đã bắt đúng chỗ nối; trên tuyến: dấu nhân; còn lại: ô vuông vàng.
+    const noi = snap.kind === 'Cực đấu nối' || snap.kind === 'Điểm cuối' || snap.kind === 'Nút';
+    const mau = noi ? '#22c55e' : '#f5d90a';
+    ctx.strokeStyle = mau;
+    ctx.lineWidth = noi ? 2.2 : 1.6;
     ctx.setLineDash([]);
-    ctx.strokeRect(s.x - 5.5, s.y - 5.5, 11, 11);
+    if (snap.kind === 'Trên tuyến') {
+      ctx.beginPath();
+      ctx.moveTo(s.x - 6, s.y - 6);
+      ctx.lineTo(s.x + 6, s.y + 6);
+      ctx.moveTo(s.x + 6, s.y - 6);
+      ctx.lineTo(s.x - 6, s.y + 6);
+      ctx.stroke();
+    } else if (noi) {
+      ctx.strokeRect(s.x - 7.5, s.y - 7.5, 15, 15);
+      ctx.fillStyle = mau;
+      ctx.fillRect(s.x - 2.5, s.y - 2.5, 5, 5);
+    } else {
+      ctx.strokeRect(s.x - 5.5, s.y - 5.5, 11, 11);
+    }
     ctx.font = `11px ${FONT}`;
-    ctx.fillStyle = '#f5d90a';
+    ctx.fillStyle = mau;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(snap.kind, s.x + 9, s.y + 7);

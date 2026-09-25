@@ -47,7 +47,14 @@ export interface DongCongSuat {
 }
 
 /** Thiết bị đấu rẽ không mang tải - nhánh cụt tới đó không có công suất. */
+/** Thiết bị là phụ tải - nhánh dây tới đó có công suất. */
+const MANG_TAI = new Set(['MBAPP', 'TD']);
+/** Máy cắt: nhánh có máy cắt là ngăn lộ / xuất tuyến, không phải nhánh cụt. */
+const MAY_CAT = new Set(['MC', 'MCHB', 'REC']);
 const KHONG_TAI = new Set(['DTD', 'CSV', 'TU', 'TUC', 'TU3P', 'TUBU', 'COT', 'BDD', 'KHANG']);
+
+/** Bán kính vòng tròn cuộn dây của block MBA (theo hệ số phóng của block). */
+const BAN_KINH_CUON = 1.174;
 
 const laMBA = (block: string): boolean => /^(MBA|AT)/.test(block) && block !== 'MBAPP';
 
@@ -143,6 +150,117 @@ function chieu(px: number, py: number, ax: number, ay: number, bx: number, by: n
   return [t, Math.hypot(ax + t * dx - px, ay + t * dy - py)];
 }
 
+interface Tuyen {
+  b: BranchEntity;
+  p: Pt[];
+}
+
+/** Không đoạn nào của tuyến nằm ngang / thẳng đứng. */
+function laNetXien(p: Pt[]): boolean {
+  for (let k = 1; k < p.length; k++) {
+    const dx = Math.abs(p[k].x - p[k - 1].x);
+    const dy = Math.abs(p[k].y - p[k - 1].y);
+    if (Math.min(dx, dy) <= Math.max(dx, dy) * 0.05) return false;
+  }
+  return true;
+}
+
+/** Mọi đoạn của tuyến đều nằm ngang hoặc thẳng đứng. */
+function vuongGoc(p: Pt[]): boolean {
+  for (let k = 1; k < p.length; k++) {
+    const dx = Math.abs(p[k].x - p[k - 1].x);
+    const dy = Math.abs(p[k].y - p[k - 1].y);
+    if (Math.min(dx, dy) > Math.max(dx, dy) * 0.01) return false;
+  }
+  return true;
+}
+
+function kcDenTuyen(q: Pt, p: Pt[], boDau = -1): number {
+  let m = Infinity;
+  for (let k = 1; k < p.length; k++) {
+    if (k - 1 === boDau || k === boDau) continue;
+    m = Math.min(m, chieu(q.x, q.y, p[k - 1].x, p[k - 1].y, p[k].x, p[k].y)[1]);
+  }
+  return m;
+}
+
+/**
+ * Bỏ KHUNG TỦ (tủ RMU, hộp khách hàng…) ra khỏi lưới dây dẫn.
+ *
+ * Khung tủ trong bản CAD vẽ bằng chính lớp đường dây nên chạm vào các đầu cáp,
+ * công suất "chạy vòng" theo khung. Nhận ra khung:
+ *  - nét khuất (lớp CAD "netkhuat");
+ *  - hình chữ nhật khép kín vẽ một nét, không có thiết bị nào nằm trên nét;
+ *  - rồi lan dần: nét ngang / dọc (vách ngăn giữa các ngăn tủ, cạnh khung vẽ rời)
+ *    có HAI ĐẦU đều tựa vào khung đã nhận và không mang thiết bị nào.
+ */
+function loaiKhungTu(tuyen: Tuyen[], devices: DeviceEntity[], saiSo: number): Tuyen[] {
+  const O = 25;
+  const luoiTB = new Map<string, DeviceEntity[]>();
+  for (const d of devices) {
+    const k = `${Math.floor(d.p.x / O)}|${Math.floor(d.p.y / O)}`;
+    (luoiTB.get(k) ?? luoiTB.set(k, []).get(k)!).push(d);
+  }
+  const coThietBi = (p: Pt[]): boolean => {
+    for (let k = 1; k < p.length; k++) {
+      const a = p[k - 1];
+      const b = p[k];
+      for (let i = Math.floor(Math.min(a.x, b.x) / O) - 1; i <= Math.floor(Math.max(a.x, b.x) / O) + 1; i++) {
+        for (let j = Math.floor(Math.min(a.y, b.y) / O) - 1; j <= Math.floor(Math.max(a.y, b.y) / O) + 1; j++) {
+          for (const d of luoiTB.get(`${i}|${j}`) ?? []) {
+            if (chieu(d.p.x, d.p.y, a.x, a.y, b.x, b.y)[1] <= saiSo * 0.6) return true;
+          }
+        }
+      }
+    }
+    return false;
+  };
+  const khung = new Set<number>();
+  const ungVien: number[] = [];
+  tuyen.forEach((t, i) => {
+    if (t.b.khongNoiGiua || t.b.lineKind === 'Thanh cái' || !vuongGoc(t.p)) return;
+    if (t.b.srcLayer === 'netkhuat') {
+      khung.add(i);
+      return;
+    }
+    if (coThietBi(t.p)) return;
+    const p = t.p;
+    const dau = p[0];
+    const cuoi = p[p.length - 1];
+    const khep =
+      p.length >= 4 &&
+      (Math.hypot(dau.x - cuoi.x, dau.y - cuoi.y) <= saiSo ||
+        kcDenTuyen(dau, p.slice(2)) <= saiSo ||
+        kcDenTuyen(cuoi, p.slice(0, -2)) <= saiSo);
+    if (khep) {
+      // phải bao lấy thiết bị (khung tủ), không phải mạch vòng dây dẫn
+      const xs = p.map((q) => q.x);
+      const ys = p.map((q) => q.y);
+      const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+      if (devices.some((d) => d.p.x > x0 && d.p.x < x1 && d.p.y > y0 && d.p.y < y1)) {
+        khung.add(i);
+        return;
+      }
+    }
+    ungVien.push(i);
+  });
+  for (let lan = 0; lan < 6; lan++) {
+    const ds = [...khung].map((i) => tuyen[i].p);
+    const tua = (q: Pt, boQua: Pt[]): boolean => ds.some((p) => p !== boQua && kcDenTuyen(q, p) <= saiSo);
+    let them = 0;
+    for (const i of ungVien) {
+      if (khung.has(i)) continue;
+      const p = tuyen[i].p;
+      if (tua(p[0], p) && tua(p[p.length - 1], p)) {
+        khung.add(i);
+        them++;
+      }
+    }
+    if (!them) break;
+  }
+  return tuyen.filter((_, i) => !khung.has(i));
+}
+
 export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | undefined): DongCongSuat {
   const LOP_KHUNG = 'Khung bản vẽ';
   const branches = entities.filter((e): e is BranchEntity => e.kind === 'branch' && e.layer !== LOP_KHUNG);
@@ -181,12 +299,26 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     return -1;
   };
 
+  // Cuộn dây của các block máy biến áp (tâm + bán kính)
+  const cuonMBA: { x: number; y: number; r: number }[] = [];
+  for (const d of devices) {
+    if (!laMBA(d.block)) continue;
+    const m = d.mirror ? -1 : 1;
+    const g = (d.rot * Math.PI) / 180;
+    for (const [cx, cy] of getBlock(d.block)?.cuc ?? []) {
+      const x = cx * m * d.scale;
+      const y = cy * d.scale;
+      cuonMBA.push({ x: d.p.x + x * Math.cos(g) - y * Math.sin(g), y: d.p.y + x * Math.sin(g) + y * Math.cos(g), r: BAN_KINH_CUON * d.scale });
+    }
+  }
+  for (const g of mbaVong) for (const c of g) cuonMBA.push({ x: c.c.x, y: c.c.y, r: c.r });
+
   /* ---------- 1. Polyline các tuyến ---------- */
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
-  const tuyen: { b: BranchEntity; p: Pt[] }[] = [];
+  let tuyen: Tuyen[] = [];
   for (const b of branches) {
     const p: Pt[] = [];
     for (const id of b.nodes) {
@@ -199,6 +331,12 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     if (p.length < 2) continue;
     // Nét hình sao / tam giác vẽ trong cuộn dây: không phải dây dẫn
     if (mbaVong.length && p.every((q) => trongMBA(q.x, q.y, 0) >= 0)) continue;
+    // Mũi tên điều áp vẽ xiên vắt qua cuộn dây máy biến áp
+    if (
+      laNetXien(p) &&
+      cuonMBA.some((c) => kcDenTuyen(c, p) <= c.r * 0.9 && p.every((q) => Math.hypot(q.x - c.x, q.y - c.y) <= c.r * 3))
+    )
+      continue;
     for (const q of p) {
       if (q.x < minX) minX = q.x;
       if (q.y < minY) minY = q.y;
@@ -209,6 +347,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   }
   const co = Math.max(maxX - minX, maxY - minY, 1);
   const saiSo = Math.max(co * 2e-4, 1e-6);
+  tuyen = loaiKhungTu(tuyen, devices, saiSo);
 
   // Đoạn thẳng: [chỉ số tuyến, chỉ số đoạn]
   const doanTuyen: number[] = [];
@@ -277,15 +416,23 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   };
 
   /** Bắt một điểm vào đoạn dây gần nhất trong bán kính r -> [đỉnh, đoạn] hoặc null. */
-  const bat = (x: number, y: number, r: number, boQua?: number): [number, number] | null => {
+  /**
+   * `phia` = tâm thiết bị: chỉ nhận điểm bắt nằm về phía cực này (cực trên không
+   * được bắt nhầm vào đoạn dây phía cực dưới khi ký hiệu nằm lệch trục dây).
+   */
+  const bat = (x: number, y: number, r: number, phia?: Pt): [number, number] | null => {
     let tot = -1;
     let tt = 0;
     let bd = r;
     for (const s of luoi.quanh(x, y, r)) {
-      if (boQua !== undefined && doanTuyen[s] === boQua) continue;
       const a = A(s);
       const b = B(s);
       const [t, d] = chieu(x, y, a.x, a.y, b.x, b.y);
+      if (phia) {
+        const qx = a.x + (b.x - a.x) * t;
+        const qy = a.y + (b.y - a.y) * t;
+        if ((qx - phia.x) * (x - phia.x) + (qy - phia.y) * (y - phia.y) <= 0) continue;
+      }
       if (d < bd) {
         bd = d;
         tot = s;
@@ -354,31 +501,91 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   }
 
   /* --- 3. Thiết bị --- */
+  // Đầu mút các tuyến (để nối dây vào cuộn dây máy biến áp)
+  const luoiDau = new LuoiO(Math.max(co / 300, saiSo * 4));
+  const dsDau: number[] = [];
+  for (const t of tuyen) {
+    const n = t.p.length;
+    for (const [q, k] of [
+      [t.p[0], t.p[1]],
+      [t.p[n - 1], t.p[n - 2]],
+    ] as [Pt, Pt][]) {
+      // Nét xiên vắt qua cuộn dây (mũi tên điều áp) không phải dây đấu vào máy
+      const dx = Math.abs(k.x - q.x);
+      const dy = Math.abs(k.y - q.y);
+      if (Math.min(dx, dy) > Math.max(dx, dy) * 0.18) continue;
+      const v = dinh(q.x, q.y);
+      luoiDau.them(q.x, q.y, q.x, q.y, dsDau.length);
+      dsDau.push(v);
+    }
+  }
+  const dauTuyenQuanh = (x: number, y: number, r: number): number[] => {
+    const out: number[] = [];
+    for (const i of luoiDau.quanh(x, y, r)) {
+      const v = dsDau[i];
+      if (Math.hypot(vx[v] - x, vy[v] - y) <= r && !out.includes(v)) out.push(v);
+    }
+    return out;
+  };
   const mang = dungMangDien(entities, diem);
   const diemTai = new Set<number>(); // cực thiết bị mang tải (MBA phân phối, tự dùng…)
   const diemKhongTai = new Set<number>(); // cực thiết bị đấu rẽ không mang tải
   const diemThietBi = new Set<number>(); // đỉnh có bắt cực thiết bị
   const cucCat = new Set<number>(); // cực của thiết bị đang cắt
+  const cucMayCat = new Set<number>(); // cực của máy cắt đang đóng
   const doanCat: [number, number, number, number][] = []; // khoảng dây nằm giữa hai cực thiết bị cắt
+  const cucTreo: { v: number; x: number; y: number; dev: Id; r: number }[] = [];
+  const tatCaCuc: { v: number; x: number; y: number; dev: Id }[] = [];
   for (const d of devices) {
     const cuc = mang.cucCua.get(d.id) ?? [];
     const def = getBlock(d.block);
-    const r = Math.max(saiSo * 3, d.scale * 0.6, def ? Math.max(def.bbox[0], def.bbox[1]) * d.scale * 0.2 : 0);
-    const dinhCuc: number[] = [];
-    for (const c of cuc) {
-      const kq = c.batDuoc ? bat(c.p.x, c.p.y, r) : null;
-      if (kq) {
-        dinhCuc.push(kq[0]);
-        diemThietBi.add(kq[0]);
-      }
-    }
-    if (!dinhCuc.length) continue;
-    if (laMBA(d.block)) {
-      // máy biến áp: nối các phía qua tâm máy
+    if (laMBA(d.block) && cuc.length >= 2) {
+      // Máy biến áp: cực là TÂM các cuộn dây. Bản vẽ CAD có chỗ kéo dây vào tận tâm,
+      // có chỗ dừng ở mép vòng tròn, lại có cả dây trung tính / chống sét van đấu vào
+      // cùng cuộn - nên nối MỌI đầu dây nằm trong (hoặc chạm mép) cuộn dây về tâm máy.
       const tam = dinh(d.p.x, d.p.y);
-      for (const v of dinhCuc) noi(v, tam);
+      // máy biến áp là tải: phía hạ áp chưa vẽ tiếp thì công suất vẫn chạy tới máy
+      diemTai.add(tam);
+      const R = BAN_KINH_CUON * d.scale;
+      for (const c of cuc) {
+        let co = false;
+        for (const v of dauTuyenQuanh(c.p.x, c.p.y, R * 1.3)) {
+          noi(v, tam);
+          diemThietBi.add(v);
+          co = true;
+        }
+        if (!co) {
+          const kq = bat(c.p.x, c.p.y, R * 1.3);
+          if (kq) {
+            noi(kq[0], tam);
+            diemThietBi.add(kq[0]);
+          }
+        }
+      }
       continue;
     }
+    const r = Math.max(saiSo * 3, d.scale * 0.6, def ? Math.max(def.bbox[0], def.bbox[1]) * d.scale * 0.2 : 0);
+    const dinhCuc: number[] = [];
+    let soBat = 0;
+    for (const c of cuc) {
+      const kq = bat(c.p.x, c.p.y, r, cuc.length >= 2 ? d.p : undefined);
+      let v: number;
+      if (kq) {
+        v = kq[0];
+        soBat++;
+      } else {
+        // cực không chạm dây: có thể đấu thẳng vào cực thiết bị bên cạnh (dao cách ly
+        // đặt sát máy cắt hợp bộ, không vẽ đoạn dây nối)
+        v = dinh(c.p.x, c.p.y);
+        cucTreo.push({ v, x: c.p.x, y: c.p.y, dev: d.id, r });
+      }
+      tatCaCuc.push({ v, x: c.p.x, y: c.p.y, dev: d.id });
+      dinhCuc.push(v);
+      diemThietBi.add(v);
+    }
+    if (!soBat && cuc.length < 2) continue;
+    // MBA phân phối, MBA tự dùng: phụ tải cuối đường dây
+    if (MANG_TAI.has(d.block)) for (const v of dinhCuc) diemTai.add(v);
     if (cuc.length < 2) {
       for (const v of dinhCuc) {
         if (KHONG_TAI.has(d.block)) diemKhongTai.add(v);
@@ -387,6 +594,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       continue;
     }
     const dangCat = !!def?.switching && d.state === 'mo';
+    if (!dangCat && MAY_CAT.has(d.block)) for (const v of dinhCuc) cucMayCat.add(v);
     if (!dangCat) {
       for (let i = 1; i < dinhCuc.length; i++) noi(dinhCuc[0], dinhCuc[i]);
       continue;
@@ -395,6 +603,26 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     if (dinhCuc.length >= 2) {
       const [u, v] = dinhCuc;
       doanCat.push([vx[u], vy[u], vx[v], vy[v]]);
+    }
+  }
+
+  /* --- cực treo nối vào cực gần nhất của thiết bị khác --- */
+  if (cucTreo.length) {
+    const luoiCuc = new LuoiO(Math.max(co / 300, saiSo * 4));
+    tatCaCuc.forEach((c, i) => luoiCuc.them(c.x, c.y, c.x, c.y, i));
+    for (const c of cucTreo) {
+      let tot = -1;
+      let bd = Math.max(saiSo * 2.5, c.r);
+      for (const i of luoiCuc.quanh(c.x, c.y, bd)) {
+        const k = tatCaCuc[i];
+        if (k.dev === c.dev) continue;
+        const d = Math.hypot(k.x - c.x, k.y - c.y);
+        if (d < bd) {
+          bd = d;
+          tot = i;
+        }
+      }
+      if (tot >= 0) noi(c.v, tatCaCuc[tot].v);
     }
   }
 
@@ -410,6 +638,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       const g = trongMBA(vx[v], vy[v], saiSo);
       if (g >= 0 && v !== tamMBA[g]) {
         noi(v, tamMBA[g]);
+        diemTai.add(tamMBA[g]);
         diemThietBi.add(v);
       }
     }
@@ -556,8 +785,35 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       }
     }
   }
+  const coBac = (u: number): number[] => ke[u].filter((c) => song[idx(c)]);
+  // Xuất tuyến trung áp hay kết thúc bằng dao tiếp địa đầu cáp: đi ngược từ đầu cụt
+  // về chỗ rẽ nhánh, gặp máy cắt thì đó là xuất tuyến (có tải) - giữ lại.
+  const xuatTuyen = new Set<number>();
+  for (let u = 0; u < n; u++) {
+    if (bac[u] !== 1) continue;
+    let truoc = -1;
+    let cur = u;
+    for (let buoc = 0; buoc < 20000; buoc++) {
+      if (cur !== u && bac[cur] !== 2) break;
+      if (cucMayCat.has(cur)) {
+        xuatTuyen.add(u);
+        break;
+      }
+      if (nguon.has(cur)) break;
+      const tiep = coBac(cur)
+        .map((c) => ben(c, cur))
+        .find((v) => v !== truoc);
+      if (tiep === undefined) break;
+      truoc = cur;
+      cur = tiep;
+    }
+  }
   const giu = (u: number): boolean =>
-    nguon.has(u) || cucCat.has(u) || diemTai.has(u) || (dauMut.has(u) && !diemThietBi.has(u) && !diemKhongTai.has(u));
+    nguon.has(u) ||
+    cucCat.has(u) ||
+    diemTai.has(u) ||
+    xuatTuyen.has(u) ||
+    (dauMut.has(u) && !diemThietBi.has(u) && !diemKhongTai.has(u));
   const hang: number[] = [];
   for (let u = 0; u < n; u++) if (bac[u] === 1 && !giu(u)) hang.push(u);
   while (hang.length) {

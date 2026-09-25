@@ -77,6 +77,8 @@ export class App {
   private lanBaoChan = 0;
   /** Lớp công suất chạy trên đường dây (trình chiếu). */
   private congSuat!: ChayCongSuat;
+  /** Lớp điểm đấu nối đang hiện do tự bật khi chọn công cụ vẽ dây. */
+  private tuHienDiemNoi = false;
 
   constructor(private root: HTMLElement) {
     const saved = loadAutosave();
@@ -99,6 +101,16 @@ export class App {
       onChange: () => {
         // Bản vẽ đổi -> tính lại điểm đấu nối để vừa vẽ xong là thấy ngay
         // thiết bị đã nối được hay chưa.
+        // Đang vẽ dây / thanh cái: tự hiện điểm đấu nối để thấy cực nào còn hở
+        const ve = this.ed.toolName === 'line' || this.ed.toolName === 'bus';
+        if (ve && !this.ed.renderer.opt.showTerminals) {
+          this.ed.renderer.opt.showTerminals = true;
+          this.tuHienDiemNoi = true;
+        } else if (!ve && this.tuHienDiemNoi) {
+          this.ed.renderer.opt.showTerminals = false;
+          this.ed.renderer.diemNoi = [];
+          this.tuHienDiemNoi = false;
+        }
         if (this.ed.renderer.opt.showTerminals) this.capNhatDiemNoi();
         this.refreshChrome();
       },

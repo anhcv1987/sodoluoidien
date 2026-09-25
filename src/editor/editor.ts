@@ -582,9 +582,12 @@ export class Editor {
     return { x: ev.clientX - r.left, y: ev.clientY - r.top };
   }
 
+  /** Đối tượng đang hiện trong một hộp (chỉ mục không gian) - cho bắt điểm. */
+  private quanhSnap = (b: Box): Entity[] => this.renderer.queryBox(b).map((i) => i.e);
+
   /** Toa do da ap dung bat diem + ortho, dung cho moi cong cu ve. */
   private snappedPoint(w: Pt, base: Pt | null, exclude?: Set<Id>): Pt {
-    const s = findSnap(this.store, this.vp, w, this.snap, exclude);
+    const s = findSnap(this.store, this.vp, w, this.snap, exclude, this.quanhSnap);
     this.currentSnap = s;
     let p = s ? s.p : w;
     if (!s) p = applyOrtho(base, p, this.snap);
@@ -907,7 +910,7 @@ export class Editor {
       name: 'device',
       prompt: 'Chọn thiết bị ở bảng trái rồi click để đặt. Phím R xoay 90°, Esc để thoát.',
       down(w) {
-        const s = findSnap(self.store, self.vp, w, self.snap);
+        const s = findSnap(self.store, self.vp, w, self.snap, undefined, self.quanhSnap);
         self.currentSnap = s;
         const p = s ? s.p : w;
         let rot = rotOffset;
@@ -923,7 +926,7 @@ export class Editor {
         });
       },
       move(w) {
-        const s = findSnap(self.store, self.vp, w, self.snap);
+        const s = findSnap(self.store, self.vp, w, self.snap, undefined, self.quanhSnap);
         self.currentSnap = s;
         const p = s ? s.p : w;
         let rot = rotOffset;

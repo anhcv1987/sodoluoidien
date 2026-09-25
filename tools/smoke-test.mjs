@@ -252,8 +252,13 @@ const cs = await page.evaluate(() => {
     chuoi: d.chuoi.length,
     dung: [gan(-2222.59, 87.41), gan(1671.98, 3017.72), gan(-1628.16, 5059.23)],
     kv: [...new Set(d.chuoi.map((c) => c.kv))].sort((x, y) => x - y).join(','),
+    // khung tủ RMU 01-383 E6.9 (cạnh trái x=465.8) không có công suất; lộ ra MBA T1
+    // 4000kVA của C.TY Cơ khí Gang Thép (qua ngăn tủ RMU 01-381) thì có
+    khungRMU: d.chuoi.some((c) => c.minX > 465 && c.maxX < 466.5 && c.minY < -700 && c.maxY > -700),
+    raRMU: d.chuoi.some((c) => c.minX > 1075 && c.maxX < 1077 && c.minY < -700 && c.maxY > -700),
   };
 });
+check('Công suất không chạy vòng theo khung tủ RMU, vẫn qua ngăn tủ tới MBA', !cs.khungRMU && cs.raRMU, `khung ${cs.khungRMU}, lộ ra ${cs.raRMU}`);
 check(
   'Công suất chạy trên đường dây (F6), dừng tại các MC đang cắt',
   cs.hien && cs.chuoi > 5000 && cs.dung.every(Boolean) && /220/.test(cs.kv) && /22/.test(cs.kv),
@@ -292,6 +297,25 @@ await page.keyboard.press('Enter');
 await page.waitForTimeout(200);
 const after = await page.evaluate(() => window.sodo.store.entities.filter((e) => e.kind === 'branch').length);
 check('Vẽ được tuyến mới', after === before + 1, `${after} tuyến`);
+
+// Bắt điểm: rê chuột gần cực máy cắt (lệch vài pixel, lại gần cả trung điểm / tâm ký
+// hiệu) thì phải bắt đúng vào cực đấu nối; đang vẽ dây thì tự hiện điểm đấu nối
+await page.keyboard.press('l');
+const cucMC = await page.evaluate(() => {
+  const a = window.sodo;
+  a.ed.vp.fit({ minX: -2262, minY: -60, maxX: -2182, maxY: 0 }, 0.02);
+  a.ed.requestDraw();
+  const s = a.ed.vp.toScreen({ x: -2222.59, y: -30.29 + 0.5 * 9.33 });
+  const r = document.querySelector('canvas.canvas').getBoundingClientRect();
+  return { x: r.left + s.x + 9, y: r.top + s.y + 4 };
+});
+await page.mouse.move(cucMC.x, cucMC.y);
+await page.waitForTimeout(200);
+const batCuc = await page.evaluate(() => ({ kind: window.sodo.ed.currentSnap?.kind, f4: window.sodo.ed.renderer.opt.showTerminals }));
+check('Vẽ dây: bắt đúng cực đấu nối của thiết bị, tự hiện điểm đấu nối', batCuc.kind === 'Cực đấu nối' && batCuc.f4, `${batCuc.kind}, F4 ${batCuc.f4}`);
+await page.keyboard.press('Escape');
+await page.keyboard.press('Escape');
+await page.evaluate(() => window.sodo.ed.setTool('select'));
 
 await page.keyboard.press('d');
 await page.mouse.click(box.x + 450, box.y + 300);

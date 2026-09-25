@@ -149,7 +149,22 @@ Dùng được cả ở chế độ xem, vẫn kéo / phóng bản vẽ bình th
   dây vẽ liền xuyên qua ký hiệu dao) - vạch sáng **dừng lại** ở đó, có vòng tròn
   màu cam nhấp nháy đánh dấu. Mạch vòng thì hai dòng gặp nhau ở giữa.
 * Nhánh cụt không mang tải (tới dao tiếp địa, chống sét van, TU, TUC…) không có
-  vạch chạy.
+  vạch chạy; xuất tuyến có máy cắt thì vẫn chạy tới cuối dù kết thúc bằng dao tiếp
+  địa đầu cáp. Máy biến áp (kể cả MBA phân phối, tự dùng) là phụ tải: công suất
+  chạy tới máy dù phía hạ áp chưa vẽ tiếp.
+* **Máy biến áp**: mọi đầu dây nằm trong hoặc chạm mép vòng tròn cuộn dây (không
+  chỉ đúng tâm cuộn) đều được nối vào máy; mũi tên điều áp vẽ xiên vắt qua cuộn dây
+  không tính là dây dẫn.
+* **Khung tủ RMU, hộp khách hàng**: khung vẽ bằng lớp đường dây (nét khuất, hình chữ
+  nhật khép kín bao thiết bị, vách ngăn giữa các ngăn tủ) được nhận ra và loại khỏi
+  lưới - công suất không chạy vòng theo khung mà đi qua thanh cái và các ngăn tủ.
+* Thiết bị đặt sát nhau không vẽ đoạn dây nối (dao cách ly kề máy cắt hợp bộ trong
+  tủ khách hàng) được nối cực với cực; ký hiệu lệch khỏi trục dây thì mỗi cực chỉ bắt
+  vào đoạn dây về phía mình.
+* `node tools/kiem-cong-suat.mjs [--chi-tiet]` liệt kê theo trạm thanh cái / thiết
+  bị chưa có công suất chạy tới. Hiện có **128/128 thanh cái** và **1.504/1.516**
+  máy cắt, dao cách ly, MBA phân phối có công suất; phần còn lại là ngăn đã tháo lèo
+  (ghi chú trên sơ đồ) hoặc cầu chì vẽ bằng nét rời.
 * Đổi trạng thái thiết bị (tài khoản biên tập) là chiều công suất tính lại ngay
   (khoảng 0,5 giây trên tờ sơ đồ tổng).
 * Chiều công suất là chiều **đi xa dần nguồn** trên sơ đồ (lưới trung áp vận hành
@@ -649,7 +664,15 @@ trung áp sau này:
 #### Bắt điểm và kiểm tra đã nối hay chưa
 
 * Khi vẽ, con trỏ **bắt thẳng vào cực đấu nối của thiết bị** (thanh trạng thái hiện
-  "Cực đấu nối"), không còn bắt nhầm vào tâm ký hiệu rồi nối hụt.
+  "Cực đấu nối"), không còn bắt nhầm vào tâm ký hiệu rồi nối hụt. Các loại điểm có
+  mức ưu tiên: **cực đấu nối** và **đầu dây / nút** hút từ xa (khoảng 45 pixel),
+  đỉnh ở giữa tuyến vừa phải, còn **trung điểm, tâm ký hiệu** chỉ bắt khi đặt sát
+  con trỏ; chữ ghi chú không còn hút con trỏ. Điểm bắt được là chỗ nối thì hiện ô
+  vuông **xanh lá**, bắt vào giữa dây hiện dấu **×**.
+* Chọn công cụ vẽ dây / thanh cái là **tự hiện lớp điểm đấu nối** (thôi vẽ thì tự tắt)
+  để thấy ngay cực nào còn hở.
+* Tìm điểm bắt dùng chỉ mục không gian của bộ vẽ nên rê chuột trên tờ sơ đồ tổng vẫn
+  nhẹ.
 * **F4** bật lớp **ĐIỂM ĐẤU NỐI**: mỗi cực được đánh dấu ngay trên bản vẽ —
   **ô vuông xanh đặc** = cực đã chạm vào dây dẫn, **ô vuông đỏ gạch chéo** = chưa nối.
   Vẽ xong một đoạn dây là thấy ngay ô đỏ chuyển thành ô xanh.
@@ -779,6 +802,7 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật
                  noi-duong-day-110.mjs  — nối đường dây 110kV giữa các trạm (A*)
                  kiem-cap-dien-ap.mjs   — rà soát cấp điện áp theo số hiệu ngăn lộ
+                 kiem-cong-suat.mjs     — thanh cái / thiết bị chưa có công suất chạy tới
                  xem-vung.mjs           — chụp một vùng sơ đồ để đối chiếu (MAN_HINH=1: như trên màn hình)
                  xem-cad.py             — vẽ nguyên bản vùng đó (cả chữ) từ file DXF gốc
                  hoi-vung.mjs           — liệt kê đối tượng trong một vùng
