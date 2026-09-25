@@ -425,8 +425,13 @@ function veGiaoCheo() {
           if (t * L < R + 0.5 || (1 - t) * L < R + 0.5 || u * Lb < 0.5 || (1 - u) * Lb < 0.5) continue;
           // hai đường trung áp cắt nhau: chỉ tuyến ngang nhảy
           if (laLta(b) && !ngang) continue;
+          // chỗ giao gần nhau (cắt ngang một bó dây song song) gộp thành một vòng nhảy rộng
           const ds = nhay.get(a) ?? [];
-          if (!ds.some(([j, d]) => j === i && Math.abs(d - t * L) < 2 * R + 1)) ds.push([i, t * L]);
+          const g = ds.find(([j, d0, d1]) => j === i && t * L > d0 - (2 * R + 1) && t * L < d1 + (2 * R + 1));
+          if (g) {
+            g[1] = Math.min(g[1], t * L);
+            g[2] = Math.max(g[2], t * L);
+          } else ds.push([i, t * L, t * L]);
           nhay.set(a, ds);
         }
       }
@@ -446,13 +451,22 @@ function veGiaoCheo() {
       // phía nhảy: tuyến ngang lên trên, tuyến dọc sang trái
       let [nx, ny] = [-dy, dx];
       if (Math.abs(dy) < Math.abs(dx) ? ny < 0 : nx > 0) [nx, ny] = [-nx, -ny];
-      for (const [, d] of ds.filter(([j]) => j === i).sort((u, v) => u[1] - v[1])) {
+      // gộp tiếp các nhóm chồng nhau
+      const nhom = [];
+      for (const [, d0, d1] of ds.filter(([j]) => j === i).sort((u, v) => u[1] - v[1])) {
+        const cuoi = nhom.at(-1);
+        if (cuoi && d0 < cuoi[1] + 2 * R + 1) cuoi[1] = Math.max(cuoi[1], d1);
+        else nhom.push([d0, d1]);
+      }
+      for (const [d0, d1] of nhom) {
+        const d = (d0 + d1) / 2;
+        const h = (d1 - d0) / 2 + R; // nửa bề rộng vòng nhảy dọc tuyến
         const cx = x1 + dx * d;
         const cy = y1 + dy * d;
         const cung = [];
         for (let k = 0; k <= 8; k++) {
           const f = (Math.PI * k) / 8;
-          cung.push(cx - dx * R * Math.cos(f) + nx * R * Math.sin(f), cy - dy * R * Math.cos(f) + ny * R * Math.sin(f));
+          cung.push(cx - dx * h * Math.cos(f) + nx * R * Math.sin(f), cy - dy * h * Math.cos(f) + ny * R * Math.sin(f));
         }
         manh.at(-1).push(cung[0], cung[1]);
         vong.push(cung);
@@ -492,6 +506,24 @@ for (const lo of dsLo) {
  * phân phối và nhánh không liên kết.
  * ========================================================================== */
 const SC_PDF = { DCL: 7, LBS: 3.4, REC: 3.2 };
+const VI_TRI_PDF = new Map(); // tên file JSON -> hàm đổi điểm PDF sang toạ độ tờ tổng
+
+/**
+ * Dây nối giữa hai bản vẽ (chỗ liên thông mà mỗi bản vẽ chỉ vẽ một phía): đi từ đầu dây của
+ * bản vẽ này qua các điểm gấp khúc tới đầu dây của bản vẽ kia.
+ *   { tu: ['20.json', [x, y]], den: ['18.json', [x, y]] | [X, Y], qua: [[X, Y], ...], cap, kv }
+ */
+function veNoiGiuaBanVe(ds) {
+  for (const l of ds) {
+    const diem = (d) => (typeof d[0] === 'string' ? VI_TRI_PDF.get(d[0])?.(d[1]) : d);
+    const a = diem(l.tu), b = diem(l.den);
+    if (!a || !b) { console.log(`  ! nối giữa bản vẽ: thiếu ${JSON.stringify(l.tu)} / ${JSON.stringify(l.den)}`); continue; }
+    kv = l.kv ?? 22;
+    lop = data.layers.indexOf(`${kv}kV`);
+    net([a, ...(l.qua ?? []), b], !!l.cap);
+  }
+}
+
 function vePdf(dat) {
   const J = JSON.parse(readFileSync(resolve('tools/luoi-trung-ap/pdf', dat.json), 'utf8'));
   const k = dat.ti_le ?? 1;
@@ -554,6 +586,8 @@ function vePdf(dat) {
     const tatCa = J.lo.flatMap((lo) => lo.chuoi.map((c) => c.pts));
     for (const P of tatCa) { quet(P, 1); quet(P, 0); }
     const doi = (p) => { const kk = khoa(p); return [nanX.get(kk) ?? p[0], nanY.get(kk) ?? p[1]]; };
+    // toạ độ trên tờ tổng của một điểm PDF (sau khi nắn thẳng) - để nối dây giữa các bản vẽ
+    VI_TRI_PDF.set(dat.json, (p) => W(doi(p)));
     for (const lo of J.lo) for (const c of lo.chuoi) {
       c.pts = c.pts.map(doi);
       for (const t of c.tb ?? []) t.p = doi(t.p);
@@ -569,6 +603,7 @@ function vePdf(dat) {
   // bỏ nét từ chân ngăn tới tâm tủ (đỉnh ảo): khoảng (a, b) chứa đỉnh tâm, a/b là chân ngăn
   for (const r of J.rmu ?? []) {
     for (const c of r.cua) {
+      if (c.ngoai) continue; // ngăn thường cắt nối cáp từ ngoài tới: không có nét tới tâm tủ
       const key = c.ij.join(',');
       if (!boQua.has(key)) boQua.set(key, []);
       const ds = boQua.get(key);
@@ -582,7 +617,7 @@ function vePdf(dat) {
     lop = data.layers.indexOf(`${kv}kV`);
     const noi = dat.noi?.[lo.ten];
     // đường nối từ đầu ra ngăn lộ trong trạm tới đầu lộ trên bản vẽ
-    if (noi) net([...noi.map((p) => p), W(lo.nguon)], !!dat.cap_noi?.[lo.ten]);
+    if (noi) net([...noi.map((p) => p), VI_TRI_PDF.get(dat.json)(lo.chuoi[0]?.pts[0] ?? lo.nguon)], !!dat.cap_noi?.[lo.ten]);
     lo.chuoi.forEach((c, j) => {
       const P = c.pts;
       const bq = boQua.get(`${i},${j}`) ?? [];
@@ -825,6 +860,7 @@ const datPdf = resolve('tools/luoi-trung-ap/pdf/dat.mjs');
 if (existsSync(datPdf)) {
   const ds = (await import(pathToFileURL(datPdf).href)).default;
   for (const d of ds) vePdf(d);
+  veNoiGiuaBanVe(ds.flatMap((d) => d.noi_ban_ve ?? []));
 }
 veGiaoCheo();
 writeFileSync(duongDan, JSON.stringify(data));

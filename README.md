@@ -789,7 +789,7 @@ npm run build
 
 ---
 
-## 7. Lưới trung áp liên thông (đang làm: cụm E6.4 - xong bản vẽ 17, 18)
+## 7. Lưới trung áp liên thông (xong cụm E6.4: bản vẽ 17, 18, 20-23)
 
 Nguồn: bản vẽ từng lộ trên Google Drive (`So do luoi dien/1. Lưới trung áp KV Thái
 Nguyên`, vd "18. ĐZ 472+477 E6.4.pdf", "7. ĐZ 473 E6.2.pdf"). Mỗi lộ chép sang một file
@@ -875,14 +875,37 @@ LBS 477E6.5/115, LBS 473E6.4/47 (LT 471E6.19), DCL 471E6.4-7/01.
   DCL 7/25-1 → MC 472E6.4/25 Gia Bảy → RMU 07 Đồng Bẩm → MC 472E6.4/61 (thường cắt,
   LT 473E6.2); cột 26 → DCL 472E6.2-7/36 (thường cắt, LT 472E6.2 - DCL 34 Bảo Tàng).
 * 471 E6.2: C43 E6.2 → cột 10 → MC 472E6.4/73 (thường cắt, LT 476E6.4) → xuống LBS 472E6.4/61.
-* **Cột 48** vẽ liền trên bản vẽ nhưng theo kết dây cơ bản (477E6.4: 31 MBA, chỉ ngăn
-  477-7/02-02 thường cắt) thì 472 và 477 không thể nối liền ở đây → coi là **điểm tách**
-  (`ngat` trong cfg18.json). Đoạn từ cột 48 về phía Gia Bảy do 477 cấp.
+* **Cột 48**: chấm tròn trên dây là **cột đã tách lèo** (Phòng xác nhận) - khai `ngat` trong
+  cfg18.json. Đoạn từ cột 48 về phía Gia Bảy do 477 cấp. Không phải chấm nào giữa tuyến cũng là
+  tách lèo (cột vượt sông 27-30 ĐZ 475 E6.2 cũng vẽ chấm): công cụ chỉ liệt kê các chấm nghi ngờ
+  ("chấm đặc giữa tuyến"), điểm tách lèo khai tay.
 * Lộ thí điểm 473E6.2.mjs nay dừng ở đầu dây "473 E6.2 đến" của bản vẽ 18 (trên MC 61).
+
+**Bản vẽ 20-23** (474, 475, 476, 478 + 480 E6.4) đặt xếp dọc trong khoảng trống dưới E6.5
+(x -1370 .. -440, y -1450 .. -3180). Cáp các ngăn lộ đi dọc dưới hàng ngăn lộ E6.4 (y -448 ..
+-470, trên đường 110kV y = -475), xuống hành lang phải E6.5 (x -300 .. -276), sang trái trên các
+bản vẽ rồi xuống hành lang trái (x -1430 .. -1406) vào đầu lộ. Chỗ cắt ngang cả bó dây vẽ một
+vòng nhảy rộng bao cả bó. Điểm thường cắt:
+
+| Lộ | Thường cắt (theo bản vẽ + kết dây cơ bản) |
+|---|---|
+| 474 | DPT 472-7/02-2 (RMU 02-472 LT 474), DCL 472E6.2-7/36, DPT 472-7/34-2 (RMU 34-472E6.2), LBS 474E6.4/04 Đầm Xanh, MC 478E6.4/07, LBS 478E6.4/07 Quang Trung 2, DCL 474E6.4-7/02 Trung Tâm, DPT 474-7/122-1 (RMU 122) |
+| 475 | DCL 478E6.4-7/01 LT 475, MC 471E6.5/48, DPT 480-7/02-2 (RMU 02-480) |
+| 476 | MC 476E6.4/40 (bên kia là 475 E6.2) |
+| 478 | DCL 478E6.4-7/01 LT 475, DPT 478-7/14-01 (RMU 14-478) |
+| 480 | DPT 480-7/02-2, MC 478E6.4/61 (bên kia cột 61A - 79 nối LT 475 E6.5) |
+
+Chỗ liên thông giữa hai bản vẽ (mỗi bản vẽ chỉ vẽ một phía) nối bằng dây thật (`noi_ban_ve`
+trong dat.mjs) để thao tác đóng/cắt tính đúng chiều công suất: 474 ↔ 472 (RMU 02-472, DCL
+7/36), 475 ↔ 478 (DCL 478E6.4-7/01), 475 ↔ 480 (RMU 02-480). ĐZ 475 E6.2 (cũng có trong bản
+vẽ 22) để làm cùng cụm E6.2.
 
 Công cụ dò đã bổ sung: ghép cạnh khung tủ vẽ thành nhiều đoạn; dây nhảy qua (cung
 nhỏ) không coi là nối; `bo_noi` (hộp bỏ nối chỗ bản vẽ đè nét); tủ RMU ghi mọi ngăn có
-dây nối ra và ngăn "(Thường cắt)"; ký hiệu hộp (MC, LBS) lấy tâm cụm nét đậm.
+dây nối ra và ngăn "(Thường cắt)"; ký hiệu hộp (MC, LBS) lấy tâm cụm nét đậm; chia nét tại đỉnh chữ T /
+chỗ giao (không còn cạnh đi tắt); vùng chặn giữa nét dài chỉ cắt phần trong vùng; nối góc cáp
+nét đứt; đầu cáp tô đặc dưới chân ngăn; `noi_them` (nối bổ sung), `ngan_mo` (ngăn tủ thường
+cắt khai tay); ngăn thường cắt nối cáp từ ngoài vẫn vẽ trong tủ.
 
 Kiểm tra: `node tools/ra-soat-co-lap-thanh-cai.mjs` (không thanh cái nào còn điện khi
 cô lập) và smoke test (cắt MC 473 thì trục 473 mất điện, 471/481 vẫn có điện; cắt MC

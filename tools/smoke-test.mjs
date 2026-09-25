@@ -259,8 +259,9 @@ const lta = await page.evaluate(() => {
 });
 check(
   'Lưới trung áp: các lộ vẽ từ ngăn lộ, nối nhau, có điện, dừng ở điểm thường cắt (kể cả ngăn tủ RMU); RMU có tiếp địa; giao chéo có vòng nhảy',
-  // 14 điểm thường cắt: 1 của 473E6.2, 6 của bản vẽ 17, 5 thiết bị + 2 ngăn tủ RMU của bản vẽ 18
-  lta.net > 100 && lta.tb > 100 && lta.mo === 14 && lta.ten && lta.d477 && lta.d472 && lta.d473 && lta.noi && lta.dtd >= 20 && lta.dtdCat &&
+  // 25 điểm thường cắt: 1 của 473E6.2, 6 của bản vẽ 17, 5 thiết bị + 2 ngăn tủ RMU của bản vẽ 18,
+  // 4 + 1 ngăn của bản vẽ 20, 1 của 21, 1 của 22, 2 + 2 ngăn của 23
+  lta.net > 100 && lta.tb > 100 && lta.mo === 25 && lta.ten && lta.d477 && lta.d472 && lta.d473 && lta.noi && lta.dtd >= 20 && lta.dtdCat &&
     lta.nhay >= 9 && lta.giao >= 1 && !lta.giaoCoDien && lta.tuBu === 0,
   JSON.stringify(lta),
 );
@@ -524,6 +525,44 @@ check(
   JSON.stringify(rmu477) === '{"truoc":[true,true],"cat477":[false,true],"cat472":[true,false]}',
   JSON.stringify(rmu477),
 );
+// Cụm E6.4 (bản vẽ 17-23): cắt MC đầu lộ nào thì chỉ đầu lộ đó mất điện (các lộ chỉ gặp nhau
+// qua điểm thường cắt; cáp đi chung hành lang có vòng nhảy, không đấu vào nhau)
+const cumE64 = await page.evaluate(() => {
+  const a = window.sodo;
+  const coDien = (x, y) =>
+    a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [ax, ay, bx, by] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+        if (!L) continue;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L));
+        if (Math.hypot(ax + t * dx - x, ay + t * dy - y) < 0.5) return true;
+      }
+      return false;
+    });
+  // [x ngăn lộ, điểm đầu lộ trên bản vẽ]
+  const lo = {
+    474: [-1875.05, [-1341.12, -1571.49]],
+    475: [-2257.16, [-1352.72, -2575.64]],
+    476: [-1782.55, [-1370.35, -2050.24]],
+    478: [-2328.57, [-1369.5, -2882.25]],
+    480: [-1744.48, [-1306.21, -3018.69]],
+    477: [-2141.41, [-1155.627, -69.04]],
+    472: [-1913.8, [-1266.09, -69.04]],
+  };
+  const ten = Object.keys(lo);
+  const trangThai = () => ten.map((t) => coDien(...lo[t][1]));
+  const kq = { truoc: trangThai().every(Boolean), loi: [] };
+  for (const t of ten) {
+    const mc = a.store.entities.find((e) => e.kind === 'device' && e.block === 'MCHB' && Math.hypot(e.p.x - lo[t][0], e.p.y + 316.26) < 0.5);
+    a.ed.doiTrangThai([mc.id], 'mo');
+    const tt = trangThai();
+    a.store.undo();
+    if (ten.some((u, i) => tt[i] !== (u !== t))) kq.loi.push(`cắt ${t}: ${ten.filter((u, i) => tt[i]).join(',')}`);
+  }
+  return kq;
+});
+check('Cụm E6.4: cắt MC đầu lộ 472/474/475/476/477/478/480 thì chỉ lộ đó mất điện', cumE64.truoc && !cumE64.loi.length, JSON.stringify(cumE64));
 // E6.4: cáp tổng MBA T2 vẽ nhảy qua C42 (nửa vòng tròn) xuống MC 432 - chỗ nhảy không
 // phải đấu nối. Cắt 432 + 412 -> C42 mất điện, C41 vẫn có (T1 qua 431); cắt 431 + 412
 // -> C41 mất điện; chỉ cắt 432 -> C42 nhận điện từ C41 qua 412

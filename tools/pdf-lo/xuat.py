@@ -22,7 +22,43 @@ PDF = os.path.join(os.environ.get('PDF_DIR', '.'), cfg['pdf'])
 # điểm ngắt không có thiết bị (cột dừng, lèo tháo): chặn như thiết bị thường cắt nhưng
 # không nối hai phía, không đặt thiết bị nào thành Cắt
 NGAT = cfg.get('ngat', [])
-G = dothi.dung(PDF, CAM=cfg.get('cam', []), VUNG=list(cfg.get('vung', [])) + TC + NGAT, MO=cfg.get('mo', []), tu_chan=cfg.get('tu_chan', True), BO=cfg.get('bo_noi', []))
+G = dothi.dung(PDF, CAM=cfg.get('cam', []), VUNG=list(cfg.get('vung', [])) + TC + NGAT, MO=cfg.get('mo', []), tu_chan=cfg.get('tu_chan', True), BO=cfg.get('bo_noi', []), NOI=cfg.get('noi_them', []))
+# ---- cột tách lèo: chấm tô đặc đứng riêng giữa tuyến thẳng (không sát ký hiệu, đầu cáp) ----
+def tim_tach_leo():
+    seg_, n0_ = G['seg'], G['n0']
+    ds = []
+    for (cx, cy, rr) in G['cham_dac']:
+        if rr < 0.72: continue
+        # phải là hình tròn (có đường viền cung tròn), không phải mũi tên kích thước tô đặc
+        if not any(math.hypot(cx - x, cy - y) < 0.5 for (x, y, r) in G['cham']): continue
+        if any(0 < math.hypot(cx - x, cy - y) < 3.2 for (x, y, r) in G['cham_dac']): continue
+        if any(math.hypot((g[0] + g[2]) / 2 - cx, (g[1] + g[3]) / 2 - cy) < 2.8 for g in G['day']): continue
+        tia = set()
+        for i in range(n0_):
+            x0, y0, x1, y1 = seg_[i]
+            for (ax, ay, bx, by) in ((x0, y0, x1, y1), (x1, y1, x0, y0)):
+                if math.hypot(ax - cx, ay - cy) <= rr + 1.2 and math.hypot(bx - ax, by - ay) > 0.3:
+                    tia.add(round(math.degrees(math.atan2(by - ay, bx - ax)) % 360 / 45) % 8)
+            t, dd = G['chieu'](cx, cy, x0, y0, x1, y1)
+            L = math.hypot(x1 - x0, y1 - y0)
+            if dd < 0.3 and rr < t * L and rr < (1 - t) * L: tia.add(-1)   # dây chạy liền qua chấm
+        if -1 not in tia and len(tia) == 2 and (max(tia) - min(tia)) == 4:
+            ds.append((round(cx, 2), round(cy, 2), rr))
+    return ds
+# Chấm đặc giữa tuyến có thể là cột tách lèo (cột 48 ĐZ 472 E6.4) nhưng cũng có thể là cột đỡ
+# thường (cột vượt sông 27-30 ĐZ 475 E6.2): chỉ liệt kê để rà; cfg "tach_leo": true thì tự coi là ngắt
+TACH_LEO = tim_tach_leo()
+moi = []
+for (cx, cy, rr) in TACH_LEO:
+    da_khai = any(v[0] <= cx <= v[2] and v[1] <= cy <= v[3] for v in NGAT)
+    print(f'chấm đặc giữa tuyến (cột tách lèo?): ({cx:.1f},{cy:.1f})' + (' - đã khai ngắt' if da_khai else ''))
+    if cfg.get('tach_leo') and not da_khai:
+        moi.append([round(cx - rr - 0.7, 2), round(cy - rr - 0.7, 2), round(cx + rr + 0.7, 2), round(cy + rr + 0.7, 2)])
+if moi:
+    # dựng lại đồ thị với các điểm tách lèo là điểm ngắt
+    NGAT = NGAT + moi
+    G = dothi.dung(PDF, CAM=cfg.get('cam', []), VUNG=list(cfg.get('vung', [])) + TC + NGAT, MO=cfg.get('mo', []),
+                   tu_chan=cfg.get('tu_chan', True), BO=cfg.get('bo_noi', []), NOI=cfg.get('noi_them', []))
 VUNG_MO = [v for v in G['vung'] if not any(abs(v[0]-t[0])<0.01 and abs(v[1]-t[1])<0.01 for t in TC)]
 la_ngat = lambda v: any(abs(v[0]-t[0])<0.01 and abs(v[1]-t[1])<0.01 for t in NGAT)
 xy, p, M, chieu, ke = G['xy'], G['p'], G['M'], G['chieu'], G['ke']
@@ -90,7 +126,8 @@ def khung_tu(e):
     return x0, y0, x1, y1
 TU = []   # [ten, khung, tâm (nút), tiêu đề, tên ngăn]
 for e in tex:
-    if not (e['t'].upper().startswith('TỦ RMU') or re.match(r'^RMU\s?\d', e['t'])): continue
+    # tên tủ: "TỦ RMU ..." hoặc "RMU 63 - 474 E6.4"; không lấy chữ chỉ hướng cáp trong ngăn ("RMU 02/478 E6.4")
+    if not (e['t'].upper().startswith('TỦ RMU') or re.match(r'^RMU\s?\d+\s*-', e['t'])): continue
     kh = khung_tu(e)
     if not kh: continue
     x0, y0, x1, y1 = kh
@@ -114,6 +151,13 @@ for e in tex:
     for u in bien: ke[u] = [(v, w) for v, w in ke[u] if v not in trong]
     # chỉ giữ đỉnh biên ở dưới khung (chỗ cáp đấu vào chân ngăn)
     bien = [u for u in bien if xy[u][1] >= y1 - 1]
+    # đầu cáp tô đặc (tam giác) giữa đáy khung và cáp: cáp dọc bắt đầu ngay dưới đáy (<= 2.5pt) là chân ngăn
+    # (phải thẳng hàng với dây ngăn trong khung đi xuống sát đáy - không lấy nhầm cáp ngang đi sát chân tủ)
+    x_ngan = [xy[m][0] for m in trong if xy[m][1] >= y1 - 3]
+    for n, (x, y) in enumerate(xy):
+        if n in trong or n in bien or not (x0 + 0.3 < x < x1 - 0.3 and y1 < y <= y1 + 2.5) or not ke[n]: continue
+        if not any(abs(x - xn) < 0.4 for xn in x_ngan): continue
+        if all(abs(xy[v][0] - x) < 0.3 and xy[v][1] > y + 0.3 for v, w in ke[n]): bien.append(n)
     c = len(xy); xy.append(((x0 + x1) / 2, y1))
     ke[c] = []
     for u in bien:
@@ -198,6 +242,22 @@ for lo in cfg['lo']:
     ket['lo'].append(dict(ten=lo['ten'], kv=lo.get('kv', 22), nguon=list(xy[s0]), chuoi=out,
                           cuoi=lo.get('cuoi', {})))
 
+# ---------------- ngăn tủ RMU thường cắt mà cáp tới từ phía ngoài (mạch vòng) ----------------
+# chân ngăn là đầu một chuỗi nhưng không đi qua tâm tủ: vẫn vẽ ngăn đó (dao cắt) nối xuống chân
+for r_ in ket['rmu']:
+    x0, y0, x1, y1 = r_['khung']
+    for g in r_['ngan']:
+        if not g.get('mo'): continue
+        if any(abs(ket['lo'][c['ij'][0]]['chuoi'][c['ij'][1]]['pts'][c['k']][0] - g['x']) < 3 for c in r_['cua']): continue
+        tot = None
+        for i, lo_ in enumerate(ket['lo']):
+            for j, c in enumerate(lo_['chuoi']):
+                for k in (0, len(c['pts']) - 1):
+                    q = c['pts'][k]
+                    if abs(q[0] - g['x']) < 3 and y1 - 0.5 <= q[1] <= y1 + 3:
+                        tot = dict(ij=[i, j], k=k, kc=None, ngoai=True)
+        if tot: r_['cua'].append(tot)
+
 # ---------------- đoạn qua thiết bị thường cắt ----------------
 ket['lien'] = []
 for v in VUNG_MO:
@@ -256,8 +316,9 @@ for k, e in enumerate(tex):
     t = e['t']
     if RE_TB.match(t):
         # dòng 2 ngay dưới
+        # (bỏ chữ một ký tự như "R" trong ký hiệu recloser)
         d2 = [f for f in tex if f is not e and abs(f['x0'] - e['x0']) < 6 and 0 < f['y'] - e['y'] < e['h'] * 1.7
-              and not RE_TB.match(f['t']) and not RE_COT.match(f['t'])]
+              and not RE_TB.match(f['t']) and not RE_COT.match(f['t']) and len(f['t'].strip()) > 1 and not RE_MO.match(f['t'])]
         d2 = min(d2, key=lambda f: f['y']) if d2 else None
         # nhãn cách dây tới ~12pt (nhãn 2-3 dòng đặt trên ký hiệu hộp MC/LBS thường cắt)
         d, ij, q = min(gan_khung(f) for f in [e] + ([d2] if d2 else []))
@@ -345,8 +406,11 @@ for m in mo:
     if trong_tu(m['x'], m['y']): continue
     ung = [d_ for d_ in tb if not d_.get('bo')]
     if not ung: break
-    g = min(ung, key=lambda d_: math.hypot(d_['q'][0] - m['x'], d_['q'][1] - m['y']))
-    if math.hypot(g['q'][0] - m['x'], g['q'][1] - m['y']) < 16: g['mo'] = True
+    # ưu tiên thiết bị nằm trên đoạn qua điểm thường cắt (chuỗi liên kết)
+    kc = lambda d_: math.hypot(d_['q'][0] - m['x'], d_['q'][1] - m['y'])
+    tren_lien = [d_ for d_ in ung if ket['lo'][d_['ij'][0]]['chuoi'][d_['ij'][1]].get('lien') and kc(d_) < 16]
+    g = min(tren_lien or ung, key=kc)
+    if kc(g) < 16: g['mo'] = True
 
 def loai_tb(ten):
     t = ten[0].upper()
