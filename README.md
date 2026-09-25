@@ -228,6 +228,20 @@ tuyến, nhãn ngăn lộ và mã hiệu cáp ở đủ các cấp **220 / 110 /
   song sát bên (ngăn tủ đặt sát nhau) thì dao tiếp địa tự rút ngắn và nhãn chuyển
   xuống dưới ký hiệu. Dao tiếp địa đã vẽ vuông góc đường dây, tiếp địa trung tính
   MBA, dao phụ tải tủ RMU giữ nguyên.
+* **Màu cấp điện áp vẽ nhầm lớp CAD** (`tools/ra-soat-cap-dien-ap.mjs`): cấp điện áp
+  khi nhập lấy theo tên lớp CAD, mà bản gốc có chỗ vẽ nhầm lớp. Công cụ rà theo mô
+  hình liên kết điện (các dây / thiết bị nối thông, không qua MBA, phải cùng cấp):
+  - phần tử trung áp mang cấp mà trạm không có (theo tên thanh cái C3x/C4x… và tỷ lệ
+    chiều dài dây) đổi về cấp trung áp của đảo điện - ví dụ các hộp **SEVT / SEMV
+    quản lý ở E6.14** vẽ trên lớp 35kV nay về 22kV, dây 10kV lạc ở E6.13, E6.18;
+  - đảo điện có thiết bị lẫn hai cấp thì theo nhãn ngăn lộ (4xx = 22kV…) - ví dụ phía
+    23kV cuộn thứ ba MBA tự ngẫu AT1, AT2 E6.16 (ngăn 431, 432, TU4AT, CS4AT);
+  - cuộn dây MBA vẽ bằng vòng tròn lấy cấp của dây đi vào nó; cuộn hạ áp MBA khách
+    hàng 22/6kV lấy 6kV theo nhãn tỷ số; nét hình sao / tam giác trong cuộn theo màu
+    cuộn - ví dụ cuộn 110kV MBA T1 E26.3, E26.2 đang tô vàng, cuộn 22kV MBA E6.13 tô đỏ.
+
+  Không đổi dây / chống sét van ở cuộn 38,5kV của MBA 115/38,5/23kV (đúng là 35kV dù
+  trạm không có thanh cái 35kV). Chạy lại bao nhiêu lần cũng được.
 * **Góc xoay**: hình học block trong phần mềm được xoay về trục dọc để tiện vẽ tay,
   nên khi nhập từ CAD phải trừ lại đúng góc đó; thiếu bước này thì mọi dao cách ly,
   dao tiếp địa, chống sét van, recloser đều lệch 90°.
@@ -637,6 +651,7 @@ python3 tools/tach-so-do-tram.py tong.dxf tram/ --min-x 999999999 \
         --them-to 'LƯỚI ĐIỆN 220KV' --them-to 'ĐƯỜNG DÂY'
 node tools/dung-du-lieu-tram.mjs tram/ src/data/tram-sld.json
 node tools/chuan-hoa-dcl-lien-dong.mjs src/data/tram-sld.json
+node tools/ra-soat-cap-dien-ap.mjs src/data/tram-sld.json
 node tools/noi-duong-day-110.mjs src/data/tram-sld.json
 npm run build
 ```
@@ -720,6 +735,7 @@ docs/            dữ liệu trích xuất từ file CAD gốc
 tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm từ file CAD tổng
                  dung-du-lieu-tram.mjs  — dựng src/data/tram-sld.json
                  chuan-hoa-dcl-lien-dong.mjs — vẽ lại DCL + dao tiếp địa kiểu liên động (110/35kV)
+                 ra-soat-cap-dien-ap.mjs — sửa màu (cấp điện áp) vẽ nhầm lớp theo liên kết điện
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật
                  noi-duong-day-110.mjs  — nối đường dây 110kV giữa các trạm (A*)
                  kiem-cap-dien-ap.mjs   — rà soát cấp điện áp theo số hiệu ngăn lộ
