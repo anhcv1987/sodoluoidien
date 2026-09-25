@@ -326,6 +326,27 @@ const tach112 = await page.evaluate(() => {
   a.store.undo();
   return kq;
 });
+// E6.8: cắt MC tổng 632 và MC phân đoạn 612 -> thanh cái C62 mất điện (cáp tổng từ
+// MBA vắt qua C62 không phải đấu nối; MC liên lạc C08 tủ khách hàng đang cắt nên không
+// bị cấp ngược từ C61)
+const c62 = await page.evaluate(() => {
+  const a = window.sodo;
+  const tim = (x, y) => a.store.entities.find((e) => e.kind === 'device' && Math.hypot(e.p.x - x, e.p.y - y) < 0.5);
+  const coDien = (x, y) =>
+    a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [x0, y0, x1, y1] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        if (Math.abs(y0 - y) < 0.5 && Math.abs(y1 - y) < 0.5 && Math.min(x0, x1) <= x && Math.max(x0, x1) >= x) return true;
+      }
+      return false;
+    });
+  const truoc = coDien(1760, 2735.7);
+  a.ed.doiTrangThai([tim(1695.2, 2715).id, tim(1547.58, 2714.96).id], 'mo');
+  const sau = coDien(1760, 2735.7) || coDien(1620, 2735.7);
+  a.store.undo();
+  return { truoc, sau };
+});
+check('Cắt MC 632 và 612 (E6.8): thanh cái C62 mất điện', c62.truoc && !c62.sau, JSON.stringify(c62));
 check(
   'Cắt MC 112 và 112-1, 112-2 (E6.8): khúc giữa mất điện, C11 C12 vẫn có điện',
   !tach112.giua && tach112.c11 && tach112.c12,

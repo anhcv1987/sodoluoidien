@@ -19,6 +19,10 @@ const CAT = [
   ['E6.4', '171', 'MC 171 Thịnh Đán'],
   ['E6.8', '112', 'MC 112 Xi măng Thái Nguyên'],
   ['E6.22', '171', 'MC 171 Định Hóa'],
+  // Tủ phân phối 6kV của C.ty Xi măng TN nhận hai nguồn (lộ 671 từ C61, lộ 672 từ C62):
+  // máy cắt liên lạc C08 thường cắt, nếu đóng thì C61 cấp ngược qua tủ khách hàng
+  // sang C62 dù đã cắt MC 632, 612.
+  ['E6.8', 'C08', 'MC liên lạc C08 tủ 6kV C.ty Xi măng TN'],
 ];
 
 /** Sửa chữ ghi trên sơ đồ: [chữ cũ, chữ mới]. */

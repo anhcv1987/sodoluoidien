@@ -129,6 +129,9 @@ Nhật ký thao tác và cảnh báo liên động chưa làm ở đợt này.
 
 **Phương thức vận hành cơ bản** (theo kết dây): **MC 171 Thịnh Đán (E6.4), MC 112
 Xi măng Thái Nguyên (E6.8), MC 171 Định Hóa (E6.22)** đặt ở trạng thái **Cắt**.
+**MC liên lạc C08** tủ phân phối 6kV C.ty Xi măng Thái Nguyên (nhận hai nguồn lộ 671 từ
+C61 và lộ 672 từ C62 của E6.8) cũng đặt **Cắt**: nếu đóng thì C61 cấp ngược qua tủ
+khách hàng sang C62 dù đã cắt MC 632, 612.
 Ngoài ra **51 dao cách ly nối thanh cái đường vòng (nhãn “xxx-9”)** ở E6.2, E6.16,
 E6.20, E6.25 đặt **Cắt** theo phương thức bình thường (đóng lại khi dùng máy cắt vòng).
 Danh sách ghi trong `tools/phuong-thuc-van-hanh.mjs` (tìm theo nhãn ngăn lộ trong
@@ -160,6 +163,12 @@ Dùng được cả ở chế độ xem, vẫn kéo / phóng bản vẽ bình th
 * Mạch không nối được về lưới (bản vẽ đứt nét) chỉ lấy **phân đoạn thanh cái chính**
   làm nguồn; khúc thanh cái ngắn bị kẹp giữa dao cách ly và máy cắt đang cắt (vd giữa
   112-1 và MC 112) thì mất điện.
+* Ở thanh cái chính vẽ kiểu không dùng chấm, nét dây cắt ngang thanh cái chỉ tính là
+  đấu nối khi có dao cách ly / máy cắt của ngăn lộ ngay sát chỗ cắt; cáp tổng từ MBA vắt
+  qua thanh cái xuống máy cắt tổng (vd cáp vào MC 632 vắt qua C62 E6.8) không phải
+  đấu nối.
+* `node tools/kiem-cong-suat.mjs --cat=<số thứ tự thiết bị> --diem=x,y --truy=x,y` thử
+  cắt thiết bị, kiểm tra điểm có điện, lần ngược đường công suất tới một điểm.
 * Dây **vắt qua** thanh cái không phải là đấu nối: trạm vẽ có chấm đấu nối (vòng tròn
   nhỏ / block chấm) thì chỗ cắt không có chấm là vắt qua; trạm không dùng chấm thì chỉ
   chỗ dây cắt sát đầu thanh cái mới là đấu nối. Nét nằm ngang ngắn của ký hiệu nối

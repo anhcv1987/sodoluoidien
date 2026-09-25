@@ -459,6 +459,33 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
 
   const mang = dungMangDien(entities, diem);
 
+  /* --- dao / máy cắt nối tiếp: để biết nét dây cắt qua thanh cái có phải ngăn lộ --- */
+  const luoiDao = new LuoiO(Math.max(co / 300, saiSo * 4));
+  const daoNoiTiep = devices.filter((d) => {
+    const def = getBlock(d.block);
+    return !!def?.switching && !laMBA(d.block) && (mang.cucCua.get(d.id)?.length ?? 0) >= 2;
+  });
+  daoNoiTiep.forEach((d, i) => luoiDao.them(d.p.x, d.p.y, d.p.x, d.p.y, i));
+  /**
+   * Trên tuyến k, sát điểm X (trong khoảng 5 lần cỡ ký hiệu, tính từ mép ký hiệu) có
+   * dao cách ly / máy cắt nằm trên dây không: có thì nét dây là NGĂN LỘ đấu vào thanh
+   * cái (dao -1, -2 sát thanh cái); không có là dây nối vắt qua thanh cái (cáp tổng
+   * từ MBA vắt qua thanh cái C62 E6.8 xuống máy cắt tổng 632).
+   */
+  const coDaoGan = (k: number, X: Pt): boolean => {
+    const q = tuyen[k].p;
+    for (const i of luoiDao.quanh(X.x, X.y, 150)) {
+      const d = daoNoiTiep[i];
+      const def = getBlock(d.block);
+      const nua = def ? Math.max(def.bbox[0], def.bbox[1]) * 0.5 : 0.5;
+      if (Math.hypot(d.p.x - X.x, d.p.y - X.y) > d.scale * (5 + nua)) continue;
+      for (let m = 1; m < q.length; m++) {
+        if (chieu(d.p.x, d.p.y, q[m - 1].x, q[m - 1].y, q[m].x, q[m].y)[1] <= saiSo * 0.5) return true;
+      }
+    }
+    return false;
+  };
+
   /* --- chấm đấu nối (vòng tròn nhỏ) --- */
   const luoiCham = new LuoiO(Math.max(co / 300, saiSo * 4));
   // vòng tròn nhỏ, hoặc block "35-Cot" (chấm tròn đặc) đặt tại chỗ nối
@@ -560,7 +587,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
         }
         const [tt, d] = chieu(p.x, p.y, a.x, a.y, b.x, b.y);
         if (d <= lim) {
-          if ((tuyenCoCham.has(j) || tuyen[j].b.vong) && vatQua(i, p, j) && !coCham(p.x, p.y)) continue;
+          if ((tuyenCoCham.has(j) || tuyen[j].b.vong || !coDaoGan(i, p)) && vatQua(i, p, j) && !coCham(p.x, p.y)) continue;
           noi(u, chiaTai(s, tt));
           reVao[j].add(i);
         }
@@ -601,8 +628,9 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
         //  - thanh cái đường vòng (C19, C29 - đánh dấu theo các dao -9): các ngăn lộ
         //    vẽ vắt qua nó để xuống MBA / ra đường dây, không đấu nối;
         //  - thanh cái chính vẽ kiểu không dùng chấm (vd E6.4, E6.8): ngăn lộ vẽ
-        //    xuyên qua thanh cái là đấu vào thanh cái.
-        if (tuyenCoCham.has(doanTuyen[s]) || tb.vong) continue;
+        //    xuyên qua thanh cái (có dao / máy cắt của ngăn lộ sát chỗ cắt) là đấu vào
+        //    thanh cái; dây không có dao sát chỗ cắt là dây vắt qua.
+        if (tuyenCoCham.has(doanTuyen[s]) || tb.vong || !coDaoGan(j, X)) continue;
       }
       noi(chiaTai(s, t), chiaTai(s2, u));
     }

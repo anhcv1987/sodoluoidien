@@ -2,6 +2,10 @@
  * KIỂM TRA CÔNG SUẤT CHẠY TỚI ĐÂU TRÊN SƠ ĐỒ KẾT DÂY.
  *
  *   node tools/kiem-cong-suat.mjs [src/data/tram-sld.json] [--chi-tiet]
+ *        [--cat=<số thứ tự thiết bị,...>] [--diem=x,y;x,y...]
+ *
+ * --cat  : thử đặt CẮT các thiết bị (số thứ tự trong mảng d của tờ TONG) trước khi tính
+ * --diem : in ra từng điểm có công suất chạy qua hay không (thử phương thức)
  *
  * Dựng chiều công suất (src/core/dongCongSuat.ts - đúng mô hình phần mềm dùng khi
  * bấm F6) rồi liệt kê theo từng trạm các THANH CÁI chưa có công suất chạy tới: thường
@@ -15,6 +19,8 @@ import { pathToFileURL } from 'node:url';
 
 const args = process.argv.slice(2);
 const chiTiet = args.includes('--chi-tiet');
+const thuCat = new Set((args.find((a) => a.startsWith('--cat='))?.slice(6) ?? '').split(',').filter(Boolean).map(Number));
+const thuDiem = (args.find((a) => a.startsWith('--diem='))?.slice(7) ?? '').split(';').filter(Boolean).map((p) => p.split(',').map(Number));
 const duongDan = resolve(args.find((a) => !a.startsWith('--')) ?? 'src/data/tram-sld.json');
 const tmp = mkdtempSync(join(tmpdir(), 'cs-'));
 const bundle = join(tmp, 'cs.mjs');
@@ -53,7 +59,7 @@ s.d.forEach((r, i) =>
     p: { x: r[3], y: r[4] },
     rot: r[5],
     scale: r[6],
-    state: data.states[r[7]],
+    state: thuCat.has(i) ? 'mo' : data.states[r[7]],
     mirror: !!r[9],
   }),
 );
@@ -62,6 +68,55 @@ s.d.forEach((r, i) =>
 const t0 = Date.now();
 const kq = tinhDongCongSuat(ents, (id) => diem.get(id));
 console.log(`${kq.chuoi.length} chuỗi, ${kq.soNguon} điểm nguồn, ${kq.diemDung.length} điểm dừng - ${Date.now() - t0} ms`);
+// --truy=x,y : lần ngược đường công suất tới điểm đó (để tìm chỗ nối nhầm)
+const truy = args.find((a) => a.startsWith('--truy='))?.slice(7);
+if (truy) {
+  const [x, y] = truy.split(',').map(Number);
+  const dai = (c) => {
+    let L = 0;
+    for (let k = 2; k < c.pts.length; k += 2) L += Math.hypot(c.pts[k] - c.pts[k - 2], c.pts[k + 1] - c.pts[k - 1]);
+    return L;
+  };
+  const qua = (c, px, py) => {
+    for (let k = 0; k < c.pts.length; k += 2) if (Math.hypot(c.pts[k] - px, c.pts[k + 1] - py) < 3) return true;
+    return false;
+  };
+  let cur = kq.chuoi.filter((c) => qua(c, x, y)).sort((a, b) => a.pha - b.pha)[0];
+  const da = new Set();
+  for (let i = 0; i < 80 && cur; i++) {
+    da.add(cur);
+    console.log(`  ← quãng ${cur.pha.toFixed(1)}: (${cur.pts[0].toFixed(1)}, ${cur.pts[1].toFixed(1)}) → (${cur.pts.at(-2).toFixed(1)}, ${cur.pts.at(-1).toFixed(1)}) ${cur.kv}kV`);
+    const [sx, sy] = cur.pts;
+    let tot = null;
+    let bd = Infinity;
+    for (const c of kq.chuoi) {
+      if (da.has(c)) continue;
+      const e = Math.hypot(c.pts.at(-2) - sx, c.pts.at(-1) - sy);
+      const hut = cur.pha - (c.pha + dai(c));
+      if (hut < -0.01 || hut > e + 0.5 || e > 60) continue;
+      if (e < bd) {
+        bd = e;
+        tot = c;
+      }
+    }
+    cur = tot;
+  }
+}
+for (const [x, y] of thuDiem) {
+  const co = kq.chuoi.some((c) => {
+    for (let k = 2; k < c.pts.length; k += 2) {
+      const [ax, ay, bx, by] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+      const dx = bx - ax;
+      const dy = by - ay;
+      const L = dx * dx + dy * dy;
+      if (!L) continue;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L));
+      if (Math.hypot(ax + t * dx - x, ay + t * dy - y) < 0.5) return true;
+    }
+    return false;
+  });
+  console.log(`  (${x}, ${y}): ${co ? 'CÓ công suất' : 'không'}`);
+}
 
 // Trung điểm các khúc có công suất
 const O = 20;
