@@ -67,6 +67,23 @@ export function deviceOps(d: DeviceEntity): WOp[] {
   return ops;
 }
 
+/**
+ * Đoạn đường dây cần CHE khi thiết bị đang cắt (khe hở của dao cách ly), trong toạ
+ * độ bản vẽ; null nếu thiết bị không có khe hoặc đang đóng.
+ */
+export function kheCat(d: DeviceEntity): [Pt, Pt] | null {
+  const def = getBlock(d.block);
+  if (!def?.kheMo || d.state !== 'mo') return null;
+  const s = d.scale || 1;
+  const m = d.mirror ? -1 : 1;
+  const tx = (x: number, y: number): Pt => {
+    const r = rotate({ x: x * m * s, y: y * s }, d.rot);
+    return { x: r.x + d.p.x, y: r.y + d.p.y };
+  };
+  const [x0, y0, x1, y1] = def.kheMo;
+  return [tx(x0, y0), tx(x1, y1)];
+}
+
 /** Hinh chu nhat khoi tram tren so do tinh. */
 export function substationOps(s: SubstationEntity): WOp[] {
   const hw = s.w / 2;

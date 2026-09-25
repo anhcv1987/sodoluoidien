@@ -1,6 +1,6 @@
 import type { DocStore } from '../core/doc';
 import type { Entity, VoltageKv } from '../core/types';
-import { entityOps } from '../render/shapes';
+import { entityOps, kheCat } from '../render/shapes';
 import { MAU_KXD_IN } from '../core/voltage';
 
 /**
@@ -86,6 +86,42 @@ export function exportDxf(store: DocStore): string {
   w.g(0, 'SECTION');
   w.g(2, 'ENTITIES');
 
+  // Khe hở của các dao cách ly đang cắt: đoạn dây nằm trong khe không xuất ra, để
+  // bản CAD cũng thấy đường dây hở mạch
+  const cacKhe: [{ x: number; y: number }, { x: number; y: number }][] = [];
+  for (const e of ents) {
+    if (e.kind !== 'device' || !store.isVisible(e)) continue;
+    const k = kheCat(e);
+    if (k) cacKhe.push(k);
+  }
+  /** Bỏ phần nằm trong khe hở ra khỏi đoạn a-b (chỉ khi đoạn chạy dọc theo khe). */
+  const truKhe = (a: { x: number; y: number }, b: { x: number; y: number }): [number, number][] => {
+    const L = Math.hypot(b.x - a.x, b.y - a.y);
+    let conLai: [number, number][] = [[0, 1]];
+    if (L < 1e-9) return conLai;
+    const ux = (b.x - a.x) / L;
+    const uy = (b.y - a.y) / L;
+    for (const [p, q] of cacKhe) {
+      const lech = (z: { x: number; y: number }): number => Math.abs((z.x - a.x) * uy - (z.y - a.y) * ux);
+      const tol = Math.max(0.05, Math.hypot(q.x - p.x, q.y - p.y) * 0.05);
+      if (lech(p) > tol || lech(q) > tol) continue;
+      let t0 = ((p.x - a.x) * ux + (p.y - a.y) * uy) / L;
+      let t1 = ((q.x - a.x) * ux + (q.y - a.y) * uy) / L;
+      if (t0 > t1) [t0, t1] = [t1, t0];
+      if (t1 <= 0 || t0 >= 1) continue;
+      const moi: [number, number][] = [];
+      for (const [s0, s1] of conLai) {
+        if (t1 <= s0 || t0 >= s1) moi.push([s0, s1]);
+        else {
+          if (t0 > s0) moi.push([s0, t0]);
+          if (t1 < s1) moi.push([t1, s1]);
+        }
+      }
+      conLai = moi;
+    }
+    return conLai;
+  };
+
   for (const e of ents) {
     if (!store.isVisible(e)) continue;
     if (e.kind === 'node') continue;
@@ -109,15 +145,20 @@ export function exportDxf(store: DocStore): string {
           }
           const pts = op.close && op.pts.length > 2 ? [...op.pts, op.pts[0]] : op.pts;
           for (let i = 1; i < pts.length; i++) {
-            w.g(0, 'LINE');
-            w.g(8, layer);
-            if (kxd) w.g(62, 30);
-            w.g(10, pts[i - 1].x);
-            w.g(20, pts[i - 1].y);
-            w.g(30, 0);
-            w.g(11, pts[i].x);
-            w.g(21, pts[i].y);
-            w.g(31, 0);
+            const a = pts[i - 1];
+            const b = pts[i];
+            const phan: [number, number][] = e.kind === 'branch' && cacKhe.length ? truKhe(a, b) : [[0, 1]];
+            for (const [t0, t1] of phan) {
+              w.g(0, 'LINE');
+              w.g(8, layer);
+              if (kxd) w.g(62, 30);
+              w.g(10, a.x + (b.x - a.x) * t0);
+              w.g(20, a.y + (b.y - a.y) * t0);
+              w.g(30, 0);
+              w.g(11, a.x + (b.x - a.x) * t1);
+              w.g(21, a.y + (b.y - a.y) * t1);
+              w.g(31, 0);
+            }
           }
           break;
         }
@@ -204,7 +245,12 @@ function writeText(
 
 /** Xuat SVG - dung de dan vao Word/Excel bao cao. */
 export function exportSvg(store: DocStore, colorFor: (e: Entity) => string): string {
-  const ents = Object.values(store.sheet.entities).filter((e) => store.isVisible(e) && e.kind !== 'node');
+  // Vẽ theo thứ tự như trên màn hình (dây trước, thiết bị sau) để phần che khe hở
+  // của dao cách ly đang cắt nằm đè lên đường dây
+  const hang: Record<string, number> = { boundary: 0, branch: 1, circle: 1, substation: 3, device: 4, text: 5 };
+  const ents = Object.values(store.sheet.entities)
+    .filter((e) => store.isVisible(e) && e.kind !== 'node')
+    .sort((a, b) => (hang[a.kind] ?? 9) - (hang[b.kind] ?? 9));
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -214,6 +260,13 @@ export function exportSvg(store: DocStore, colorFor: (e: Entity) => string): str
     const kxd = e.kind === 'device' && e.state === 'khong-xac-dinh';
     const color = kxd ? MAU_KXD_IN : colorFor(e);
     const net = kxd ? ' stroke-dasharray="0.6 0.45"' : '';
+    // Dao cách ly đang cắt: che phần dây trong khe hở bằng màu nền trắng
+    const khe = e.kind === 'device' ? kheCat(e) : null;
+    if (khe) {
+      body.push(
+        `<line x1="${fmt(khe[0].x)}" y1="${fmt(-khe[0].y)}" x2="${fmt(khe[1].x)}" y2="${fmt(-khe[1].y)}" stroke="#ffffff" stroke-width="0.6"/>`,
+      );
+    }
     for (const op of entityOps(store, e)) {
       if (op.t === 'path' && op.pts.length >= 2) {
         for (const p of op.pts) {

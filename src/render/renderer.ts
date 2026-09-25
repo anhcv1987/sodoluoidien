@@ -3,7 +3,7 @@ import type { Entity, Pt, SubstationEntity, BranchEntity } from '../core/types';
 import { colorOf, MAU_KXD, MAU_KXD_IN, styleOf } from '../core/voltage';
 import type { Box } from '../core/geom';
 import { Index2D, type Indexed } from './index2d';
-import { branchPoints, entityBox, entityOps, type WOp } from './shapes';
+import { branchPoints, entityBox, entityOps, kheCat, type WOp } from './shapes';
 import { getBlock } from '../symbols/blocks';
 import type { Viewport } from './viewport';
 
@@ -322,6 +322,26 @@ export class Renderer {
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.setLineDash(st.dash);
+
+    // Dao cách ly đang cắt: che phần đường dây nằm trong khe hở (dây vẽ liền xuyên qua
+    // thiết bị) bằng màu nền, để thấy rõ đường dây đã hở mạch.
+    if (e.kind === 'device') {
+      const khe = kheCat(e);
+      if (khe) {
+        const a = this.vp.toScreen(khe[0]);
+        const b = this.vp.toScreen(khe[1]);
+        ctx.save();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = this.bg();
+        ctx.lineCap = 'butt';
+        ctx.lineWidth = Math.max(st.width * 2.6, 6);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
 
     for (const op of ops) {
       switch (op.t) {

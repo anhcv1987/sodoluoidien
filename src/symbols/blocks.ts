@@ -26,6 +26,12 @@ export interface BlockDef {
   prims: Prim[];
   /** Hinh ve trang thai MO (neu la thiet bi dong cat co the ve hai trang thai). */
   primsOpen?: Prim[];
+  /**
+   * Khe hở của hình "mở" trên trục thiết bị (x0, y0, x1, y1 - đơn vị block): phần
+   * đường dây nằm trong khe này bị che đi khi thiết bị đang CẮT, để thấy rõ dây đã
+   * hở mạch (đường dây vẽ liền xuyên qua dao cách ly).
+   */
+  kheMo?: [number, number, number, number];
   /** Kich thuoc hop bao cua hinh "mo" (don vi block). */
   bboxOpen?: [number, number];
   /** Thiet bi dong cat -> co trang thai dong/mo, tham gia phan tich ket luoi. */
@@ -381,6 +387,17 @@ function make(
     const xoay = xformPrims(opts.open, { rot: rotMo, k: K });
     const dat = xformPrims(xoay, { dx: norm.origin[0], dy: norm.origin[1] });
     def.primsOpen = dat;
+    // Khe hở: giữa hai tiếp điểm nằm trên trục (y = 0) của hình mở
+    let trai = -Infinity;
+    let phai = Infinity;
+    for (const p of dat) {
+      if (p.t !== 'line' || Math.abs(p.pts[1]) > 1e-6 || Math.abs(p.pts[3]) > 1e-6) continue;
+      const lo = Math.min(p.pts[0], p.pts[2]);
+      const hi = Math.max(p.pts[0], p.pts[2]);
+      if (hi <= 0) trai = Math.max(trai, hi);
+      else if (lo >= 0) phai = Math.min(phai, lo);
+    }
+    if (isFinite(trai) && isFinite(phai)) def.kheMo = [trai, 0, phai, 0];
     const bo = primBounds(dat);
     def.bboxOpen = [Math.max(1e-6, bo.maxX - bo.minX), Math.max(1e-6, bo.maxY - bo.minY)];
     def.cucMo = opts.cuc ?? cucMacDinh(opts.inline ?? true, opts.rot ?? 0, bo, norm.origin);

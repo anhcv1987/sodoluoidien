@@ -255,6 +255,26 @@ check('Hoàn tác (Ctrl+Z)', d2 === d1 - 1);
 
 /* ---------------- Xuat / nhap DXF ---------------- */
 
+// Dao cách ly đang CẮT: đường dây phải hở ở khe dao (cả trên màn hình lẫn file DXF)
+const khe = await page.evaluate(() => {
+  const a = window.sodo;
+  const d = a.store.entities.find((e) => e.kind === 'device' && e.block === 'DCL' && Math.abs(e.p.x + 892.38) < 0.1 && Math.abs(e.p.y + 704.46) < 0.1);
+  a.ed.doiTrangThai([d.id], 'mo');
+  const t = a.exportDxfText();
+  a.store.undo();
+  // các LINE thẳng đứng trên trục x = -892.38 có vắt qua tâm dao không
+  const g = t.split(/\r?\n/);
+  let vat = 0;
+  for (let i = 0; i + 1 < g.length; i++) {
+    if (g[i].trim() !== '0' || g[i + 1].trim() !== 'LINE') continue;
+    const v = {};
+    for (let k = i + 2; k + 1 < g.length && g[k].trim() !== '0'; k += 2) v[g[k].trim()] = Number(g[k + 1]);
+    if (Math.abs(v['10'] + 892.38) < 0.05 && Math.abs(v['11'] + 892.38) < 0.05 && Math.min(v['20'], v['21']) < -704.46 && Math.max(v['20'], v['21']) > -704.46) vat++;
+  }
+  return { vat, sau: a.store.get(d.id).state };
+});
+check('Dao cách ly cắt: đường dây hở ở khe dao (file DXF)', khe.vat === 0 && khe.sau === 'dong', `${khe.vat} nét vắt qua khe`);
+
 const dxf = await page.evaluate(() => window.sodo.exportDxfText());
 check('Xuất DXF có nội dung', dxf.includes('ENTITIES') && dxf.includes('EOF'), `${dxf.length} ký tự`);
 writeFileSync('/tmp/roundtrip.dxf', dxf);

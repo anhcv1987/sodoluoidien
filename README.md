@@ -101,13 +101,16 @@ in đen trắng vẫn phân biệt được:
 | Thiết bị | Đóng | Cắt | Không xác định |
 |---|---|---|---|
 | Máy cắt, máy cắt hợp bộ | thân **tô đặc** | thân **để rỗng** | nét đứt, màu cam |
-| Dao cách ly | vạch chéo trên dây | lưỡi dao mở, có khe hở | nét đứt, màu cam |
+| Dao cách ly | vạch chéo trên dây | lưỡi dao mở, **đường dây hở** ở khe dao | nét đứt, màu cam |
 | Dao tiếp địa | lưỡi dao **nằm thẳng**, nối dây với đất | lưỡi dao mở | nét đứt, màu cam |
 
 * **Đổi trạng thái** (chỉ tài khoản biên tập, đã đăng nhập): **nhấn đúp** vào thiết bị
   để đảo Đóng ↔ Cắt; hoặc **chuột phải** → Đóng / Cắt / Không xác định; hoặc ô
   Trạng thái trong bảng Thuộc tính. Hoàn tác được bằng Ctrl+Z. Ở chế độ xem mọi
   cách đổi đều bị chặn và có thông báo nhắc đăng nhập.
+* Đường dây trên sơ đồ vẽ liền xuyên qua dao cách ly, nên khi dao **cắt** phần dây
+  nằm trong khe hở của ký hiệu được che đi (trên màn hình, khi in, xuất SVG) và bị
+  cắt bỏ khi xuất DXF - nhìn là thấy đường dây đã hở mạch. Đóng lại thì dây liền như cũ.
 * **Rê chuột** lên thiết bị hiện nhãn, ví dụ “171 · Máy cắt · Đóng”.
 * **Dữ liệu → Trạng thái thiết bị**: danh sách máy cắt / dao cách ly đang cắt, dao
   tiếp địa đang đóng, thiết bị chưa rõ trạng thái theo từng trạm; bấm dòng để nhảy
