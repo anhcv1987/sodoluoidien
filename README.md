@@ -768,12 +768,39 @@ node tools/ra-soat-mba.mjs src/data/tram-sld.json
 node tools/bo-net-dau-tram.mjs src/data/tram-sld.json
 node tools/noi-duong-day-110.mjs src/data/tram-sld.json
 node tools/phuong-thuc-van-hanh.mjs src/data/tram-sld.json
+node tools/ve-luoi-trung-ap.mjs src/data/tram-sld.json
 npm run build
 ```
 
 ---
 
-## 7. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)
+## 7. Lưới trung áp liên thông (đang làm thử: 477 E6.4, 473 E6.2)
+
+Nguồn: bản vẽ từng lộ trên Google Drive (`So do luoi dien/1. Lưới trung áp KV Thái
+Nguyên`, vd "18. ĐZ 472+477 E6.4.pdf", "7. ĐZ 473 E6.2.pdf"). Mỗi lộ chép sang một file
+mô tả trong `tools/luoi-trung-ap/` (477E6.4.mjs, 473E6.2.mjs), rồi
+`node tools/ve-luoi-trung-ap.mjs` vẽ lên tờ sơ đồ tổng, nối thẳng vào đầu ra ngăn lộ
+trong trạm (lớp CAD gốc "Lưới trung áp", chạy lại được).
+
+Quy ước thể hiện (đề xuất, chờ Phòng thống nhất):
+
+* Chỉ **đường trục** và **nhánh có liên kết** với lộ khác; không vẽ TBA phân phối,
+  không vẽ nhánh chỉ cấp cho TBA.
+* Đủ các **đoạn dây / cáp**: cáp ngầm nét đứt, ĐDK nét liền; ghi loại, tiết diện, chiều
+  dài đúng như bản vẽ (vd "3xAL/XLPE/PVC/DATA/PVC 1x400 - 1,76km", "ACSR 185",
+  "Cu 3x185 - 250m"); đoạn bản vẽ không ghi thì để trống.
+* **Tủ RMU**: khung tủ + ngăn vào, ngăn ra (và ngăn rẽ sang lộ khác); bỏ ngăn dự phòng,
+  ngăn cấp TBA khách hàng.
+* **Thiết bị trên trục** đủ: DCL, DPT, LBS, recloser (MC … R), tụ bù (TBN), đúng trạng
+  thái kết dây cơ bản (thường cắt = Cắt). Số cột ghi trên trục, tên thiết bị ghi dưới.
+* **Ranh giới quản lý / vận hành**: vạch đứt ngang tuyến, hai bên ghi đơn vị / lộ
+  (vd "473E6.2 ← | → 472E6.4", "Đồng Hỷ | Thành phố").
+* Chỗ liên kết với lộ chưa vẽ: kết thúc bằng "→ LT …" (vd "→ LT 474 E6.4 (MC 472E6.4/25
+  Gia Bảy)"); khi vẽ lộ đó sẽ nối liền.
+
+Công suất chạy (F6) đi từ ngăn lộ theo trục, dừng ở các điểm thường cắt.
+
+## 8. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)
 
 1. Trong CAD (AutoCAD / GstarCAD / VinaCAD…) mở bản vẽ lộ trung áp, dùng **SAVEAS →
    AutoCAD ASCII DXF**.
@@ -802,7 +829,7 @@ Sau khi nhập, chọn từng tuyến để điền **mã hiệu dây** (`AC-120
 
 ---
 
-## 8. Lưu và xuất
+## 9. Lưu và xuất
 
 | Định dạng | Dùng để |
 |---|---|
@@ -827,7 +854,7 @@ mở lại. Vẫn nên lưu ra file `.sld` để giữ lâu dài và chia sẻ.
 
 ---
 
-## 9. Cấu trúc mã nguồn
+## 10. Cấu trúc mã nguồn
 
 ```
 src/
@@ -856,6 +883,7 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  phuong-thuc-van-hanh.mjs — đặt các máy cắt cắt theo kết dây cơ bản, sửa tên trạm
                  bo-net-dau-tram.mjs    — bỏ 2 nét thừa ở đầu trạm 110kV ký hiệu 3 nét song song
                  ra-soat-mba.mjs        — gán cấp điện áp (màu) từng cuộn dây MBA theo nhãn tỷ số
+                 ve-luoi-trung-ap.mjs   — vẽ lộ trung áp (trục + nhánh liên kết) từ tools/luoi-trung-ap/*.mjs
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật
                  noi-duong-day-110.mjs  — nối đường dây 110kV giữa các trạm (A*)
                  kiem-cap-dien-ap.mjs   — rà soát cấp điện áp theo số hiệu ngăn lộ
@@ -869,7 +897,7 @@ Không dùng framework giao diện; chỉ TypeScript + Vite, nên đọc và s�
 
 ---
 
-## 10. Việc còn phải làm
+## 11. Việc còn phải làm
 
 * Xác nhận toạ độ 220kV Bắc Kạn (E26.5) trên GIS (mục 5).
 * Bổ sung công suất MBA cho E6.22 Định Hoá, E6.23 Yên Bình 8, E6.24 Đa Phúc,

@@ -1,0 +1,92 @@
+/**
+ * ĐZ 473 E6.2 - theo bản vẽ "7. ĐZ 473 E6.2.pdf" (Phòng Điều độ, 18/07/2026).
+ *
+ * C43 E6.2 → cáp Cu 3x185 250m → cột 03 → trục AC120 / AC150 qua LBS 473E6.2/71 tới
+ * MC 472E6.4/61 (thường cắt, ranh giới 473E6.2 / 472E6.4).
+ * Nhánh liên kết: cột 65 → LBS 473E6.2/04 → cột 11 … 29 → LBS 476E6.4/39 (thường cắt)
+ * LT 476E6.4 (ranh giới Đồng Hỷ / Thành phố).
+ */
+export default {
+  ten: 'ĐZ 473 E6.2',
+  tieuDe: [-1428, 420],
+  // đầu ra ngăn lộ 473 (C43 E6.2) → xuống → sang phải
+  duong: [
+    [-1437.4, 499.3],
+    [-1437.4, 250],
+    [-560, 250],
+  ],
+  canh: [
+    [{ dz: 'Cu 3x185', dai: '250m', cap: true }],
+    [
+      { khoang: 6 },
+      { tb: 'DCL', ten: ['DCL 473E6.2-7/01'] },
+      { dz: 'AC120' },
+      { coc: '03' },
+      { ghi: '(cột 04-474E6.2 cách 2m)', rong: 4 },
+      { khoang: 30 },
+      { coc: '11' },
+      { coc: '24' },
+      { coc: '40' },
+      { tb: 'DCL', ten: ['DCL 473E6.2-7/42'] },
+      { coc: '43' },
+      { khoang: 10 },
+      { coc: '44' },
+      { coc: '47' },
+      { coc: '57' },
+      { coc: '65' },
+      {
+        nhanh: {
+          phia: 'phai',
+          muc: [
+            { coc: '04' },
+            { tb: 'DCL', ten: ['DCL 473E6.2-7/04', 'LT 476E6.4'] },
+            { tb: 'LBS', ten: ['LBS 473E6.2/04', 'LT 476E6.4'] },
+            { tb: 'DCL', ten: ['DCL 473E6.2-7/05', 'LT 476E6.4'] },
+            { dz: 'AC185' },
+            { khoang: 20 },
+            { coc: '11' },
+            { coc: '12' },
+            { coc: '22' },
+            { coc: '29' },
+            { tb: 'DCL', ten: ['DCL 476E6.4-7/40', 'LT 473 E6.2'] },
+            { tb: 'LBS', ten: ['LBS 476E6.4/39', 'LT 473 E6.2', '(thường cắt)'], mo: true },
+            { tb: 'DCL', ten: ['DCL 476E6.4-7/39', 'LT 473 E6.2'] },
+            { ranh: ['Đồng Hỷ', 'Thành phố'] },
+            { dz: 'AC185' },
+            { khoang: 14 },
+            { coc: '28' },
+            { coc: '27' },
+            { ghi: 'Qua sông' },
+          ],
+          cuoi: 'LT 476 E6.4',
+        },
+      },
+      { coc: '68' },
+      { tb: 'DCL', ten: ['DCL 473E6.2-7/70A'] },
+      { tb: 'LBS', ten: ['LBS 473E6.2/71'] },
+      { coc: '73' },
+      { tu: ['TBN 401/73', '150kVAr'] },
+      { dz: 'AC120' },
+      { khoang: 14 },
+      { coc: '76' },
+      { coc: '78' },
+      { coc: '83' },
+      { coc: '84' },
+      { dz: 'AC150' },
+      { khoang: 14 },
+      { coc: '85' },
+      { coc: '99' },
+      { coc: '100' },
+      { coc: '108' },
+      { coc: '113' },
+      { ghi: 'Giao chéo 376 TCCN', rong: 4 },
+      { khoang: 12 },
+      { coc: '114' },
+      { tb: 'DCL', ten: ['DPT 472E6.4-7/62', 'LT 473E6.2'] },
+      { ranh: ['473E6.2', '472E6.4'] },
+      { tb: 'REC', ten: ['MC 472E6.4/61', 'LT 473E6.2 (thường cắt)'], mo: true },
+      { tb: 'DCL', ten: ['DCL 472E6.4-7/61', 'LT 473E6.2'] },
+    ],
+  ],
+  cuoi: 'LT 472 E6.4 (474 E6.4 cấp)',
+};

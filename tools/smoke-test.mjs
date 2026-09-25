@@ -198,7 +198,8 @@ check('Mở ra là chế độ xem, ẩn công cụ hiệu chỉnh', xem.chiXem 
 const tt0 = await page.evaluate(() => {
   const a = window.sodo;
   const tb = a.store.entities.filter((e) => e.kind === 'device' && e.layer !== 'Khung bản vẽ');
-  const dcl = tb.filter((e) => e.block === 'DCL');
+  // dao cách ly trong trạm (lưới trung áp vẽ theo phương thức riêng, có dao thường cắt)
+  const dcl = tb.filter((e) => e.block === 'DCL' && e.srcLayer !== 'Lưới trung áp');
   const dtd = tb.find((e) => e.block === 'DTD');
   const chuGiai = a.store.entities.filter((e) => e.kind === 'device' && e.layer === 'Khung bản vẽ').length;
   // Chế độ xem: đổi trạng thái bị chặn
@@ -208,6 +209,39 @@ const tt0 = await page.evaluate(() => {
 check('Dao cách ly đều Đóng, trừ dao thanh cái đường vòng (-9) Cắt', tt0.dclCat === 51 && tt0.soDcl > 500, `${tt0.soDcl} DCL, ${tt0.dclCat} đang cắt`);
 check('Có khung chú giải trạng thái thiết bị', tt0.chuGiai === 12, `${tt0.chuGiai} ký hiệu mẫu`);
 check('Chế độ xem không đổi được trạng thái thiết bị', tt0.doi === 0 && tt0.dtdSt === 'mo');
+
+/* ---------------- Lưới trung áp (477 E6.4, 473 E6.2) ---------------- */
+
+const lta = await page.evaluate(() => {
+  const a = window.sodo;
+  const ds = a.store.entities.filter((e) => e.srcLayer === 'Lưới trung áp');
+  const tb = ds.filter((e) => e.kind === 'device');
+  const moTen = ['DCL 472E6.4-7/25', 'LBS 472E6.4/61', 'MC 472E6.4/61', 'LBS 476E6.4/39', '477-7/02-2'];
+  const chu = a.store.entities.filter((e) => e.kind === 'text' && e.srcLayer === 'Lưới trung áp').map((e) => e.text);
+  const d = a.congSuat.duLieu();
+  const coDien = (x, y) =>
+    d.chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [x0, y0, x1, y1] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        if (Math.abs(y0 - y) < 0.5 && Math.abs(y1 - y) < 0.5 && Math.min(x0, x1) <= x && Math.max(x0, x1) >= x) return true;
+      }
+      return false;
+    });
+  return {
+    net: ds.filter((e) => e.kind === 'branch').length,
+    tb: tb.length,
+    mo: tb.filter((e) => e.state === 'mo').length,
+    ten: moTen.every((t) => chu.some((c) => c.startsWith(t))),
+    // 477 E6.4 có điện tới Gia Bảy (trước DCL 7/25), 473 E6.2 có điện trên trục
+    d477: coDien(-1400, -600),
+    d473: coDien(-1300, 250),
+  };
+});
+check(
+  'Lưới trung áp: 477 E6.4 và 473 E6.2 vẽ từ ngăn lộ, có điện, dừng ở điểm thường cắt',
+  lta.net > 20 && lta.tb > 25 && lta.mo === 5 && lta.ten && lta.d477 && lta.d473,
+  JSON.stringify(lta),
+);
 
 /* ---------------- Màu cuộn dây máy biến áp ---------------- */
 
