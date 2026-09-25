@@ -307,6 +307,30 @@ const tachHaiDau = await page.evaluate(() => {
   a.store.undo();
   return { truoc, sau, lai: coDien() };
 });
+// E6.8 Xi măng Thái Nguyên: MC 112 đang cắt, cắt thêm 112-1, 112-2 -> khúc thanh cái
+// giữa hai dao không có công suất; hai phân đoạn C11, C12 vẫn có (nhận điện từ lộ 171,
+// 172 - đường dây đã bắt đúng vào nét giữa ở đầu trạm)
+const tach112 = await page.evaluate(() => {
+  const a = window.sodo;
+  const tim = (x, y) => a.store.entities.find((e) => e.kind === 'device' && Math.hypot(e.p.x - x, e.p.y - y) < 0.5);
+  const coDien = (x, y) =>
+    a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [x0, y0, x1, y1] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        if (Math.abs(y0 - y) < 0.5 && Math.abs(y1 - y) < 0.5 && Math.min(x0, x1) <= x && Math.max(x0, x1) >= x) return true;
+      }
+      return false;
+    });
+  a.ed.doiTrangThai([tim(1615.82, 3017.72).id, tim(1717.53, 3017.72).id], 'mo');
+  const kq = { giua: coDien(1640, 3017.72) || coDien(1695, 3017.72), c11: coDien(1600, 3017.72), c12: coDien(1740, 3017.72) };
+  a.store.undo();
+  return kq;
+});
+check(
+  'Cắt MC 112 và 112-1, 112-2 (E6.8): khúc giữa mất điện, C11 C12 vẫn có điện',
+  !tach112.giua && tach112.c11 && tach112.c12,
+  JSON.stringify(tach112),
+);
 check(
   'Cắt hai đầu đường dây thì đoạn giữa mất điện',
   tachHaiDau.truoc && !tachHaiDau.sau && tachHaiDau.lai,

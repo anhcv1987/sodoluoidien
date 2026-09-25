@@ -154,6 +154,12 @@ Dùng được cả ở chế độ xem, vẫn kéo / phóng bản vẽ bình th
   cắt ra khỏi lưới có điện bằng thiết bị đang cắt thì không có công suất chạy (không
   lấy thanh cái của đoạn đó làm nguồn riêng). Chỉ mạch nào không nối được về lưới vì
   bản vẽ đứt nét mới lấy thanh cái cấp cao nhất của mạch làm nguồn.
+* **Thanh cái đường vòng** (C19, C29 - nhận ra theo các dao -9 nối vào nó, ghi ở
+  `vong` trong dữ liệu) ở E6.2, E6.16, E6.25: các ngăn lộ vẽ vắt qua nó không phải
+  đấu nối, nên khi các dao -9 cắt thì thanh cái đường vòng không có điện.
+* Mạch không nối được về lưới (bản vẽ đứt nét) chỉ lấy **phân đoạn thanh cái chính**
+  làm nguồn; khúc thanh cái ngắn bị kẹp giữa dao cách ly và máy cắt đang cắt (vd giữa
+  112-1 và MC 112) thì mất điện.
 * Dây **vắt qua** thanh cái không phải là đấu nối: trạm vẽ có chấm đấu nối (vòng tròn
   nhỏ / block chấm) thì chỗ cắt không có chấm là vắt qua; trạm không dùng chấm thì chỉ
   chỗ dây cắt sát đầu thanh cái mới là đấu nối. Nét nằm ngang ngắn của ký hiệu nối
@@ -657,6 +663,14 @@ thiếu hoặc lẫn ký tự thừa); mã trạm giữ nguyên:
 | E6.16 | Trạm 220kV Phú Bình | TRẠM 220KV PHÚ BÌNH |
 | E6.25 | Trạm 220kV Phú Bình 2 | TRẠM 220KV PHÚ BÌNH 2 |
 
+#### Đầu trạm 110kV vẽ ba nét song song
+
+Đầu ra đường dây của ngăn lộ 110kV ở một số trạm vẽ bằng **ba nét song song**: nét giữa
+là dây dẫn đi xuống ngăn lộ, hai nét ngắn hai bên chỉ là ký hiệu. Đường dây liên trạm
+có chỗ bắt nhầm vào nét bên (lộ 171 E6.8 Xi măng Thái Nguyên) nên trạm không nối
+được vào lưới. `tools/bo-net-dau-tram.mjs` bỏ hai nét bên ở **13 đầu dây** (E6.7,
+E6.8, E6.9, E6.11, E6.12, E6.21) và dời đầu đường dây đang bắt nhầm sang nét giữa.
+
 ### Liên kết điện và chiều công suất
 
 Phần mềm dựng sẵn mô hình **liên kết điện** giữa các đối tượng (xem
@@ -723,6 +737,7 @@ python3 tools/tach-so-do-tram.py tong.dxf tram/ --min-x 999999999 \
 node tools/dung-du-lieu-tram.mjs tram/ src/data/tram-sld.json
 node tools/chuan-hoa-dcl-lien-dong.mjs src/data/tram-sld.json
 node tools/ra-soat-cap-dien-ap.mjs src/data/tram-sld.json
+node tools/bo-net-dau-tram.mjs src/data/tram-sld.json
 node tools/noi-duong-day-110.mjs src/data/tram-sld.json
 node tools/phuong-thuc-van-hanh.mjs src/data/tram-sld.json
 npm run build
@@ -811,6 +826,7 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  chuan-hoa-dcl-lien-dong.mjs — vẽ lại DCL + dao tiếp địa kiểu liên động (110/35kV)
                  ra-soat-cap-dien-ap.mjs — sửa màu (cấp điện áp) vẽ nhầm lớp theo liên kết điện
                  phuong-thuc-van-hanh.mjs — đặt các máy cắt cắt theo kết dây cơ bản, sửa tên trạm
+                 bo-net-dau-tram.mjs    — bỏ 2 nét thừa ở đầu trạm 110kV ký hiệu 3 nét song song
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật
                  noi-duong-day-110.mjs  — nối đường dây 110kV giữa các trạm (A*)
                  kiem-cap-dien-ap.mjs   — rà soát cấp điện áp theo số hiệu ngăn lộ

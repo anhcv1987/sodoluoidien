@@ -111,6 +111,11 @@ export interface BranchEntity extends EntityBase {
    * khong phai diem dau noi (tren ban ve co ky hieu nua hinh tron nhay day).
    */
   khongNoiGiua?: boolean;
+  /**
+   * Thanh cai DUONG VONG (C19, C29...): noi vao cac ngan lo qua dao -9. Day cua ngan
+   * lo ve vat qua no (khong co cham noi) khong phai dau noi.
+   */
+  vong?: boolean;
 }
 
 /** Trang thai dong cat cua thiet bi. */

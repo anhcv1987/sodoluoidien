@@ -457,6 +457,8 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     return n;
   };
 
+  const mang = dungMangDien(entities, diem);
+
   /* --- chấm đấu nối (vòng tròn nhỏ) --- */
   const luoiCham = new LuoiO(Math.max(co / 300, saiSo * 4));
   // vòng tròn nhỏ, hoặc block "35-Cot" (chấm tròn đặc) đặt tại chỗ nối
@@ -558,7 +560,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
         }
         const [tt, d] = chieu(p.x, p.y, a.x, a.y, b.x, b.y);
         if (d <= lim) {
-          if (tuyenCoCham.has(j) && vatQua(i, p, j) && !coCham(p.x, p.y)) continue;
+          if ((tuyenCoCham.has(j) || tuyen[j].b.vong) && vatQua(i, p, j) && !coCham(p.x, p.y)) continue;
           noi(u, chiaTai(s, tt));
           reVao[j].add(i);
         }
@@ -594,15 +596,13 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       if (t < 0 || t > 1 || u < 0 || u > 1) continue;
       const X = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
       if (!coCham(X.x, X.y)) {
-        // Không có chấm: chỉ coi là đấu nối khi thanh cái vẽ kiểu không dùng chấm VÀ
-        // chỗ cắt ở sát đầu thanh cái (thanh cái kéo lố qua ngăn lộ cuối vài đơn vị,
-        // vd C12 E6.4). Dây cắt ngang GIỮA thanh cái là dây vắt qua (vd các ngăn lộ
-        // vắt qua thanh cái đường vòng C19 E6.2).
-        if (tuyenCoCham.has(doanTuyen[s])) continue;
-        const q = tuyen[doanTuyen[s]].p;
-        const dau = q[0];
-        const cuoi = q[q.length - 1];
-        if (Math.min(Math.hypot(X.x - dau.x, X.y - dau.y), Math.hypot(X.x - cuoi.x, X.y - cuoi.y)) > saiSo * 3) continue;
+        // Không có chấm:
+        //  - thanh cái vẽ kiểu có chấm (vd E6.20): dây vắt qua, không đấu nối;
+        //  - thanh cái đường vòng (C19, C29 - đánh dấu theo các dao -9): các ngăn lộ
+        //    vẽ vắt qua nó để xuống MBA / ra đường dây, không đấu nối;
+        //  - thanh cái chính vẽ kiểu không dùng chấm (vd E6.4, E6.8): ngăn lộ vẽ
+        //    xuyên qua thanh cái là đấu vào thanh cái.
+        if (tuyenCoCham.has(doanTuyen[s]) || tb.vong) continue;
       }
       noi(chiaTai(s, t), chiaTai(s2, u));
     }
@@ -635,7 +635,6 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     }
     return out;
   };
-  const mang = dungMangDien(entities, diem);
   const diemTai = new Set<number>(); // cực thiết bị mang tải (MBA phân phối, tự dùng…)
   const diemKhongTai = new Set<number>(); // cực thiết bị đấu rẽ không mang tải
   const diemThietBi = new Set<number>(); // đỉnh có bắt cực thiết bị
@@ -759,6 +758,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   const veV: number[] = [];
   const veL: number[] = [];
   const veKv: VoltageKv[] = [];
+  const veTuyen: number[] = [];
   const luoiCat = new LuoiO(Math.max(co / 300, saiSo * 4));
   doanCat.forEach((c, i) => luoiCat.them(c[0], c[1], c[2], c[3], i));
   const biCat = (u: number, v: number): boolean => {
@@ -790,6 +790,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       veV.push(v);
       veL.push(Math.hypot(vx[u] - vx[v], vy[u] - vy[v]));
       veKv.push(kv);
+      veTuyen.push(doanTuyen[s]);
     }
   }
   tuyen.forEach((t) => {
@@ -898,10 +899,46 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
         hangM.push(m2);
       }
     }
-  }
-  for (const [v, kv] of dinhThanhCai) {
-    const m = mach[v];
-    if (!coNguon[m] && !biTach[m] && kv >= 110 && kv === capCao[m]) nguon.add(v);
+
+    // Còn lại: các mạch không nối được về nguồn chính (bản vẽ đứt nét). Gom các mạch
+    // nối với nhau qua thiết bị đang cắt thành một cụm; trong cụm chỉ lấy làm nguồn
+    // những phân đoạn thanh cái CHÍNH (dài ≥ nửa phân đoạn dài nhất, cấp cao nhất
+    // cụm) - khúc thanh cái ngắn bị kẹp giữa dao cách ly và máy cắt đang cắt (vd
+    // giữa 112-1 và MC 112) thì mất điện.
+    const daiTC = new Map<number, number>(); // mạch -> chiều dài thanh cái cấp cao nhất
+    for (let i = 0; i < veU.length; i++) {
+      const m = mach[veU[i]];
+      if (m < 0 || !laThanhCai(veTuyen[i])) continue;
+      if (veKv[i] !== capCao[m]) continue;
+      daiTC.set(m, (daiTC.get(m) ?? 0) + veL[i]);
+    }
+    const cum = new Int32Array(soMach).fill(-1);
+    const dsCum: number[][] = [];
+    for (let m0 = 0; m0 < soMach; m0++) {
+      if (tham[m0] || cum[m0] >= 0) continue;
+      const ds = [m0];
+      cum[m0] = dsCum.length;
+      for (let k = 0; k < ds.length; k++) {
+        for (const m2 of keCat.get(ds[k]) ?? []) {
+          if (tham[m2] || cum[m2] >= 0) continue;
+          cum[m2] = dsCum.length;
+          ds.push(m2);
+        }
+      }
+      dsCum.push(ds);
+    }
+    const chon = new Uint8Array(soMach);
+    for (const ds of dsCum) {
+      const kvMax = Math.max(...ds.map((m) => capCao[m]));
+      if (kvMax < 110) continue;
+      const dai = ds.filter((m) => capCao[m] === kvMax).map((m) => daiTC.get(m) ?? 0);
+      const lon = Math.max(...dai);
+      for (const m of ds) if (capCao[m] === kvMax && (daiTC.get(m) ?? 0) >= lon * 0.5) chon[m] = 1;
+    }
+    for (const [v, kv] of dinhThanhCai) {
+      const m = mach[v];
+      if (chon[m] && kv === capCao[m]) nguon.add(v);
+    }
   }
 
   /* ---------- 6. Dijkstra đa nguồn ---------- */

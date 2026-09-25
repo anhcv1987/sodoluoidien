@@ -63,6 +63,7 @@ for (const [ma, nhan, ten] of CAT) {
 // vẫn có điện qua thanh cái vòng.
 const iDCL = data.blocks.indexOf('DCL');
 let dao9 = 0;
+const dsDao9 = [];
 for (const t of s.t) {
   const nhan = String(t[8]).trim();
   if (!/^(\d{3}\s*)?-\s*9$/.test(nhan)) continue;
@@ -76,12 +77,56 @@ for (const t of s.t) {
     const d = Math.hypot(r[3] - cx, r[4] - cy);
     if (d <= h * 2.5 + r[6] * 0.6 && (!tot || d < tot.d)) tot = { d, r };
   }
-  if (tot && tot.r[7] !== iMo) {
+  if (!tot) continue;
+  dsDao9.push(tot.r);
+  if (tot.r[7] !== iMo) {
     tot.r[7] = iMo;
     dao9++;
   }
 }
 console.log(`  Dao cách ly thanh cái đường vòng (-9): cắt thêm ${dao9}`);
+
+// Thanh cái nối vào các dao -9 là THANH CÁI ĐƯỜNG VÒNG: ghi lại (theo đỉnh đầu) để
+// mô hình công suất biết các ngăn lộ vẽ vắt qua nó không phải là đấu nối.
+const kc = (px, py, ax, ay, bx, by) => {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const L = dx * dx + dy * dy;
+  const t = L ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L)) : 0;
+  return Math.hypot(ax + t * dx - px, ay + t * dy - py);
+};
+const iTC = data.lineKinds.indexOf('Thanh cái');
+const laTC = (r) => {
+  if (r[2] === iTC) return true;
+  const ys = [];
+  const xs = [];
+  for (let k = 4; k + 1 < r.length; k += 2) (xs.push(r[k]), ys.push(r[k + 1]));
+  const w = Math.max(...xs) - Math.min(...xs);
+  return w > 100 && Math.max(...ys) - Math.min(...ys) < 0.5;
+};
+const demVong = new Map();
+for (const dv of dsDao9) {
+  // nét dây đi qua dao -9
+  for (const r of s.b) {
+    let qua = false;
+    for (let k = 6; k + 1 < r.length && !qua; k += 2) qua = kc(dv[3], dv[4], r[k - 2], r[k - 1], r[k], r[k + 1]) < 0.5;
+    if (!qua) continue;
+    // hai đầu nét dây chạm thanh cái nào
+    for (const [px, py] of [
+      [r[4], r[5]],
+      [r[r.length - 2], r[r.length - 1]],
+    ]) {
+      for (const tc of s.b) {
+        if (tc === r || !laTC(tc)) continue;
+        let cham = false;
+        for (let k = 6; k + 1 < tc.length && !cham; k += 2) cham = kc(px, py, tc[k - 2], tc[k - 1], tc[k], tc[k + 1]) < 1;
+        if (cham) demVong.set(tc, (demVong.get(tc) ?? 0) + 1);
+      }
+    }
+  }
+}
+s.vong = [...demVong].filter(([, n]) => n >= 2).map(([tc]) => [tc[4], tc[5]]);
+console.log(`  Thanh cái đường vòng: ${s.vong.map(([x, y]) => tram(x, y)).join(', ')}`);
 
 let chu = 0;
 for (const [cu, moi] of DOI_CHU) {

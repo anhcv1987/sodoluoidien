@@ -43,6 +43,8 @@ interface CompactSheet {
   c?: number[][];
   /** Trạm trong tờ tổng: [mã, tiêu đề, x, y, x0, y0, x1, y1, ngoài tỉnh (0/1)] */
   st?: (number | string)[][];
+  /** Thanh cái đường vòng (C19, C29…): đỉnh đầu [x0, y0] của từng thanh cái. */
+  vong?: number[][];
 }
 
 interface CompactData {
@@ -113,6 +115,8 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
 
   const entities: Record<Id, Entity> = {};
   const put = (e: Entity): void => void (entities[e.id] = e);
+  // thanh cái đường vòng: ghi theo đỉnh đầu (tools/phuong-thuc-van-hanh.mjs)
+  const vong = new Set((s.vong ?? []).map(([x, y]) => `${x}|${y}`));
 
   for (const row of s.b) {
     const layer = data.layers[row[0]] ?? '0';
@@ -137,6 +141,7 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
     if (srcLayer) b.srcLayer = srcLayer;
     // Đường dây nối giữa các trạm chỉ đấu ở hai đầu; chỗ cắt nhau là giao chéo.
     if (srcLayer === 'Kết lưới 110kV') b.khongNoiGiua = true;
+    if (vong.has(`${row[4]}|${row[5]}`)) b.vong = true;
     put(b);
   }
 
