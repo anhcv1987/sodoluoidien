@@ -437,14 +437,22 @@ xuống xuyên qua chính ngăn lộ):
 * **dải để dành cho lưới trung áp** ngay dưới mỗi trạm (xem ngay dưới) bị phạt
   420/ô, nên đường dây 110kV tránh xuống vùng sẽ vẽ lộ 35/22/6kV.
 
-Sau khi tìm đường còn hai bước sửa hình:
+Sau khi tìm đường còn các bước sửa hình:
 
 * **tách làn** - chỗ nhiều tuyến buộc phải đi chung một hàng ô (khe hở giữa hai
   trạm), các đoạn chồng nhau được dịch lệch nhau từng 12 đơn vị thành bó song song;
   đoạn ngang dời lên/xuống thì hai đoạn dọc hai bên chỉ dài ra hay ngắn đi, tuyến vẫn
   gấp khúc vuông góc;
 * **bỏ nấc tí hon** - đầu ngăn lộ không nằm đúng đường lưới nên đôi khi còn một nấc
-  gấp khúc vài đơn vị sát đầu ngăn lộ; dời đoạn song song phía trước cho thẳng hàng.
+  gấp khúc vài đơn vị sát đầu ngăn lộ; dời đoạn song song phía trước cho thẳng hàng;
+* **làm thẳng nấc gấp khúc** (tới 75 đơn vị) - tuyến đi ra khỏi ngăn lộ, rẽ ngang
+  một quãng ngắn rồi lại đi tiếp theo hướng cũ (do đầu ngăn lộ lệch đường lưới ô 60
+  đơn vị): dời cả đoạn dài phía sau cho thẳng hàng với đoạn trước (hoặc ngược lại),
+  chỉ khi đoạn mới không chồng lên / chạm chữ T vào tuyến khác hay hình vẽ sẵn và
+  không cắt thêm nét nào. Đã làm thẳng 52 nấc (còn 1 nấc 1 đơn vị ở tuyến ngắn nhất
+  E26.1, cả hai đầu là đầu ngăn lộ nên không dời được);
+* **ký hiệu nhảy dây** không vồng chạm vào tuyến ngang khác cắt cùng đoạn dọc ngay
+  phía trên (hai nửa vòng xếp chồng thì thu nhỏ nửa vòng dưới).
 
 Chạy xong, công cụ tự kiểm và in ra số đỉnh rơi vào vùng trung áp / đè lên hình vẽ
 sẵn có, để dễ so sánh giữa hai lần chỉnh. Kết quả hiện tại: 40/40 tuyến, **0 đoạn

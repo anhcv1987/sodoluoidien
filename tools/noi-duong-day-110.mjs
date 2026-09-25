@@ -1035,6 +1035,119 @@ const LAN = 12;
   if (tach) console.log(`Đã tách ${tach} góc rẽ trùng nhau giữa hai tuyến.`);
 }
 
+/* --- Làm thẳng nấc gấp khúc ---
+   Đầu ngăn lộ hiếm khi nằm đúng đường lưới tìm đường (ô 60 đơn vị), nên tuyến hay
+   có một NẤC: đi ra khỏi ngăn lộ, rẽ ngang một quãng ngắn rồi lại đi tiếp theo
+   hướng cũ. Dời cả đoạn dài phía sau nấc sang cho thẳng hàng với đoạn trước (hoặc
+   ngược lại) thì nấc biến mất, tuyến vẫn chỉ gồm đoạn ngang - dọc. Chỉ dời khi đoạn
+   mới không chồng lên tuyến khác / hình vẽ sẵn và không cắt thêm nét nào. */
+const NAC = 75;
+{
+  const nen = [];
+  for (const r of [...to.b, ...veNgoai.b]) {
+    for (let i = 4; i + 3 < r.length; i += 2) nen.push([[r[i], r[i + 1]], [r[i + 2], r[i + 3]]]);
+  }
+  const doanTuyen = (x) => {
+    const o = [];
+    tuyen.forEach((t, i) => {
+      if (i === x) return;
+      for (let k = 1; k < t.pts.length; k++) o.push([t.pts[k - 1], t.pts[k]]);
+    });
+    return o;
+  };
+  /** Hai đoạn ngang/dọc chồng lên nhau (cùng đường thẳng, trùng một quãng > 1). */
+  const chong = (a, b, c, d) => {
+    const ngang1 = Math.abs(a[1] - b[1]) < 0.6;
+    const doc1 = Math.abs(a[0] - b[0]) < 0.6;
+    const ngang2 = Math.abs(c[1] - d[1]) < 0.6;
+    const doc2 = Math.abs(c[0] - d[0]) < 0.6;
+    if (ngang1 && ngang2 && Math.abs(a[1] - c[1]) < 2) {
+      return Math.min(Math.max(a[0], b[0]), Math.max(c[0], d[0])) - Math.max(Math.min(a[0], b[0]), Math.min(c[0], d[0])) > 1;
+    }
+    if (doc1 && doc2 && Math.abs(a[0] - c[0]) < 2) {
+      return Math.min(Math.max(a[1], b[1]), Math.max(c[1], d[1])) - Math.max(Math.min(a[1], b[1]), Math.min(c[1], d[1])) > 1;
+    }
+    return false;
+  };
+  const cat = (a, b, c, d) => {
+    const d1 = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    const d2 = (b[0] - a[0]) * (d[1] - a[1]) - (b[1] - a[1]) * (d[0] - a[0]);
+    const d3 = (d[0] - c[0]) * (a[1] - c[1]) - (d[1] - c[1]) * (a[0] - c[0]);
+    const d4 = (d[0] - c[0]) * (b[1] - c[1]) - (d[1] - c[1]) * (b[0] - c[0]);
+    return d1 * d2 < -1e-6 && d3 * d4 < -1e-6;
+  };
+  const soCat = (ds, khac) => ds.reduce((n, [a, b]) => n + khac.filter(([c, d]) => cat(a, b, c, d)).length, 0);
+  const coChong = (ds, khac) => ds.some(([a, b]) => khac.some(([c, d]) => chong(a, b, c, d)));
+  const donDiem = (p) => {
+    for (let k = p.length - 2; k >= 1; k--) {
+      const [u, v, w] = [p[k - 1], p[k], p[k + 1]];
+      const trung = Math.abs(u[0] - v[0]) < 0.6 && Math.abs(u[1] - v[1]) < 0.6;
+      const thang = (Math.abs(u[0] - v[0]) < 0.6 && Math.abs(v[0] - w[0]) < 0.6) || (Math.abs(u[1] - v[1]) < 0.6 && Math.abs(v[1] - w[1]) < 0.6);
+      if (trung || thang) p.splice(k, 1);
+    }
+  };
+  let bo = 0;
+  for (let luot = 0; luot < 6; luot++) {
+    let doi = false;
+    tuyen.forEach((t, x) => {
+      const p = t.pts;
+      for (let k = 1; k + 2 < p.length; k++) {
+        const [a, b, c, d] = [p[k - 1], p[k], p[k + 1], p[k + 2]];
+        const v1 = [b[0] - a[0], b[1] - a[1]];
+        const v3 = [d[0] - c[0], d[1] - c[1]];
+        const l2 = Math.hypot(c[0] - b[0], c[1] - b[1]);
+        if (l2 < 0.6 || l2 >= NAC) continue;
+        // nấc: đoạn trước và sau song song CÙNG chiều, đoạn giữa vuông góc
+        if (v1[0] * v3[0] + v1[1] * v3[1] <= 0) continue;
+        if (Math.abs(v1[0] * v3[1] - v1[1] * v3[0]) > 1e-3 * Math.hypot(...v1) * Math.hypot(...v3)) continue;
+        const j = Math.abs(v1[0]) < 0.6 ? 0 : 1; // toạ độ bị lệch (đoạn dọc -> x)
+        const khac = doanTuyen(x);
+        const thu = [];
+        // A: dời đoạn sau (c, d) về thẳng hàng đoạn trước - d không được là đầu tuyến
+        if (k + 2 <= p.length - 2) thu.push({ tu: k + 1, den: k + 2, v: b[j] });
+        // B: dời đoạn trước (a, b) về thẳng hàng đoạn sau - a không được là đầu tuyến
+        if (k - 1 >= 1) thu.push({ tu: k - 1, den: k, v: c[j] });
+        for (const c0 of thu) {
+          const q = p.map((z) => [...z]);
+          for (let m = c0.tu; m <= c0.den; m++) q[m][j] = c0.v;
+          // các đoạn bị thay đổi: từ đỉnh trước c0.tu đến đỉnh sau c0.den
+          const lo = Math.max(1, c0.tu);
+          const hi = Math.min(q.length - 1, c0.den + 1);
+          const cu = [];
+          const moi = [];
+          for (let m = Math.max(1, Math.min(k - 1, c0.tu)); m <= Math.min(p.length - 1, Math.max(k + 2, c0.den + 1)); m++) {
+            cu.push([p[m - 1], p[m]]);
+          }
+          for (let m = lo; m <= hi; m++) moi.push([q[m - 1], q[m]]);
+          const moiThat = moi.filter(([u, w]) => Math.hypot(u[0] - w[0], u[1] - w[1]) > 0.6);
+          if (coChong(moiThat, khac) || coChong(moiThat, nen)) continue;
+          if (soCat(moiThat, khac) + soCat(moiThat, nen) > soCat(cu, khac) + soCat(cu, nen)) continue;
+          // không tự chồng lên chính nó (đi lùi thành chữ U), không trùng đỉnh tuyến khác
+          const conLai = [];
+          for (let m = 1; m < q.length; m++) if (m < lo - 1 || m > hi + 1) conLai.push([q[m - 1], q[m]]);
+          if (coChong(moiThat, conLai)) continue;
+          const dinhKhac = tuyen.flatMap((t2, x2) => (x2 === x ? [] : t2.pts));
+          if (q.slice(lo - 1, hi + 1).some((z) => dinhKhac.some((u) => Math.abs(u[0] - z[0]) < 1 && Math.abs(u[1] - z[1]) < 1))) continue;
+          // không chạm kiểu chữ T: đỉnh tuyến khác nằm trên đoạn mới, hay đỉnh mới nằm trên tuyến khác
+          const tren = (z, [u, w]) =>
+            Math.abs((w[0] - u[0]) * (z[1] - u[1]) - (w[1] - u[1]) * (z[0] - u[0])) < Math.hypot(w[0] - u[0], w[1] - u[1]) * 1 &&
+            z[0] >= Math.min(u[0], w[0]) - 1 && z[0] <= Math.max(u[0], w[0]) + 1 &&
+            z[1] >= Math.min(u[1], w[1]) - 1 && z[1] <= Math.max(u[1], w[1]) + 1;
+          if (moiThat.some((dn) => dinhKhac.some((z) => tren(z, dn)))) continue;
+          if (q.slice(lo - 1, hi + 1).some((z) => khac.some((dn) => tren(z, dn)))) continue;
+          for (let m = 0; m < p.length; m++) p[m] = q[m];
+          donDiem(p);
+          bo++;
+          doi = true;
+          break;
+        }
+      }
+    });
+    if (!doi) break;
+  }
+  if (bo) console.log(`Đã làm thẳng ${bo} nấc gấp khúc.`);
+}
+
 /* --- Tự kiểm: mọi đoạn phải là đường thẳng ngang hoặc dọc ---
    Sơ đồ nguyên lý chỉ dùng đoạn thẳng gấp khúc vuông góc 90 độ; không có đoạn
    xiên. Kiểm ngay ở đây, TRƯỚC khi chèn ký hiệu nhảy dây (nửa hình tròn là ký
@@ -1101,6 +1214,20 @@ for (let i = 0; i < tuyen.length; i++) {
         if (!laDoc(v[0], v[1])) continue;
         const g = giaoNgangDoc(h, v);
         if (!g) continue;
+        // Tuyến ngang khác cắt cùng đoạn dọc ngay phía trên: nửa vòng không được vồng
+        // chạm vào nó (hai nửa vòng xếp chồng thì đỉnh vòng dưới trùng đỉnh vòng trên).
+        const y = h[0][1];
+        let tren = Infinity;
+        for (let m = 0; m < tuyen.length; m++) {
+          if (m === j) continue;
+          for (let n = 1; n < tuyen[m].pts.length; n++) {
+            const h2 = [tuyen[m].pts[n - 1], tuyen[m].pts[n]];
+            if (!laNgang(h2[0], h2[1]) || h2[0][1] <= y + 0.6) continue;
+            if (giaoNgangDoc(h2, v)) tren = Math.min(tren, h2[0][1]);
+          }
+        }
+        g.r = Math.min(g.r, tren - y - 3);
+        if (g.r < 9) continue;
         const khoaD = `${i}|${k}`;
         const ds = diemNhay.get(khoaD) ?? [];
         if (!ds.some((u) => Math.abs(u.x - g.x) < (u.r + g.r) * 0.55)) ds.push(g);
@@ -1157,7 +1284,10 @@ for (const khoaD of khoaSap) {
     }),
   );
   let trung = 0;
-  for (const a of kho.values()) if (a.size > 1) trung++;
+  for (const [kk, a] of kho) if (a.size > 1) {
+    trung++;
+    if (process.env.TRUNG) console.log("  trùng tại", kk, [...a].map((i) => tuyen[i].day));
+  }
   if (trung) console.log(`Còn ${trung} đỉnh trùng nhau giữa hai tuyến.`);
 }
 
