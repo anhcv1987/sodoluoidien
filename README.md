@@ -100,7 +100,8 @@ in đen trắng vẫn phân biệt được:
 
 | Thiết bị | Đóng | Cắt | Không xác định |
 |---|---|---|---|
-| Máy cắt, máy cắt hợp bộ | thân **tô đặc** | thân **để rỗng** | nét đứt, màu cam |
+| Máy cắt, máy cắt hợp bộ, recloser | thân **tô đặc** | thân **để rỗng** | nét đứt, màu cam |
+| LBS (dao cắt có tải) | hộp chữ nhật, lưỡi dao chéo **nối** hai tiếp điểm lệch trục | lưỡi dao **ngả ra xa** tiếp điểm trên | nét đứt, màu cam |
 | Dao cách ly | vạch chéo trên dây | lưỡi dao mở, **đường dây hở** ở khe dao | nét đứt, màu cam |
 | Dao tiếp địa | lưỡi dao **nằm thẳng**, nối dây với đất | lưỡi dao mở | nét đứt, màu cam |
 
@@ -790,11 +791,12 @@ Quy ước thể hiện (đề xuất, chờ Phòng thống nhất):
   dài đúng như bản vẽ (vd "3xAL/XLPE/PVC/DATA/PVC 1x400 - 1,76km", "ACSR 185",
   "Cu 3x185 - 250m"); đoạn bản vẽ không ghi thì để trống.
 * **Tủ RMU** theo mẫu bản vẽ lộ: khung tủ, hàng tên tủ, hàng tên ngăn, thanh cái
-  trong tủ; mỗi ngăn có dao cắt tải + **dao tiếp địa (-76, bình thường cắt)**, cáp đấu ở
-  chân ngăn. Chỉ vẽ ngăn vào, ngăn ra (thêm ngăn rẽ nếu ngăn đó liên kết sang lộ khác,
+  trong tủ; mỗi ngăn có dao cách ly **vẽ như DCL ngăn 110kV trong trạm (không hộp)** +
+  **dao tiếp địa (-76, bình thường cắt)**, cáp đấu ở chân ngăn. Chỉ vẽ ngăn vào, ngăn ra (thêm ngăn rẽ nếu ngăn đó liên kết sang lộ khác,
   vd ngăn 477-7/02-2); bỏ ngăn dự phòng, ngăn cấp TBA khách hàng. Tủ nằm tuyến dọc thì
   chữ trong tủ xoay theo, không đè nét kẻ.
-* **Thiết bị trên trục** đủ: DCL, DPT, LBS, recloser (MC … R), tụ bù (TBN), đúng trạng
+* **Thiết bị trên trục** đủ: DCL, DPT, LBS (ký hiệu theo bản vẽ lộ), recloser (MC … R,
+  chữ R luôn ở phía trên/bên trái; đóng/cắt recloser thì công suất chạy đổi theo), tụ bù (TBN), đúng trạng
   thái kết dây cơ bản (thường cắt = Cắt). **Chỉ ghi các cột có thiết bị, tụ bù hoặc
   điểm rẽ nhánh liên kết** (bỏ cột đỡ thuần túy); nhánh rẽ ngay tại cột đó. Số cột ghi
   trên trục, tên thiết bị ghi dưới; phần dài còn thừa của cạnh rải đều giữa các phần tử.

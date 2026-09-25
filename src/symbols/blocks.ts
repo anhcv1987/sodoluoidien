@@ -280,21 +280,31 @@ const CAD_KHANG: Prim[] = [
   L(0, -6.187, 0, -13.7),
 ];
 
-/** 22-R: recloser - hinh chu nhat co chu R. Trong CAD truc nam ngang. */
+/**
+ * 22-R: recloser - hinh chu nhat, chu R ghi ben canh. Trong CAD truc nam ngang.
+ * Dang dong to dac than (nhu may cat), dang cat de rong.
+ */
 const CAD_REC: Prim[] = [
   P(true, false, 0, -7.452, 0, 7.452, 39.834, 7.452, 39.834, -7.452),
   L(-6, 0, 0, 0),
   L(39.834, 0, 45.834, 0),
-  T(13.766, -6.404, 'R', 13.813),
+  T(14, 20, 'R', 13.813),
 ];
 
-/** LBS: dao cat co tai = dao cach ly nam trong hop. */
-const CAD_LBS: Prim[] = [
-  P(true, false, -10.9, -11.9, 10.9, -11.9, 10.9, 11.9, -10.9, 11.9),
-  L(0, 20, 0, 6),
-  L(0, -6, 0, -20),
-  L(0, -6, 9.7, 1),
+/**
+ * LBS: dao cat co tai - theo ky hieu ban ve lo trung ap: hop chu nhat dung, hai
+ * tiep diem trong hop lech hai ben truc, luoi dao cheo noi hai tiep diem (dong)
+ * hoac nga ra xa tiep diem tren (cat).
+ */
+const LBS_HOP: Prim[] = [
+  P(true, false, -6, -15, 6, -15, 6, 15, -6, 15),
+  L(0, 20, 0, 15),
+  L(0, -15, 0, -20),
+  L(2, 15, 2, 2.2),
+  L(-2, -15, -2, -2.2),
 ];
+const CAD_LBS: Prim[] = [...LBS_HOP, L(-2, -2.2, 2, 2.2)];
+const CAD_LBS_MO: Prim[] = [...LBS_HOP, L(-2, -2.2, 3.7, -0.67)];
 
 /** Cau chi tu roi FCO (ve theo quy uoc EVN - khong co block rieng trong file CAD goc). */
 const CAD_FCO: Prim[] = [
@@ -458,11 +468,18 @@ export const BLOCKS: BlockDef[] = [
   make('REC', 'Recloser', 'REC', 'Đóng cắt', CAD_REC, {
     rot: 90,
     switching: true,
+    fillWhenClosed: true,
+    // CAD vẽ trục nằm ngang, quay 90 độ thì trục dọc: hai cực ở hai đầu dây dẫn
+    cuc: [
+      [0, 1.3883],
+      [0, -1.3883],
+    ],
     source: 'CAD: block "22-R"',
   }),
   make('LBS', 'Dao cắt có tải (LBS)', 'LBS', 'Đóng cắt', CAD_LBS, {
     switching: true,
-    source: 'CAD: block "LBS 22kV"',
+    open: CAD_LBS_MO,
+    source: 'Ký hiệu LBS theo bản vẽ lộ trung áp (hộp chữ nhật, lưỡi dao chéo)',
   }),
   make('FCO', 'Cầu chì tự rơi (FCO)', 'FCO', 'Đóng cắt', CAD_FCO, {
     switching: true,

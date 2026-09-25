@@ -122,7 +122,10 @@ export function normalizeCad(
   k = 1 / 18.669,
 ): { prims: Prim[]; origin: [number, number] } {
   const rotated = xformPrims(prims, { rot, k });
-  const b = primBounds(rotated);
+  // lấy tâm theo nét vẽ, không tính chữ ghi kèm (chữ R của recloser) - để trục
+  // điện của ký hiệu đi qua gốc toạ độ
+  const net = rotated.filter((p) => p.t !== 'text');
+  const b = primBounds(net.length ? net : rotated);
   const dx = -(b.minX + b.maxX) / 2;
   const dy = -(b.minY + b.maxY) / 2;
   return {

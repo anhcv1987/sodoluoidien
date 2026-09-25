@@ -76,7 +76,15 @@ function nuaTruc(block) {
 function gocDat(block, goc) {
   // Ký hiệu chuẩn hoá có trục dọc; riêng DCL trục ngang (xem block DCL trong trạm)
   const n = block === 'DCL' ? 90 : 0;
-  return (((goc - 90 - n) % 360) + 360) % 360;
+  const g = (((goc - 90 - n) % 360) + 360) % 360;
+  // recloser đối xứng hai đầu: quay sao cho chữ R luôn ở phía trên (tuyến ngang)
+  // hoặc bên trái (tuyến dọc), không đè lên tên thiết bị
+  if (block === 'REC') {
+    const r = (g * Math.PI) / 180;
+    const doc = Math.abs(Math.cos(r)) > 0.7;
+    if (doc ? Math.cos(r) < 0 : Math.sin(r) > 0) return (g + 180) % 360;
+  }
+  return g;
 }
 
 /* ------------------------------ xếp phần tử dọc tuyến ------------------------------ */
@@ -232,7 +240,7 @@ function veDoan(a, huong, muc, opts = {}) {
 
 /**
  * Tủ RMU theo mẫu bản vẽ lộ: khung, hàng tên tủ, hàng tên ngăn, thanh cái trong tủ;
- * mỗi ngăn: dao cắt tải + dao tiếp địa (-76), cáp đấu ở chân ngăn. Chỉ vẽ ngăn vào,
+ * mỗi ngăn: dao cách ly (ký hiệu như DCL trong trạm) + dao tiếp địa (-76), cáp đấu ở chân ngăn. Chỉ vẽ ngăn vào,
  * ngăn ra (và ngăn rẽ sang lộ khác). Tủ nằm phía bên trái tuyến (phía trên nếu tuyến
  * chạy sang phải); dây vào đấu chân ngăn đầu, dây ra đi từ chân ngăn cuối.
  */
@@ -243,7 +251,7 @@ function veRmu(m, t, P, goc, [dx, dy], [nx, ny]) {
   const H = 64; // chiều cao tủ
   const oTieuDe = H - 9;
   const oThanhCai = H - 21;
-  const oLbs = H - 33;
+  const oDao = H - 33;
   const oTd = 13;
   const gocChu = ((goc + 90) % 180 + 180) % 180 - 90; // chữ luôn đọc xuôi
   // chữ trong tủ: `o` là mép chữ gần chân tủ - nếu chiều "lên" của chữ ngược pháp
@@ -256,21 +264,20 @@ function veRmu(m, t, P, goc, [dx, dy], [nx, ny]) {
   net([P(t0, oTieuDe), P(t1, oTieuDe)], false);
   for (let i = 1; i < n; i++) net([P(t0 + W_NGAN * i, 4), P(t0 + W_NGAN * i, oTieuDe)], false);
   chuTu((t0 + t1) / 2, oTieuDe + 2.2, 3.4, m.rmu, 'giua');
-  const hL = nuaTruc('LBS');
   const tc = (i) => t0 + W_NGAN * (i + 0.5);
   // thanh cái trong tủ
   net([P(tc(0), oThanhCai), P(tc(n - 1), oThanhCai)], false);
   m.ngan.forEach((ng, i) => {
     const x = tc(i);
     chuTu(x, oTieuDe - 5.5, 2.8, ng.ten, 'giua');
-    net([P(x, oThanhCai), P(x, oLbs + hL)], false);
-    thietBi('LBS', ...P(x, oLbs), gocDat('LBS', goc + 90), !!ng.mo);
-    if (ng.mo) chuTu(x + 5, oLbs - 2, 2.6, '(thường cắt)', 'trai');
+    // dao cách ly ngăn tủ vẽ như DCL trong trạm (không hộp): dây liền qua ký hiệu
+    net([P(x, oThanhCai), P(x, 0)], false);
+    thietBi('DCL', ...P(x, oDao), gocDat('DCL', goc + 90), !!ng.mo);
+    if (ng.mo) chuTu(x + 5, oDao - 2, 2.6, '(thường cắt)', 'trai');
     // dao tiếp địa ngăn tủ (-76), bình thường cắt
     const SD = 8;
     thietBi('DTD', ...P(x - 0.52 * SD, oTd), ((goc - 90) % 360 + 360) % 360, true, SD);
     chuTu(x - 7, oTd - 7, 2.6, '-76', 'giua');
-    net([P(x, oLbs - hL), P(x, 0)], false);
     if (ng.vai === 'vao') net([P(tDayRmu.t, 0), P(x, 0)], tDayRmu.cap);
     if (ng.vai === 're') veNhanh(P(x, 0), [-nx, -ny], ng.muc ?? [], ng.cuoi, 0, ng.loai);
   });

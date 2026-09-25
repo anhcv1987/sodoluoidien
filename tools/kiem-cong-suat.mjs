@@ -2,9 +2,10 @@
  * KIỂM TRA CÔNG SUẤT CHẠY TỚI ĐÂU TRÊN SƠ ĐỒ KẾT DÂY.
  *
  *   node tools/kiem-cong-suat.mjs [src/data/tram-sld.json] [--chi-tiet]
- *        [--cat=<số thứ tự thiết bị,...>] [--diem=x,y;x,y...]
+ *        [--cat=<số thứ tự thiết bị,...>] [--dong=<số thứ tự,...>] [--diem=x,y;x,y...]
  *
  * --cat  : thử đặt CẮT các thiết bị (số thứ tự trong mảng d của tờ TONG) trước khi tính
+ * --dong : thử đặt ĐÓNG các thiết bị
  * --diem : in ra từng điểm có công suất chạy qua hay không (thử phương thức)
  *
  * Dựng chiều công suất (src/core/dongCongSuat.ts - đúng mô hình phần mềm dùng khi
@@ -20,6 +21,7 @@ import { pathToFileURL } from 'node:url';
 const args = process.argv.slice(2);
 const chiTiet = args.includes('--chi-tiet');
 const thuCat = new Set((args.find((a) => a.startsWith('--cat='))?.slice(6) ?? '').split(',').filter(Boolean).map(Number));
+const thuDong = new Set((args.find((a) => a.startsWith('--dong='))?.slice(7) ?? '').split(',').filter(Boolean).map(Number));
 const thuDiem = (args.find((a) => a.startsWith('--diem='))?.slice(7) ?? '').split(';').filter(Boolean).map((p) => p.split(',').map(Number));
 const duongDan = resolve(args.find((a) => !a.startsWith('--')) ?? 'src/data/tram-sld.json');
 const tmp = mkdtempSync(join(tmpdir(), 'cs-'));
@@ -59,7 +61,7 @@ s.d.forEach((r, i) =>
     p: { x: r[3], y: r[4] },
     rot: r[5],
     scale: r[6],
-    state: thuCat.has(i) ? 'mo' : data.states[r[7]],
+    state: thuCat.has(i) ? 'mo' : thuDong.has(i) ? 'dong' : data.states[r[7]],
     mirror: !!r[9],
   }),
 );

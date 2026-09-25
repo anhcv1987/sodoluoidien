@@ -402,6 +402,38 @@ const c62 = await page.evaluate(() => {
   a.store.undo();
   return { truoc, sau };
 });
+// Recloser trên lưới trung áp: đóng MC 472E6.4/61 (thường cắt) -> 473 E6.2 cấp sang
+// đoạn Đồng Bẩm - Gia Bảy; cắt thêm MC 472E6.4/25 -> phía sau MC 25 mất điện
+const rec = await page.evaluate(() => {
+  const a = window.sodo;
+  const tim = (x, y) => a.store.entities.find((e) => e.kind === 'device' && e.block === 'REC' && Math.hypot(e.p.x - x, e.p.y - y) < 0.5);
+  const coDien = (x, y) =>
+    a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [x0, y0, x1, y1] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        const L = Math.hypot(x1 - x0, y1 - y0);
+        if (L && Math.abs((x1 - x0) * (y - y0) - (y1 - y0) * (x - x0)) / L < 0.5 &&
+          Math.min(x0, x1) - 0.5 <= x && Math.max(x0, x1) + 0.5 >= x && Math.min(y0, y1) - 0.5 <= y && Math.max(y0, y1) + 0.5 >= y) return true;
+      }
+      return false;
+    });
+  const mc61 = tim(-838.12, 250);
+  const mc25 = tim(-999.5, -330);
+  const kq = { truoc: coDien(-760, 0) };
+  a.ed.doiTrangThai([mc61.id], 'dong');
+  kq.dong61 = coDien(-760, 0) && coDien(-1100, -330);
+  a.ed.doiTrangThai([mc25.id], 'mo');
+  kq.cat25 = coDien(-900, -330) && !coDien(-1100, -330);
+  a.store.undo();
+  a.store.undo();
+  kq.lai = !coDien(-760, 0);
+  return kq;
+});
+check(
+  'Đóng/cắt recloser (MC 472E6.4/61, MC 472E6.4/25) đổi chiều công suất tương ứng',
+  !rec.truoc && rec.dong61 && rec.cat25 && rec.lai,
+  JSON.stringify(rec),
+);
 check('Cắt MC 632 và 612 (E6.8): thanh cái C62 mất điện', c62.truoc && !c62.sau, JSON.stringify(c62));
 check(
   'Cắt MC 112 và 112-1, 112-2 (E6.8): khúc giữa mất điện, C11 C12 vẫn có điện',
