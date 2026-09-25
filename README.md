@@ -188,10 +188,14 @@ tuyến, nhãn ngăn lộ và mã hiệu cáp ở đủ các cấp **220 / 110 /
   - dao cách ly là **một nét chéo vắt qua đường dây liền** (371-7/1, 371-7/2 Nà
     Phặc; 371-7/1 Chợ Đồn).
 
+  - **dao tiếp địa ngăn tủ 35kV vẽ song song đường dây**, nối vào bằng một cần
+    ngang/gãy khúc (34 dao: E6.17 17, E26.2 8, E26.3 7, TU E6.8 2): đổi thành nhánh
+    vuông góc tách ra đúng chỗ cần nối vào đường dây, như mọi dao tiếp địa khác.
+
   Cỡ ký hiệu theo cỡ chữ nhãn của ngăn lộ (tỷ lệ như E6.5); gặp đường dây song
-  song sát bên thì dao tiếp địa tự rút ngắn. Dao tiếp địa ngăn tủ hợp bộ 35kV (vẽ
-  cần ngang + dao đứng, giống hệt E6.5), tiếp địa trung tính MBA, dao phụ tải tủ
-  RMU giữ nguyên.
+  song sát bên (ngăn tủ đặt sát nhau) thì dao tiếp địa tự rút ngắn và nhãn chuyển
+  xuống dưới ký hiệu. Dao tiếp địa đã vẽ vuông góc đường dây, tiếp địa trung tính
+  MBA, dao phụ tải tủ RMU giữ nguyên.
 * **Góc xoay**: hình học block trong phần mềm được xoay về trục dọc để tiện vẽ tay,
   nên khi nhập từ CAD phải trừ lại đúng góc đó; thiếu bước này thì mọi dao cách ly,
   dao tiếp địa, chống sét van, recloser đều lệch 90°.

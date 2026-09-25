@@ -592,6 +592,179 @@ for (const c of cheo) {
   dem.dcl++;
 }
 
+/* ---------- 3b. Dao tiếp địa tủ 35kV vẽ SONG SONG đường dây ----------
+ * Ngăn tủ hợp bộ 35kV ở các trạm vẽ tay (E26.3, E26.2, E6.17, TU E6.8...) vẽ dao
+ * tiếp địa dựng song song với đường dây ngăn lộ, nối vào bằng một cần ngang (có
+ * khi gãy khúc). Đổi về cùng kiểu với dao tiếp địa 110kV: nhánh vuông góc tách ra
+ * từ đúng chỗ cần nối vào đường dây, ký hiệu đất ở ngoài cùng, nhãn ở đầu ký hiệu đất.
+ */
+const iCenter = data.aligns.indexOf('center');
+const tuyenCua = new Map(); // chỉ số tuyến -> điểm
+s.b.forEach((r, i) => {
+  const pts = [];
+  for (let k = 4; k + 1 < r.length; k += 2) pts.push([r[k], r[k + 1]]);
+  tuyenCua.set(i, pts);
+});
+const dtdTu = [];
+s.d.forEach((r, iD) => {
+  if (r[2] !== iDTD || r[1] !== 35 || boD.has(iD)) return;
+  const [x, y, rot, sc] = [r[3], r[4], r[5], r[6]];
+  const u = trucDTD(rot);
+  const w = [-u[1], u[0]];
+  const al = (p) => (p[0] - x) * u[0] + (p[1] - y) * u[1];
+  const pe = (p) => (p[0] - x) * w[0] + (p[1] - y) * w[1];
+  // tuyến nối vào dao: BẮT ĐẦU ở đầu tiếp điểm (phía +Y) của dao, đi ra đường dây
+  for (const [i, pts] of tuyenCua) {
+    if (s.b[i][1] !== 35 || boB.has(i) || pts.length < 2) continue;
+    for (const dao of [false, true])
+    // F: đỉnh đầu tiên của cần nối nằm trên đường dây ngăn lộ (phần sau F, nếu có, là
+    // chính đường dây - giữ lại)
+    for (let kF = 1; kF < pts.length; kF++) {
+      const ds = (dao ? [...pts].reverse() : pts).slice(0, kF + 1);
+      const E = ds[0];
+      const F = ds[ds.length - 1];
+      if (Math.abs(pe(E)) > 0.12 * sc || al(E) < 0.05 * sc || al(E) > 0.6 * sc) continue;
+      let dai = 0;
+      for (let k = 1; k < ds.length; k++) dai += Math.hypot(ds[k][0] - ds[k - 1][0], ds[k][1] - ds[k - 1][1]);
+      if (dai > 2.5 * sc || Math.abs(pe(F)) < 0.3 * sc) continue;
+      // cần nối chạy thẳng theo trục dao -> dao đã vuông góc đường dây (đúng kiểu)
+      if (ds.every((p) => Math.abs(pe(p)) < 0.12 * sc)) continue;
+      // đầu dao chạm thẳng vào một đường dây dài vuông góc trục -> đã đúng kiểu
+      const chamDay = doan.some((q) => {
+        if (q.i === i || s.b[q.i][1] !== 35) return false;
+        const l = Math.hypot(q.b[0] - q.a[0], q.b[1] - q.a[1]);
+        if (l < sc || Math.abs(((q.b[0] - q.a[0]) * u[0] + (q.b[1] - q.a[1]) * u[1]) / l) > 0.1) return false;
+        const t = Math.max(0, Math.min(1, ((E[0] - q.a[0]) * (q.b[0] - q.a[0]) + (E[1] - q.a[1]) * (q.b[1] - q.a[1])) / (l * l)));
+        return Math.hypot(q.a[0] + t * (q.b[0] - q.a[0]) - E[0], q.a[1] + t * (q.b[1] - q.a[1]) - E[1]) < 0.3;
+      });
+      if (chamDay) continue;
+      // cần nối là một đoạn của đường dây chạy XUYÊN qua đầu dao (dây còn đi tiếp ở phía
+      // bên kia) -> dao nằm ngang đấu thẳng vào đường dây, đã đúng kiểu
+      const h0 = [ds[1][0] - E[0], ds[1][1] - E[1]];
+      const l0 = Math.hypot(h0[0], h0[1]) || 1;
+      const v = [h0[0] / l0, h0[1] / l0];
+      const diTiep = doan.some((q) => {
+        if (q.i === i || s.b[q.i][1] !== 35) return false;
+        const l = Math.hypot(q.b[0] - q.a[0], q.b[1] - q.a[1]);
+        if (l < 0.5 * sc || Math.abs(((q.b[0] - q.a[0]) * v[0] + (q.b[1] - q.a[1]) * v[1]) / l) < 0.99) return false;
+        return [q.a, q.b].some((P) => {
+          const t = (P[0] - E[0]) * v[0] + (P[1] - E[1]) * v[1];
+          const n2 = (P[0] - E[0]) * -v[1] + (P[1] - E[1]) * v[0];
+          return Math.abs(n2) < 0.5 && t <= 0.05 && t > -0.3 * sc;
+        });
+      });
+      if (diTiep) continue;
+      // F nằm GIỮA một đường dây song song trục dao (dây đi tiếp cả hai phía)
+      let c1 = 0;
+      let c2 = 0;
+      let mau = null;
+      for (const q of doan) {
+        if (s.b[q.i][1] !== 35) continue;
+        if (q.i === i) {
+          // chỉ tính phần tuyến SAU F
+          const kq = (q.k - 4) / 2;
+          const vt = dao ? pts.length - 2 - kq : kq;
+          if (vt < kF) continue;
+        }
+        const pa = (q.a[0] - F[0]) * w[0] + (q.a[1] - F[1]) * w[1];
+        const pb = (q.b[0] - F[0]) * w[0] + (q.b[1] - F[1]) * w[1];
+        if (Math.abs(pa) > 0.6 || Math.abs(pb) > 0.6) continue;
+        const ta = (q.a[0] - F[0]) * u[0] + (q.a[1] - F[1]) * u[1];
+        const tb = (q.b[0] - F[0]) * u[0] + (q.b[1] - F[1]) * u[1];
+        const [t0, t1] = ta < tb ? [ta, tb] : [tb, ta];
+        c1 += Math.max(0, t1 - Math.max(0, t0));
+        c2 += Math.max(0, Math.min(0, t1) - t0);
+        mau = mau ?? q;
+      }
+      if (c1 < 0.2 * sc || c2 < 0.2 * sc || c1 + c2 < 0.6 * sc) continue;
+      if (process.env.XEM) console.log('tủ', tram(x, y), x, y, F);
+      const bo = [];
+      for (let k = 0; k < kF; k++) bo.push(dao ? pts.length - 1 - k : k);
+      dtdTu.push({ iD, r, i, E, F, u, w, sc, mau, bo });
+      return;
+    }
+  }
+});
+for (const T of dtdTu) {
+  const { iD, r, i, F, u, sc } = T;
+  // hướng nhánh: vuông góc đường dây, về phía dao cũ
+  const phia = Math.sign((r[3] - F[0]) * T.w[0] + (r[4] - F[1]) * T.w[1]) || 1;
+  const nn = [T.w[0] * phia, T.w[1] * phia];
+  // nhãn gần dao cũ nhất
+  let nhan = null;
+  s.t.forEach((t, k) => {
+    if (nhanDaDung.has(k) || !laNhanDTD(t[8])) return;
+    const dd = Math.hypot(t[2] - r[3], t[3] - r[4]);
+    if (dd > Math.max(3 * sc, 45)) return;
+    if (!nhan || dd < nhan.dd) nhan = { k, dd };
+  });
+  if (nhan) nhanDaDung.add(nhan.k);
+  const h = nhan ? s.t[nhan.k][4] : sc / 3.6;
+  let Si = K_DTD * h;
+  // đường dây song song phía đất (ngăn bên cạnh) -> rút ngắn
+  for (const q of doan) {
+    if (q.i === i) continue;
+    const l = Math.hypot(q.b[0] - q.a[0], q.b[1] - q.a[1]);
+    if (l < 1e-6 || Math.abs(((q.b[0] - q.a[0]) * u[0] + (q.b[1] - q.a[1]) * u[1]) / l) < 0.95) continue;
+    const D = ((q.a[0] + q.b[0]) / 2 - F[0]) * nn[0] + ((q.a[1] + q.b[1]) / 2 - F[1]) * nn[1];
+    if (D < 1 || D > 2 * DTD_DAU * Si + 0.5 * h) continue;
+    const ta = (q.a[0] - F[0]) * u[0] + (q.a[1] - F[1]) * u[1];
+    const tb = (q.b[0] - F[0]) * u[0] + (q.b[1] - F[1]) * u[1];
+    if (Math.max(ta, tb) < -DTD_NUA_RONG * Si || Math.min(ta, tb) > DTD_NUA_RONG * Si) continue;
+    // chừa khoảng hở ~1,5 lần cỡ chữ trước đường dây bên cạnh
+    Si = Math.min(Si, (D - 1.5 * h) / (2 * DTD_DAU));
+  }
+  Si = Math.max(Si, 3 * h);
+  const biRut = Si < K_DTD * h - 1e-6;
+  const tam = [F[0] + nn[0] * DTD_DAU * Si, F[1] + nn[1] * DTD_DAU * Si];
+  const rotMoi = deg(Math.atan2(nn[0], -nn[1]));
+  const ngon = [-Math.cos(rad(rotMoi)), -Math.sin(rad(rotMoi))];
+  const doc0 = Math.abs(u[1]) > Math.abs(u[0]);
+  const mir = (doc0 ? ngon[1] < 0 : ngon[0] < 0) ? 1 : 0;
+  // bỏ dao cũ, cần nối, và các mẩu tiếp điểm quanh dao cũ
+  boD.add(iD);
+  boB.set(i, new Set(T.bo));
+  for (const [j, pts] of tuyenCua) {
+    if (j === i || s.b[j][1] !== 35) continue;
+    let dai = 0;
+    for (let k = 1; k < pts.length; k++) dai += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]);
+    // mẩu tiếp điểm nằm ngay trên trục dao cũ (không đụng ký hiệu tủ trên đường dây bên cạnh)
+    const peCu = (p) => Math.abs((p[0] - r[3]) * T.w[0] + (p[1] - r[4]) * T.w[1]);
+    if (dai < 0.5 * sc && pts.every((p) => Math.hypot(p[0] - r[3], p[1] - r[4]) < 0.7 * sc && peCu(p) < 0.25 * sc))
+      boB.set(j, new Set(pts.map((_, k) => k)));
+  }
+  s.d.push([r[0], r[1], iDTD, +tam[0].toFixed(2), +tam[1].toFixed(2), Math.round(rotMoi * 100) / 100, +Si.toFixed(2), r[7], r[8], mir]);
+  dem.tu = (dem.tu ?? 0) + 1;
+  if (nhan) {
+    const t = s.t[nhan.k];
+    const dat = [F[0] + nn[0] * 2 * DTD_DAU * Si, F[1] + nn[1] * 2 * DTD_DAU * Si];
+    const le = 0.2 * Si;
+    if (biRut) {
+      // không đủ chỗ ở đầu ký hiệu đất (ngăn tủ sát nhau): nhãn ngay dưới ký hiệu
+      const ra = DTD_NUA_RONG * Si + 0.4 * t[4];
+      if (doc0) {
+        t[2] = +tam[0].toFixed(2);
+        t[3] = +(tam[1] - ra - t[4] * 0.8).toFixed(2);
+        t[6] = iCenter;
+      } else {
+        t[2] = +(tam[0] + ra).toFixed(2);
+        t[3] = +(tam[1] - t[4] * 0.5).toFixed(2);
+        t[6] = iLeft;
+      }
+    } else if (doc0) {
+      t[2] = +(dat[0] + (nn[0] < 0 ? -le : le)).toFixed(2);
+      t[3] = +(dat[1] - t[4] * 0.5).toFixed(2);
+      t[6] = nn[0] < 0 ? iRight : iLeft;
+    } else {
+      t[2] = +dat[0].toFixed(2);
+      t[3] = +(nn[1] < 0 ? dat[1] - le - t[4] : dat[1] + le).toFixed(2);
+      t[6] = iCenter;
+    }
+    t[5] = 0;
+    dem.nhan++;
+  }
+}
+
 /* ---------- 4. Ghi lại ---------- */
 // Tuyến bị bỏ đỉnh: tách thành các đoạn liền còn lại
 const moi = [];
@@ -627,6 +800,10 @@ console.log(
 );
 for (const c of cheo) {
   const k = `${tram(c.tam[0], c.tam[1])}@${c.kv} (nét chéo)`;
+  theoTram[k] = (theoTram[k] ?? 0) + 1;
+}
+for (const T of dtdTu) {
+  const k = `${tram(T.F[0], T.F[1])}@35 (dao tiếp địa tủ)`;
   theoTram[k] = (theoTram[k] ?? 0) + 1;
 }
 console.log('Theo trạm:', JSON.stringify(theoTram));
