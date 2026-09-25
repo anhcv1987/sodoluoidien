@@ -172,17 +172,26 @@ tuyến, nhãn ngăn lộ và mã hiệu cáp ở đủ các cấp **220 / 110 /
   dung sai lấy theo tỷ lệ bản vẽ (≈3 đơn vị CAD) nên hai đầu mút cách nhau vài
   đơn vị bị coi là một, phần mềm vẽ thêm nét nối **không có thật** — chính là hình
   "dao cách ly có liên động" giả ở E6.13. Nay dung sai nhỏ hơn 150 lần.
-* **Dao cách ly + dao tiếp địa kiểu liên động (110kV, 35kV)**: 9 trạm vẽ tay (E6.13,
-  E6.17, E6.20, E26.1, E26.2, E26.3...) vẽ dao cách ly lưỡi chéo mở, hai dao tiếp
-  địa đè lên đường dây ngay hai má dao cùng các nét liên động cơ khí.
-  `tools/chuan-hoa-dcl-lien-dong.mjs` vẽ lại **73 cụm** (73 DCL, 119 dao tiếp địa)
+* **Dao cách ly + dao tiếp địa kiểu liên động (110kV, 35kV)**: các trạm vẽ tay (E6.13,
+  E6.17, E6.20, E26.1, E26.2, E26.3...) vẽ dao cách ly lưỡi chéo mở, dao tiếp địa
+  đặt ngay hai má dao cùng các nét liên động cơ khí.
+  `tools/chuan-hoa-dcl-lien-dong.mjs` vẽ lại **80 cụm** (83 DCL, 131 dao tiếp địa)
   đúng kiểu các trạm dùng block (E6.5): DCL là vạch chéo trên đường dây liền, dao
   tiếp địa là nhánh ngang tách khỏi đường dây (…-76 phía đường dây, …-75 phía máy
   cắt, …-15/-14 hai phía DCL thanh cái — giữ đúng thứ tự và phía như bản gốc), ký
   hiệu đất ngoài cùng, nhãn đặt ngay đầu ký hiệu đất; bỏ lưỡi dao, tiếp điểm tĩnh
-  và nét liên động. Cỡ ký hiệu theo cỡ chữ nhãn của ngăn lộ (tỷ lệ như E6.5); gặp
-  đường dây song song sát bên thì dao tiếp địa tự rút ngắn. Dao tiếp địa ngăn tủ
-  hợp bộ 35kV, tiếp địa trung tính MBA không có DCL nên giữ nguyên.
+  và nét liên động. Ba dạng vẽ được nhận ra:
+  - dao tiếp địa là block đè lên đường dây (73 cụm);
+  - dao tiếp địa vẽ bằng **nét rời** (E26.3 Nà Phặc 110kV: 171, 172, 131, 112 — 7
+    cụm): lấy dao cách ly mở làm mốc, dao tiếp địa lấy theo nhãn …-76/-75/-15… quanh
+    nó (cùng số hiệu ngăn lộ, có vạch đất vẽ rời bên cạnh);
+  - dao cách ly là **một nét chéo vắt qua đường dây liền** (371-7/1, 371-7/2 Nà
+    Phặc; 371-7/1 Chợ Đồn).
+
+  Cỡ ký hiệu theo cỡ chữ nhãn của ngăn lộ (tỷ lệ như E6.5); gặp đường dây song
+  song sát bên thì dao tiếp địa tự rút ngắn. Dao tiếp địa ngăn tủ hợp bộ 35kV (vẽ
+  cần ngang + dao đứng, giống hệt E6.5), tiếp địa trung tính MBA, dao phụ tải tủ
+  RMU giữ nguyên.
 * **Góc xoay**: hình học block trong phần mềm được xoay về trục dọc để tiện vẽ tay,
   nên khi nhập từ CAD phải trừ lại đúng góc đó; thiếu bước này thì mọi dao cách ly,
   dao tiếp địa, chống sét van, recloser đều lệch 90°.

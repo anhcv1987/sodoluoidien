@@ -230,23 +230,13 @@ for (const L of lienDong) {
   C.dtd.push(L);
 }
 
-/* ---------- 3. Vẽ lại từng cụm ---------- */
-const boD = new Set();
-const boB = new Map(); // chỉ số tuyến -> tập đỉnh bị bỏ
-const themB = [];
-const dem = { cum: 0, dcl: 0, dtd: 0, nhan: 0, net: 0 };
 const nhanDaDung = new Set();
-
 const laNhanDTD = (txt) => /-\s*\d\d[A-Z]?$/i.test(String(txt).trim());
+/** Số hiệu ngăn lộ đứng trước dấu gạch của nhãn ("171-76" -> "171"), không có thì "". */
+const soNgan = (txt) => String(txt).trim().match(/^(\d{3})\s*-/)?.[1] ?? '';
 
+// Nhãn của từng dao tiếp địa (…-14, -15, -75, -76...): nhãn gần dao cũ nhất
 for (const C of cum.values()) {
-  const { a, n, g0, g1, kv } = C;
-  const M = [(g0[0] + g1[0]) / 2, (g0[1] + g1[1]) / 2];
-  const doc = (p) => (p[0] - M[0]) * a[0] + (p[1] - M[1]) * a[1];
-  const ngang = (p) => (p[0] - M[0]) * n[0] + (p[1] - M[1]) * n[1];
-  const scGoc = Math.max(...C.dtd.map((L) => L.r[6]));
-
-  // Nhãn của từng dao tiếp địa (…-14, -15, -75, -76...): nhãn gần dao cũ nhất
   for (const L of C.dtd) {
     let tot = null;
     s.t.forEach((t, k) => {
@@ -260,6 +250,155 @@ for (const C of cum.values()) {
       L.nhan = tot.k;
     }
   }
+}
+
+/* ---------- 2b. Dao tiếp địa vẽ bằng NÉT RỜI (E26.3 Nà Phặc...) ----------
+ * Có trạm vẽ dao tiếp địa bằng các đoạn thẳng rời (cần, lưỡi dao, vạch đất), bộ
+ * nhận dạng chỉ bắt được dao cách ly (trạng thái mở), có khi còn bắt nhầm lưỡi dao
+ * tiếp địa thành dao cách ly. Khi đó lấy dao cách ly mở làm mốc: khe hở trên đường
+ * dây là dao cách ly, còn các dao tiếp địa lấy theo NHÃN (…-76, -75, -15...) quanh
+ * nó: nhãn nằm phía nào của dao cách ly (dọc trục) và phía nào của đường dây thì
+ * dao tiếp địa đặt về phía đó.
+ */
+const iMo = data.states.indexOf('mo');
+const cumNet = [];
+s.d.forEach((r, iD) => {
+  if (r[2] !== iDCL || !CAP.has(r[1]) || r[7] !== iMo) return;
+  const sc = r[6];
+  // góc vẽ tay lệch 1-2 độ: bắt về phương đứng / ngang
+  let goc = r[5];
+  const g90 = Math.round(goc / 90) * 90;
+  if (Math.abs(goc - g90) < 3) goc = g90;
+  let a = [Math.cos(rad(goc)), Math.sin(rad(goc))];
+  if (a[1] < -1e-9 || (Math.abs(a[1]) < 1e-9 && a[0] < 0)) a = [-a[0], -a[1]];
+  const n = [-a[1], a[0]];
+  let P0 = [r[3], r[4]];
+  const doc = (p) => (p[0] - P0[0]) * a[0] + (p[1] - P0[1]) * a[1];
+  const ngang = (p) => (p[0] - P0[0]) * n[0] + (p[1] - P0[1]) * n[1];
+  const W = sc * 3;
+  const trenTruc = (q) => s.b[q.i][1] === r[1] && Math.abs(ngang(q.a)) <= 1 && Math.abs(ngang(q.b)) <= 1 && Math.max(Math.abs(doc(q.a)), Math.abs(doc(q.b))) <= W * 2;
+  let tong = 0;
+  let lech = 0;
+  let seg = null;
+  for (const q of doan) {
+    if (!trenTruc(q)) continue;
+    const l = Math.hypot(q.b[0] - q.a[0], q.b[1] - q.a[1]);
+    if (Math.abs(((q.b[0] - q.a[0]) * a[0] + (q.b[1] - q.a[1]) * a[1]) / (l || 1)) < 0.99) continue;
+    tong += l;
+    lech += (l * (ngang(q.a) + ngang(q.b))) / 2;
+    if (!seg || l > seg.l) seg = { ...q, l };
+  }
+  if (!seg) return;
+  P0 = [P0[0] + n[0] * (lech / tong), P0[1] + n[1] * (lech / tong)];
+  const phu = [];
+  for (const q of doan) {
+    if (s.b[q.i][1] !== r[1] || Math.abs(ngang(q.a)) > 0.6 || Math.abs(ngang(q.b)) > 0.6) continue;
+    let s0 = doc(q.a);
+    let s1 = doc(q.b);
+    if (s0 > s1) [s0, s1] = [s1, s0];
+    if (s1 < -W || s0 > W || s1 - s0 < 1e-6) continue;
+    phu.push([s0, s1]);
+  }
+  phu.sort((x, y) => x[0] - y[0]);
+  let cuoi = -W;
+  let khe = null;
+  for (const [s0, s1] of phu) {
+    if (s0 > cuoi + 0.05 && cuoi <= 0.6 * sc && s0 >= -0.6 * sc) khe = khe ?? [cuoi, s0];
+    cuoi = Math.max(cuoi, s1);
+  }
+  if (!khe || khe[0] <= -W + 1e-6) return;
+  const phuDoan = (x0, x1) => phu.reduce((t, [p0, p1]) => t + Math.max(0, Math.min(p1, x1) - Math.max(p0, x0)), 0);
+  if (phuDoan(khe[0] - sc, khe[0]) < 0.4 * sc || phuDoan(khe[1], khe[1] + sc) < 0.4 * sc) return;
+  const g0 = [P0[0] + a[0] * khe[0], P0[1] + a[1] * khe[0]];
+  const g1 = [P0[0] + a[0] * khe[1], P0[1] + a[1] * khe[1]];
+  const giua = [(g0[0] + g1[0]) / 2, (g0[1] + g1[1]) / 2];
+  // đã có cụm (lượt 1 hoặc dao cách ly khác cùng khe)
+  if ([...cum.values(), ...cumNet].some((c) => c.kv === r[1] && Math.hypot(c.giua[0] - giua[0], c.giua[1] - giua[1]) < 1.5)) return;
+  // nhãn dao cách ly gần nhất -> số hiệu ngăn lộ
+  const R = 3 * sc;
+  const kc = (t) => Math.hypot(t[2] - giua[0], t[3] - giua[1]);
+  let nhanDCL = null;
+  for (const t of s.t) {
+    if (!/^\d{3}\s*-\s*\d(\/\d)?$/.test(String(t[8]).trim()) || kc(t) > R) continue;
+    if (!nhanDCL || kc(t) < kc(nhanDCL)) nhanDCL = t;
+  }
+  // phải có nhãn dao cách ly dạng 171-7, 112-1... (dao phụ tải tủ RMU 35kV không phải)
+  if (!nhanDCL) return;
+  const ngan = soNgan(nhanDCL[8]);
+  const dtd = [];
+  s.t.forEach((t, k) => {
+    if (nhanDaDung.has(k) || !laNhanDTD(t[8]) || kc(t) > R) return;
+    if (ngan && soNgan(t[8]) && soNgan(t[8]) !== ngan) return;
+    // nhãn nằm hẳn một bên đường dây (không nằm trên trục)
+    const p = [t[2] + (t[6] === iRight ? -1 : t[6] === iLeft ? 1 : 0) * t[4] * 1.2, t[3] + t[4] * 0.4];
+    if (Math.abs(ngang(p)) < 0.5 * t[4]) return;
+    // quanh nhãn phải có ký hiệu đất vẽ nét rời: vài vạch ngắn song song trục ngăn lộ
+    const vach = doan.filter((q) => {
+      if (s.b[q.i][1] !== r[1]) return false;
+      const l = Math.hypot(q.b[0] - q.a[0], q.b[1] - q.a[1]);
+      if (l < 1e-6 || l > 0.6 * sc) return false;
+      if (Math.abs(((q.b[0] - q.a[0]) * a[0] + (q.b[1] - q.a[1]) * a[1]) / l) < 0.95) return false;
+      const m = [(q.a[0] + q.b[0]) / 2, (q.a[1] + q.b[1]) / 2];
+      return Math.abs(ngang(m)) > 0.3 * sc && Math.hypot(m[0] - p[0], m[1] - p[1]) < 1.8 * sc;
+    });
+    if (vach.length < 2) return;
+    dtd.push({ nhan: k, net: true, x: doc(p) - (khe[0] + khe[1]) / 2, phiaDatNet: Math.sign(ngang(p)) });
+  });
+  if (!dtd.length) return;
+  for (const L of dtd) nhanDaDung.add(L.nhan);
+  cumNet.push({ kv: r[1], a, n, g0, g1, giua, trucSeg: seg, dtd, sc, mau: r });
+});
+
+/* ---------- 2c. Dao cách ly vẽ bằng MỘT NÉT CHÉO vắt qua đường dây liền ----------
+ * (371-7/1, 371-7/2 E26.3 Nà Phặc; 371-7/1 E26.2 Chợ Đồn): đường dây vẽ liền, lưỡi
+ * dao là một nét xiên dài cắt ngang. Nhận ra nhờ nhãn dao cách ly (371-7/1...) ngay
+ * cạnh; đổi thành vạch DCL trên đường dây như các dao khác.
+ */
+const cheo = [];
+for (const q of doan) {
+  const kv = s.b[q.i][1];
+  if (!CAP.has(kv) || s.b[q.i].length !== 8) continue;
+  const dx = q.b[0] - q.a[0];
+  const dy = q.b[1] - q.a[1];
+  const l = Math.hypot(dx, dy);
+  const goc = Math.abs(deg(Math.atan2(dy, dx))) % 90;
+  if (l < 5 || goc < 20 || goc > 70) continue;
+  const m = [(q.a[0] + q.b[0]) / 2, (q.a[1] + q.b[1]) / 2];
+  const cat = doan.find((g) => {
+    if (g === q || s.b[g.i][1] !== kv) return false;
+    const doc0 = Math.abs(g.a[0] - g.b[0]) < 0.3;
+    const ngang0 = Math.abs(g.a[1] - g.b[1]) < 0.3;
+    if (doc0) return Math.abs(g.a[0] - m[0]) < 0.15 * l && Math.min(g.a[1], g.b[1]) < m[1] - 0.3 * l && Math.max(g.a[1], g.b[1]) > m[1] + 0.3 * l;
+    if (ngang0) return Math.abs(g.a[1] - m[1]) < 0.15 * l && Math.min(g.a[0], g.b[0]) < m[0] - 0.3 * l && Math.max(g.a[0], g.b[0]) > m[0] + 0.3 * l;
+    return false;
+  });
+  if (!cat) continue;
+  const nhan = s.t.filter((t) => /^\d{3}\s*-\s*\d(\/\d)?$/.test(String(t[8]).trim()) && Math.hypot(t[2] - m[0], t[3] - m[1]) < 2 * l);
+  if (!nhan.length) continue;
+  const doc0 = Math.abs(cat.a[0] - cat.b[0]) < 0.3;
+  const tam = doc0 ? [cat.a[0], m[1]] : [m[0], cat.a[1]];
+  cheo.push({ q, cat, tam, doc0, h: nhan[0][4], kv });
+}
+
+/* ---------- 3. Vẽ lại từng cụm ---------- */
+const boD = new Set();
+const boB = new Map(); // chỉ số tuyến -> tập đỉnh bị bỏ
+const themB = [];
+const dem = { cum: 0, dcl: 0, dtd: 0, nhan: 0, net: 0 };
+
+/* Hai lượt: lượt 1 chỉ đánh dấu nét / thiết bị cũ sẽ bỏ của MỌI cụm, lượt 2 mới đặt ký
+ * hiệu mới - để khi dò vật cản không vướng nét cũ của cụm bên cạnh. */
+const biBo = (q) => {
+  const t = boB.get(q.i);
+  return !!t && (t.has((q.k - 4) / 2) || t.has((q.k - 2) / 2));
+};
+for (const luot of [1, 2])
+for (const C of [...cum.values(), ...cumNet]) {
+  const { a, n, g0, g1, kv } = C;
+  const M = [(g0[0] + g1[0]) / 2, (g0[1] + g1[1]) / 2];
+  const doc = (p) => (p[0] - M[0]) * a[0] + (p[1] - M[1]) * a[1];
+  const ngang = (p) => (p[0] - M[0]) * n[0] + (p[1] - M[1]) * n[1];
+  const scGoc = C.sc ?? Math.max(...C.dtd.map((L) => L.r[6]));
   // Cỡ ký hiệu theo cỡ chữ nhãn của chính ngăn lộ (bản vẽ tay mỗi trạm một tỷ lệ)
   const cao = C.dtd.filter((L) => L.nhan !== undefined).map((L) => s.t[L.nhan][4]).sort((x, y) => x - y);
   const h = cao.length ? cao[cao.length >> 1] : scGoc / 4.4;
@@ -297,7 +436,7 @@ for (const C of cum.values()) {
 
   // Phía dọc trục của từng dao tiếp địa (giữ đúng thứ tự như bản gốc)
   const ds = C.dtd
-    .map((L) => ({ L, x: doc([L.r[3] + L.t * trucDTD(L.r[5])[0], L.r[4] + L.t * trucDTD(L.r[5])[1]]) }))
+    .map((L) => ({ L, x: L.net ? L.x : doc([L.r[3] + L.t * trucDTD(L.r[5])[0], L.r[4] + L.t * trucDTD(L.r[5])[1]]) }))
     .sort((p, q) => p.x - q.x);
   ds.forEach((p, k) => {
     p.dau = Math.abs(p.x) > 0.15 * nuaKhe ? Math.sign(p.x) : ds.length === 1 ? 1 : k === 0 ? -1 : 1;
@@ -307,7 +446,18 @@ for (const C of cum.values()) {
   let dMin = Math.min(doc(g0), doc(g1));
   let dMax = Math.max(doc(g0), doc(g1));
   let nMax = nuaKhe * 1.6 + 0.5;
-  for (const L of C.dtd) {
+  if (C.sc) {
+    // dao tiếp địa nét rời: vùng quanh dao cách ly và các nhãn
+    for (const L of C.dtd) {
+      const t = s.t[L.nhan];
+      dMin = Math.min(dMin, doc([t[2], t[3]]) - 0.3 * scGoc);
+      dMax = Math.max(dMax, doc([t[2], t[3]]) + 0.3 * scGoc);
+    }
+    dMin = Math.max(dMin, -1.6 * scGoc);
+    dMax = Math.min(dMax, 1.6 * scGoc);
+    nMax = 1.6 * scGoc;
+  }
+  for (const L of C.dtd.filter((L) => !L.net)) {
     const [ux, uy] = trucDTD(L.r[5]);
     for (const k of [-DTD_DAU, DTD_DAU]) {
       const p = [L.r[3] + ux * k * L.r[6], L.r[4] + uy * k * L.r[6]];
@@ -318,7 +468,11 @@ for (const C of cum.values()) {
   }
   const trongVung = (p) => doc(p) >= dMin - 0.3 && doc(p) <= dMax + 0.3 && Math.abs(ngang(p)) <= nMax;
 
-  // a) Bỏ block DCL cũ trong khe
+  // a) Bỏ block DCL cũ trong khe (cụm nét rời: bỏ luôn dao tiếp địa / lưỡi dao nhận nhầm trong vùng)
+  if (C.sc)
+    s.d.forEach((d, i) => {
+      if ((d[2] === iDCL || d[2] === iDTD) && d[1] === kv && trongVung([d[3], d[4]])) boD.add(i);
+    });
   s.d.forEach((d, i) => {
     if (d[2] !== iDCL || d[1] !== kv) return;
     if (Math.abs(ngang([d[3], d[4]])) < 0.4 * scGoc && doc([d[3], d[4]]) >= Math.min(doc(g0), doc(g1)) - 1 && doc([d[3], d[4]]) <= Math.max(doc(g0), doc(g1)) + 1)
@@ -342,6 +496,7 @@ for (const C of cum.values()) {
     bo.forEach((x, k) => x && tapBo.add(k));
     boB.set(i, tapBo);
   });
+  if (luot === 1) continue;
   // c) Nối liền đường dây qua khe
   const tg = s.b[C.trucSeg.i];
   themB.push([tg[0], tg[1], tg[2], tg[3], g0[0], g0[1], g1[0], g1[1]]);
@@ -350,16 +505,20 @@ for (const C of cum.values()) {
   let rotDCL = deg(Math.atan2(a[1], a[0]));
   if (rotDCL > 1e-6 && rotDCL < 180 - 1e-6) rotDCL -= 180;
   else if (Math.abs(rotDCL) < 1e-6) rotDCL = 180;
-  const mau = C.dtd[0].r;
+  const mau = C.mau ?? C.dtd[0].r;
   s.d.push([mau[0], kv, iDCL, +M[0].toFixed(2), +M[1].toFixed(2), Math.round(rotDCL * 100) / 100, +(K_DCL * u).toFixed(2), iDong, mau[8], 0]);
   dem.dcl++;
 
   // e) Dao tiếp địa: nhánh ngang về phía ký hiệu đất như bản gốc
   for (const p of ds) {
-    const { r, i } = p.L;
-    const [ux, uy] = trucDTD(r[5]);
-    const dat = [r[3] - ux * DTD_DAU * r[6], r[4] - uy * DTD_DAU * r[6]];
-    const phiaDat = Math.sign(ngang(dat)) || -1;
+    const { i } = p.L;
+    const r = p.L.r ?? [mau[0], kv, iDTD, 0, 0, 0, 0, iMo, mau[8]];
+    let phiaDat = p.L.phiaDatNet;
+    if (!p.L.net) {
+      const [ux, uy] = trucDTD(r[5]);
+      const dat = [r[3] - ux * DTD_DAU * r[6], r[4] - uy * DTD_DAU * r[6]];
+      phiaDat = Math.sign(ngang(dat)) || -1;
+    }
     const nn = [n[0] * phiaDat, n[1] * phiaDat];
     // khoảng cách dọc trục: chuẩn 1,75u, co lại nếu sát vật cản
     const cho = trong(p.dau) - DTD_NUA_RONG * S - 0.15 * u;
@@ -370,7 +529,7 @@ for (const C of cum.values()) {
     let Si = S;
     const dA = doc(A);
     for (const q of doan) {
-      if (trongVung(q.a) && trongVung(q.b)) continue;
+      if ((trongVung(q.a) && trongVung(q.b)) || biBo(q)) continue;
       const l = Math.hypot(q.b[0] - q.a[0], q.b[1] - q.a[1]);
       if (l < 1e-6 || Math.abs(((q.b[0] - q.a[0]) * a[0] + (q.b[1] - q.a[1]) * a[1]) / l) < 0.95) continue;
       const D = ((q.a[0] - M[0]) * nn[0] + (q.a[1] - M[1]) * nn[1] + (q.b[0] - M[0]) * nn[0] + (q.b[1] - M[1]) * nn[1]) / 2;
@@ -389,7 +548,7 @@ for (const C of cum.values()) {
     const ngon = [-Math.cos(rad(rot)), -Math.sin(rad(rot))];
     const doc0 = Math.abs(a[1]) > Math.abs(a[0]);
     const mir = (doc0 ? ngon[1] < 0 : ngon[0] < 0) ? 1 : 0;
-    boD.add(i);
+    if (i !== undefined) boD.add(i);
     s.d.push([r[0], r[1], iDTD, +tam[0].toFixed(2), +tam[1].toFixed(2), Math.round(rot * 100) / 100, +Si.toFixed(2), r[7], r[8], mir]);
     dem.dtd++;
 
@@ -424,6 +583,15 @@ for (const C of cum.values()) {
   dem.cum++;
 }
 
+for (const c of cheo) {
+  const tapBo = boB.get(c.q.i) ?? new Set();
+  tapBo.add(0).add(1);
+  boB.set(c.q.i, tapBo);
+  const tg = s.b[c.cat.i];
+  s.d.push([tg[0], c.kv, iDCL, +c.tam[0].toFixed(2), +c.tam[1].toFixed(2), c.doc0 ? -90 : 180, +(K_DCL * c.h).toFixed(2), iDong, tg[3], 0]);
+  dem.dcl++;
+}
+
 /* ---------- 4. Ghi lại ---------- */
 // Tuyến bị bỏ đỉnh: tách thành các đoạn liền còn lại
 const moi = [];
@@ -450,13 +618,17 @@ s.d = s.d.filter((_, i) => !boD.has(i));
 
 writeFileSync(duongDan, JSON.stringify(data));
 const theoTram = {};
-for (const C of cum.values()) {
-  const k = `${tram(C.g0[0], C.g0[1])}@${C.kv}`;
+for (const C of [...cum.values(), ...cumNet]) {
+  const k = `${tram(C.g0[0], C.g0[1])}@${C.kv}${C.sc ? ' (nét rời)' : ''}`;
   theoTram[k] = (theoTram[k] ?? 0) + 1;
 }
 console.log(
   `Chuẩn hoá ${dem.cum} cụm DCL liên động: ${dem.dcl} DCL, ${dem.dtd} dao tiếp địa, ${dem.nhan} nhãn, bỏ ${dem.net} đỉnh nét lưỡi dao / liên động`,
 );
+for (const c of cheo) {
+  const k = `${tram(c.tam[0], c.tam[1])}@${c.kv} (nét chéo)`;
+  theoTram[k] = (theoTram[k] ?? 0) + 1;
+}
 console.log('Theo trạm:', JSON.stringify(theoTram));
-if (process.env.XEM) for (const C of cum.values()) console.log('cụm', tram(C.g0[0], C.g0[1]), C.kv, ((C.g0[0] + C.g1[0]) / 2).toFixed(1), ((C.g0[1] + C.g1[1]) / 2).toFixed(1), C.dtd.length);
-if (khongGhep.length) console.log(`Không tìm được khe dao cách ly (${khongGhep.length}):`, khongGhep.join('; '));
+if (process.env.XEM) for (const C of [...cum.values(), ...cumNet]) console.log('cụm', tram(C.g0[0], C.g0[1]), C.kv, ((C.g0[0] + C.g1[0]) / 2).toFixed(1), ((C.g0[1] + C.g1[1]) / 2).toFixed(1), C.dtd.length);
+if (process.env.XEM && khongGhep.length) console.log(`Không tìm được khe dao cách ly (${khongGhep.length}):`, khongGhep.join('; '));
