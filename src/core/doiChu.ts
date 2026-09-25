@@ -240,7 +240,8 @@ export function doiChuKhoiThietBi(entities: Record<Id, Entity>): KetQuaDoiChu {
     for (let i = 1; i < pts.length; i++) day.them(hopDoan(pts[i - 1], pts[i]), [pts[i - 1], pts[i]]);
     const dau = pts[0];
     const cuoi = pts[pts.length - 1];
-    if (pts.length >= 4 && Math.hypot(dau.x - cuoi.x, dau.y - cuoi.y) < 1e-6) {
+    // khung tủ RMU của lưới trung áp vẽ từ bản vẽ lộ là khung chứa chữ, không phải ký hiệu
+    if (pts.length >= 4 && Math.hypot(dau.x - cuoi.x, dau.y - cuoi.y) < 1e-6 && e.srcLayer !== 'Lưới trung áp') {
       const k: HinhKin = { t: 'da-giac', pts };
       const b = hopHinh(k);
       if (b.x1 - b.x0 < nhoToiDa && b.y1 - b.y0 < nhoToiDa) {

@@ -1,5 +1,5 @@
 import sys, math, heapq, collections, re as _re, pymupdf as fitz
-def dung(pdf, CAM=(), VUNG=(), MO=(), tu_chan=True, giao_cheo=True):
+def dung(pdf, CAM=(), VUNG=(), MO=(), tu_chan=True, giao_cheo=True, BO=()):
     d=fitz.open(pdf); p=d[0]; M=p.rotation_matrix
     seg=[]; day=[]
     for g in p.get_drawings():
@@ -104,11 +104,30 @@ def dung(pdf, CAM=(), VUNG=(), MO=(), tu_chan=True, giao_cheo=True):
             if deg[a]==1:
                 (xa,ya),(xb,yb)=xy[a],xy[b]; L=math.hypot(xa-xb,ya-yb) or 1
                 huong[a]=((xa-xb)/L,(ya-yb)/L)
+    # vòng nhảy (cung nhỏ, không phải chấm cột): chỗ dây nhảy qua dây khác - không nối
+    nhay=[]
+    for g in p.get_drawings():
+        its=g['items']
+        if not its or all(it[0]=='c' for it in its) and g['rect'].width<3.2 and g['rect'].height<3.2: continue
+        for it in its:
+            if it[0]!='c': continue
+            q=[fitz.Point(v)*M for v in it[1:5]]
+            xs=[v.x for v in q]; ys=[v.y for v in q]
+            if max(xs)-min(xs)<3.5 and max(ys)-min(ys)<3.5: nhay.append(((min(xs)+max(xs))/2,(min(ys)+max(ys))/2))
+    gnhay=collections.defaultdict(list)
+    for (x,y) in nhay: gnhay[(int(x//G),int(y//G))].append((x,y))
+    def gan_nhay(x,y,r=2.2):
+        for gx in (-1,0,1):
+            for gy in (-1,0,1):
+                for (hx,hy) in gnhay[(int(x//G)+gx,int(y//G)+gy)]:
+                    if math.hypot(hx-x,hy-y)<r: return True
+        return False
     dg=collections.defaultdict(list)
     # đầu cụt sát đỉnh khác (<1.6pt): nối luôn (lưỡi dao, khe ký hiệu)
     for n in dau: dg[(int(xy[n][0]//8),int(xy[n][1]//8))]
     for a in dau:
         xa,ya=xy[a]
+        if gan_nhay(xa,ya): continue
         for i in grid[(int(xa//G),int(ya//G))]:
             x0,y0,x1,y1=seg[i]
             for (bx,by) in ((x0,y0),(x1,y1)):
@@ -131,6 +150,7 @@ def dung(pdf, CAM=(), VUNG=(), MO=(), tu_chan=True, giao_cheo=True):
                         noi(a,b,L*1.5)
     # đầu dây cụt: kéo dài theo hướng ra tối đa 7pt, gặp nét nào thì nối vào nét đó
     for a in dau:
+        if gan_nhay(*xy[a]): continue
         ha=huong.get(a)
         if not ha: continue
         xa,ya=xy[a]
@@ -145,9 +165,11 @@ def dung(pdf, CAM=(), VUNG=(), MO=(), tu_chan=True, giao_cheo=True):
                 if dd<0.3: hit=(i,t,k*0.25); break
             if hit: break
         if hit:
+            # chèn đỉnh tại điểm chạm (không nối tắt tới đầu mút xa: sai hình học)
             i,t,L=hit; x0,y0,x1,y1=seg[i]; u,v=id_(x0,y0),id_(x1,y1)
             Ls=math.hypot(x1-x0,y1-y0)
-            noi(a,u,L+t*Ls); noi(a,v,L+(1-t)*Ls)
+            c=id_(x0+t*(x1-x0),y0+t*(y1-y0))
+            noi(a,c,L); noi(c,u,t*Ls); noi(c,v,(1-t)*Ls)
     # --- chặn thiết bị thường cắt: nhãn "(Thường cắt)" / "thường cắt" đứng riêng -> ký hiệu nét đậm gần nhất
     import re as _re
     _tex=[]
@@ -202,6 +224,13 @@ def dung(pdf, CAM=(), VUNG=(), MO=(), tu_chan=True, giao_cheo=True):
             for k,v in enumerate(vung):
                 if xuyen(xy[u],xy[v_],v):
                     cat_canh.add((u,v_)); bien[k].add(u); bien[k].add(v_)
+    # BO: hộp bỏ nối (dây đi ngang qua sát chân ngăn tủ / chỗ nhảy mà bản vẽ không rõ):
+    # chỉ xoá cạnh xuyên qua hộp, không thành điểm đích
+    for u in list(ke):
+        for v_,w in ke[u]:
+            if v_<u: continue
+            if any(xuyen(xy[u],xy[v_],b) or all(b[0]<=q[0]<=b[2] and b[1]<=q[1]<=b[3] for q in (xy[u],xy[v_])) for b in BO):
+                cat_canh.add((u,v_))
     for u in list(ke): ke[u]=[(v,w) for v,w in ke[u] if v not in chan and (min(u,v),max(u,v)) not in cat_canh]
     for n in chan: ke[n]=[]
     print('chặn', len(vung), 'thiết bị thường cắt:', ' '.join(f'({(v[0]+v[2])/2:.0f},{(v[1]+v[3])/2:.0f})' for v in vung))

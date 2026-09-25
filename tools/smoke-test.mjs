@@ -210,13 +210,13 @@ check('Dao cách ly đều Đóng, trừ dao thanh cái đường vòng (-9) C�
 check('Có khung chú giải trạng thái thiết bị', tt0.chuGiai === 12, `${tt0.chuGiai} ký hiệu mẫu`);
 check('Chế độ xem không đổi được trạng thái thiết bị', tt0.doi === 0 && tt0.dtdSt === 'mo');
 
-/* ---------------- Lưới trung áp (477 E6.4, 473 E6.2) ---------------- */
+/* ---------------- Lưới trung áp (bản vẽ 17, 18 cụm E6.4 + 473 E6.2) ---------------- */
 
 const lta = await page.evaluate(() => {
   const a = window.sodo;
   const ds = a.store.entities.filter((e) => e.srcLayer === 'Lưới trung áp');
   const tb = ds.filter((e) => e.kind === 'device');
-  const moTen = ['DCL 472E6.4-7/25', 'LBS 472E6.4/61', 'MC 472E6.4/61', 'LBS 476E6.4/39', '477-7/02-2', 'DCL 472E6.2-7/36'];
+  const moTen = ['DCL 472E6.4-7/25', 'LBS 472E6.4/61', 'MC 472E6.4/61', 'LBS 476E6.4/39', '477-7/02-2', 'DCL 472E6.2-7/36', 'MC 472E6.4/73', '472-7/02-2'];
   // dao tiếp địa các ngăn tủ RMU (bình thường cắt) không tính vào điểm thường mở
   const dtd = tb.filter((e) => e.block === 'DTD');
   const chu = a.store.entities.filter((e) => e.kind === 'text' && e.srcLayer === 'Lưới trung áp').map((e) => e.text);
@@ -224,42 +224,44 @@ const lta = await page.evaluate(() => {
   const coDien = (x, y) =>
     d.chuoi.some((c) => {
       for (let k = 2; k < c.pts.length; k += 2) {
-        const [x0, y0, x1, y1] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
-        if (Math.abs(y0 - y) < 0.5 && Math.abs(y1 - y) < 0.5 && Math.min(x0, x1) <= x && Math.max(x0, x1) >= x) return true;
+        const [ax, ay, bx, by] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+        if (!L) continue;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L));
+        if (Math.hypot(ax + t * dx - x, ay + t * dy - y) < 0.5) return true;
       }
       return false;
     });
+  // khúc đường dây 35kV vẽ ở chỗ "Giao chéo 376 TCCN": không được nhận điện từ lưới 22kV
+  const giao = ds.filter((e) => e.kind === 'branch' && e.kv === 35);
+  const giaoCoDien = giao.some((g) => {
+    const p = g.nodes.map((id) => a.store.get(id)?.p).filter(Boolean);
+    return p.length >= 2 && coDien((p[0].x + p.at(-1).x) / 2, (p[0].y + p.at(-1).y) / 2);
+  });
   return {
     net: ds.filter((e) => e.kind === 'branch').length,
     tb: tb.length,
     mo: tb.filter((e) => e.state === 'mo' && e.block !== 'DTD').length,
     dtd: dtd.length,
     dtdCat: dtd.every((e) => e.state === 'mo'),
-    // hai lộ nối nhau: cùng có nét tới điểm gặp chung (DCL 7/25 Gia Bảy)
-    noi: ds.filter((e) => e.kind === 'branch' && e.nodes.some((id) => { const p = a.store.get(id)?.p; return p && Math.hypot(p.x + 1230, p.y + 600) < 0.5; })).length >= 2,
+    // 473 E6.2 (lộ vẽ theo mô tả) nối vào đầu dây "473 E6.2 đến" của bản vẽ 18 (trên MC 472E6.4/61)
+    noi: ds.filter((e) => e.kind === 'branch' && e.nodes.some((id) => { const p = a.store.get(id)?.p; return p && Math.hypot(p.x + 663.16, p.y - 217.32) < 0.5; })).length >= 2,
     ten: moTen.every((t) => chu.some((c) => c.startsWith(t))),
-    // 477 E6.4 có điện tới Gia Bảy (trước DCL 7/25), 473 E6.2 có điện trên trục
-    d477: coDien(-1400, -600),
+    // trục 477 E6.4 (sau cột 48), trục 472 E6.4 (trước cột 48), 473 E6.2 trên trục
+    d477: coDien(-1155.627, -69.04),
+    d472: coDien(-1266.09, -69.04),
     d473: coDien(-1300, 250),
-    // giao chéo: vòng nhảy (chỉ đấu hai đầu), trục vẫn liền điện qua vòng nhảy, khúc
-    // đường dây 376 TCCN bị cắt ngang không nhận điện; không vẽ tụ bù
     nhay: ds.filter((e) => e.kind === 'branch' && e.khongNoiGiua).length,
-    quaNhay: coDien(-980, 250),
-    giao376: d.chuoi.some((c) => {
-      for (let k = 2; k < c.pts.length; k += 2) {
-        const [x0, y0, x1, y1] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
-        if (Math.abs(x0 + 994.692) < 0.5 && Math.abs(x1 + 994.692) < 0.5 && Math.min(y0, y1) <= 258 && Math.max(y0, y1) >= 258) return true;
-      }
-      return false;
-    }),
+    giao: giao.length,
+    giaoCoDien,
     tuBu: tb.filter((e) => e.block === 'TUBU').length,
   };
 });
 check(
-  'Lưới trung áp: 477 E6.4 và 473 E6.2 vẽ từ ngăn lộ, nối nhau, có điện, dừng ở điểm thường cắt; RMU có tiếp địa; giao chéo có vòng nhảy',
-  // 6 điểm thường mở của hai lộ thí điểm + 6 của bản vẽ PDF 17 (471/473/481 E6.4)
-  lta.net > 20 && lta.tb > 25 && lta.mo === 12 && lta.ten && lta.d477 && lta.d473 && lta.noi && lta.dtd === 19 && lta.dtdCat &&
-    lta.nhay >= 9 && lta.quaNhay && !lta.giao376 && lta.tuBu === 0,
+  'Lưới trung áp: các lộ vẽ từ ngăn lộ, nối nhau, có điện, dừng ở điểm thường cắt (kể cả ngăn tủ RMU); RMU có tiếp địa; giao chéo có vòng nhảy',
+  // 14 điểm thường cắt: 1 của 473E6.2, 6 của bản vẽ 17, 5 thiết bị + 2 ngăn tủ RMU của bản vẽ 18
+  lta.net > 100 && lta.tb > 100 && lta.mo === 14 && lta.ten && lta.d477 && lta.d472 && lta.d473 && lta.noi && lta.dtd >= 20 && lta.dtdCat &&
+    lta.nhay >= 9 && lta.giao >= 1 && !lta.giaoCoDien && lta.tuBu === 0,
   JSON.stringify(lta),
 );
 
@@ -451,38 +453,76 @@ check(
   JSON.stringify(pdf17),
 );
 
-// Recloser trên lưới trung áp: đóng MC 472E6.4/61 (thường cắt) -> 473 E6.2 cấp sang
-// đoạn Đồng Bẩm - Gia Bảy; cắt thêm MC 472E6.4/25 -> phía sau MC 25 mất điện
+// Recloser trên lưới trung áp (bản vẽ 18): cắt MC đầu lộ 472 E6.4 thì đoạn Đồng Bẩm và trục
+// 472 mất điện; đóng MC 472E6.4/61 (thường cắt) -> 473 E6.2 cấp ngược sang cả hai; cắt thêm
+// MC 472E6.4/25 Gia Bảy -> trục 472 phía sau MC 25 mất điện, Đồng Bẩm vẫn có
 const rec = await page.evaluate(() => {
   const a = window.sodo;
   const coDien = (x, y) =>
     a.congSuat.duLieu().chuoi.some((c) => {
       for (let k = 2; k < c.pts.length; k += 2) {
-        const [x0, y0, x1, y1] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
-        const L = Math.hypot(x1 - x0, y1 - y0);
-        if (L && Math.abs((x1 - x0) * (y - y0) - (y1 - y0) * (x - x0)) / L < 0.5 &&
-          Math.min(x0, x1) - 0.5 <= x && Math.max(x0, x1) + 0.5 >= x && Math.min(y0, y1) - 0.5 <= y && Math.max(y0, y1) + 0.5 >= y) return true;
+        const [ax, ay, bx, by] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+        if (!L) continue;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L));
+        if (Math.hypot(ax + t * dx - x, ay + t * dy - y) < 0.5) return true;
       }
       return false;
     });
-  // recloser nằm trên trục 473 (y = 250) và trên đoạn Gia Bảy (y = -330)
-  const trenTruc = (y) => a.store.entities.find((e) => e.kind === 'device' && e.block === 'REC' && Math.abs(e.p.y - y) < 0.5);
-  const mc61 = trenTruc(250);
-  const mc25 = trenTruc(-330);
-  const kq = { truoc: coDien(-760, 0) };
+  const gan = (block, x, y) =>
+    a.store.entities.filter((e) => e.kind === 'device' && e.block === block).sort((p, q) => Math.hypot(p.p.x - x, p.p.y - y) - Math.hypot(q.p.x - x, q.p.y - y))[0];
+  const mc472 = gan('MCHB', -1913.8, -316.26);
+  const mc61 = gan('REC', -662.2, 205);
+  const mc25 = gan('REC', -849.7, -72.2);
+  const [dongBam, truc472] = [[-664.124, 100], [-1266.09, -69.04]];
+  const kq = { truoc: coDien(...dongBam) && coDien(...truc472) };
+  a.ed.doiTrangThai([mc472.id], 'mo');
+  kq.cat472 = !coDien(...dongBam) && !coDien(...truc472);
   a.ed.doiTrangThai([mc61.id], 'dong');
-  kq.dong61 = coDien(-760, 0) && coDien(-1100, -330);
+  kq.dong61 = coDien(...dongBam) && coDien(...truc472);
   a.ed.doiTrangThai([mc25.id], 'mo');
-  kq.cat25 = coDien(-900, -330) && !coDien(-1100, -330);
+  kq.cat25 = coDien(...dongBam) && !coDien(...truc472);
   a.store.undo();
   a.store.undo();
-  kq.lai = !coDien(-760, 0);
+  a.store.undo();
+  kq.lai = coDien(...dongBam) && a.store.get(mc61.id).state === 'mo';
   return kq;
 });
 check(
   'Đóng/cắt recloser (MC 472E6.4/61, MC 472E6.4/25) đổi chiều công suất tương ứng',
-  !rec.truoc && rec.dong61 && rec.cat25 && rec.lai,
+  rec.truoc && rec.cat472 && rec.dong61 && rec.cat25 && rec.lai,
   JSON.stringify(rec),
+);
+// Bản vẽ 18: 477 và 472 E6.4 chỉ gặp nhau qua ngăn 477-7/02-2 (thường cắt) của tủ RMU 02-477
+// và cột 48 (lèo tháo) -> cắt MC 477 thì trục 477 mất điện, trục 472 vẫn có và ngược lại
+const rmu477 = await page.evaluate(() => {
+  const a = window.sodo;
+  const coDien = (x, y) =>
+    a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [ax, ay, bx, by] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+        if (!L) continue;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L));
+        if (Math.hypot(ax + t * dx - x, ay + t * dy - y) < 0.5) return true;
+      }
+      return false;
+    });
+  const mchb = (x) => a.store.entities.find((e) => e.kind === 'device' && e.block === 'MCHB' && Math.hypot(e.p.x - x, e.p.y + 316.26) < 0.5);
+  const diem = () => [coDien(-1155.627, -69.04), coDien(-1266.09, -69.04)];
+  const kq = { truoc: diem() };
+  a.ed.doiTrangThai([mchb(-2141.41).id], 'mo');
+  kq.cat477 = diem();
+  a.store.undo();
+  a.ed.doiTrangThai([mchb(-1913.8).id], 'mo');
+  kq.cat472 = diem();
+  a.store.undo();
+  return kq;
+});
+check(
+  'Bản vẽ 18: 477 và 472 E6.4 tách nhau ở ngăn RMU 477-7/02-2 thường cắt (cắt MC 477 chỉ mất điện trục 477, cắt MC 472 chỉ mất điện trục 472)',
+  JSON.stringify(rmu477) === '{"truoc":[true,true],"cat477":[false,true],"cat472":[true,false]}',
+  JSON.stringify(rmu477),
 );
 // E6.4: cáp tổng MBA T2 vẽ nhảy qua C42 (nửa vòng tròn) xuống MC 432 - chỗ nhảy không
 // phải đấu nối. Cắt 432 + 412 -> C42 mất điện, C41 vẫn có (T1 qua 431); cắt 431 + 412

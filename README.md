@@ -789,7 +789,7 @@ npm run build
 
 ---
 
-## 7. Lưới trung áp liên thông (đang làm: cụm E6.4)
+## 7. Lưới trung áp liên thông (đang làm: cụm E6.4 - xong bản vẽ 17, 18)
 
 Nguồn: bản vẽ từng lộ trên Google Drive (`So do luoi dien/1. Lưới trung áp KV Thái
 Nguyên`, vd "18. ĐZ 472+477 E6.4.pdf", "7. ĐZ 473 E6.2.pdf"). Mỗi lộ chép sang một file
@@ -865,8 +865,29 @@ liên kết, 6 tủ RMU; 471: 16; 481: RMU 01-481 tới DCL 473E6.4-7/19). Các 
 cắt: MC 473E6.4/64 (LT 473E6.3), LBS 473E6.4/14B (LT 471), DCL 473E6.4-7/19 (LT 481),
 LBS 477E6.5/115, LBS 473E6.4/47 (LT 471E6.19), DCL 471E6.4-7/01.
 
+**Bản vẽ 18 - ĐZ 472 + 477 E6.4 LT 471 + 473 E6.2** (thay lộ thí điểm 477E6.4.mjs):
+
+* 477 E6.4: C41 → RMU 01-477 → RMU 02-477 (ngăn 477-7/02-2 **thường cắt**, ngăn 02-3 ra) →
+  cột 48 → Gia Bảy tới DCL 472E6.4-7/25 (thường cắt); nhánh cột 60 → LBS 472E6.4/61
+  (thường cắt, LT 471E6.2); nhánh 7A → RMU Công an tỉnh → DCL 472E6.2-7/21 (→ LT 472E6.2).
+* 472 E6.4: C41 → RMU 01-472 → cột 32, 35 → MC 472E6.4/44 → cột 47 → DCL 7/48-1; cột 46 →
+  chuỗi RMU 01, 02, 03-472 LT 474 (ngăn 472-7/02-2 thường cắt → LT 474E6.4) → cột 26 →
+  DCL 7/25-1 → MC 472E6.4/25 Gia Bảy → RMU 07 Đồng Bẩm → MC 472E6.4/61 (thường cắt,
+  LT 473E6.2); cột 26 → DCL 472E6.2-7/36 (thường cắt, LT 472E6.2 - DCL 34 Bảo Tàng).
+* 471 E6.2: C43 E6.2 → cột 10 → MC 472E6.4/73 (thường cắt, LT 476E6.4) → xuống LBS 472E6.4/61.
+* **Cột 48** vẽ liền trên bản vẽ nhưng theo kết dây cơ bản (477E6.4: 31 MBA, chỉ ngăn
+  477-7/02-02 thường cắt) thì 472 và 477 không thể nối liền ở đây → coi là **điểm tách**
+  (`ngat` trong cfg18.json). Đoạn từ cột 48 về phía Gia Bảy do 477 cấp.
+* Lộ thí điểm 473E6.2.mjs nay dừng ở đầu dây "473 E6.2 đến" của bản vẽ 18 (trên MC 61).
+
+Công cụ dò đã bổ sung: ghép cạnh khung tủ vẽ thành nhiều đoạn; dây nhảy qua (cung
+nhỏ) không coi là nối; `bo_noi` (hộp bỏ nối chỗ bản vẽ đè nét); tủ RMU ghi mọi ngăn có
+dây nối ra và ngăn "(Thường cắt)"; ký hiệu hộp (MC, LBS) lấy tâm cụm nét đậm.
+
 Kiểm tra: `node tools/ra-soat-co-lap-thanh-cai.mjs` (không thanh cái nào còn điện khi
-cô lập) và smoke test (cắt MC 473 thì trục 473 mất điện, 471/481 vẫn có điện).
+cô lập) và smoke test (cắt MC 473 thì trục 473 mất điện, 471/481 vẫn có điện; cắt MC
+477 chỉ mất điện trục 477, cắt MC 472 chỉ mất điện trục 472; đóng MC 472E6.4/61 thì
+473E6.2 cấp ngược sang Đồng Bẩm).
 
 ## 8. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)
 

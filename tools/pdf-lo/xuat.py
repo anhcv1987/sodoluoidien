@@ -22,7 +22,7 @@ PDF = os.path.join(os.environ.get('PDF_DIR', '.'), cfg['pdf'])
 # điểm ngắt không có thiết bị (cột dừng, lèo tháo): chặn như thiết bị thường cắt nhưng
 # không nối hai phía, không đặt thiết bị nào thành Cắt
 NGAT = cfg.get('ngat', [])
-G = dothi.dung(PDF, CAM=cfg.get('cam', []), VUNG=list(cfg.get('vung', [])) + TC + NGAT, MO=cfg.get('mo', []), tu_chan=cfg.get('tu_chan', True))
+G = dothi.dung(PDF, CAM=cfg.get('cam', []), VUNG=list(cfg.get('vung', [])) + TC + NGAT, MO=cfg.get('mo', []), tu_chan=cfg.get('tu_chan', True), BO=cfg.get('bo_noi', []))
 VUNG_MO = [v for v in G['vung'] if not any(abs(v[0]-t[0])<0.01 and abs(v[1]-t[1])<0.01 for t in TC)]
 la_ngat = lambda v: any(abs(v[0]-t[0])<0.01 and abs(v[1]-t[1])<0.01 for t in NGAT)
 xy, p, M, chieu, ke = G['xy'], G['p'], G['M'], G['chieu'], G['ke']
@@ -66,14 +66,27 @@ def chieu_pl(pts, x, y):
 seg_mo = G['seg'][:G['n0']]
 def khung_tu(e):
     cx = e['x']
-    tren = [sg for sg in seg_mo if abs(sg[1] - sg[3]) < 0.3 and e['y0'] - 6 < sg[1] < e['y0'] + 0.8
-            and min(sg[0], sg[2]) < cx < max(sg[0], sg[2]) and abs(sg[2] - sg[0]) > (e['x1'] - e['x0'])]
+    # cạnh trên khung: các đoạn ngang cùng hàng nối tiếp nhau (bản vẽ hay chia cạnh thành nhiều đoạn)
+    ngang = sorted(((min(sg[0], sg[2]), max(sg[0], sg[2]), sg[1]) for sg in seg_mo
+                    if abs(sg[1] - sg[3]) < 0.3 and e['y0'] - 6 < sg[1] < e['y0'] + 0.8), key=lambda g: (round(g[2] / 0.3), g[0]))
+    ghep = []
+    for a, b, y in ngang:
+        if ghep and abs(ghep[-1][2] - y) < 0.3 and a <= ghep[-1][1] + 0.3: ghep[-1][1] = max(ghep[-1][1], b)
+        else: ghep.append([a, b, y])
+    tren = [g for g in ghep if g[0] < cx < g[1] and g[1] - g[0] > (e['x1'] - e['x0'])]
     if not tren: return None
-    sg = max(tren, key=lambda g: g[1])
-    x0, x1, y0 = min(sg[0], sg[2]), max(sg[0], sg[2]), sg[1]
-    doc = [g for g in seg_mo if abs(g[0] - g[2]) < 0.3 and (abs(g[0] - x0) < 0.6 or abs(g[0] - x1) < 0.6)
-           and min(g[1], g[3]) < y0 + 1 and max(g[1], g[3]) > y0 + 5]
-    y1 = max((max(g[1], g[3]) for g in doc), default=y0 + 32)
+    x0, x1, y0 = max(tren, key=lambda g: g[2])
+    # cạnh bên: nối các đoạn dọc liền nhau từ cạnh trên xuống
+    y1 = None
+    for xc in (x0, x1):
+        doc = sorted((min(g[1], g[3]), max(g[1], g[3])) for g in seg_mo if abs(g[0] - g[2]) < 0.3 and abs(g[0] - xc) < 0.6)
+        day = None
+        for a, b in doc:
+            if day is None:
+                if a < y0 + 1 and b > y0: day = b
+            elif a <= day + 0.3: day = max(day, b)
+        if day is not None and day > y0 + 5: y1 = max(y1 or 0, day)
+    if y1 is None: y1 = y0 + 32
     return x0, y0, x1, y1
 TU = []   # [ten, khung, tâm (nút), tiêu đề, tên ngăn]
 for e in tex:
@@ -84,7 +97,8 @@ for e in tex:
     ngan = []
     for f in tex:
         if f is e or not (x0 <= f['x'] <= x1 and 0 < f['y'] - e['y'] < 12) or f['t'].strip() in ('DPT', 'MC', 'DCL'): continue
-        tok = [t.strip() for t in re.split(r'(?=\b(?:DPT|MC|DCL)\s)', f['t']) if t.strip()]
+        # nhiều tên ngăn dính một dòng: tách trước DPT/MC/DCL hoặc trước số hiệu ngăn "472-7/02-2"
+        tok = [t.strip() for t in re.split(r'(?=\b(?:DPT|MC|DCL)\s)|\s+(?=\d{3}-\d)', f['t']) if t and t.strip()]
         if len(tok) > 1:
             w = (f['x1'] - f['x0']) / len(tok)
             for q, t in enumerate(tok): ngan.append(dict(f, t=t, x=f['x0'] + w * (q + 0.5)))
@@ -194,9 +208,11 @@ for v in VUNG_MO:
     dau = []   # (lo, điểm cuối chuỗi là đỉnh biên của vùng)
     for i, lo in enumerate(ket['lo']):
         for j, c in enumerate(lo['chuoi']):
-            q = c['pts'][-1]
-            if any(math.hypot(q[0] - b[0], q[1] - b[1]) < 0.05 for b in bien_xy):
-                dau.append((i, j, q))
+            # đỉnh biên thường là đầu cuối chuỗi; phía lộ kia có thể nằm giữa chuỗi (điểm rẽ)
+            for q in [c['pts'][-1]] + c['pts'][:-1]:
+                if any(math.hypot(q[0] - b[0], q[1] - b[1]) < 0.05 for b in bien_xy):
+                    dau.append((i, j, q))
+                    break
     if not dau: continue
     # mỗi lộ một đầu (gần tâm nhất)
     theo_lo = {}
@@ -239,12 +255,13 @@ tb, cot, day, mo = [], [], [], []
 for k, e in enumerate(tex):
     t = e['t']
     if RE_TB.match(t):
-        d, ij, q = gan_khung(e)
-        if d > 7: continue
         # dòng 2 ngay dưới
         d2 = [f for f in tex if f is not e and abs(f['x0'] - e['x0']) < 6 and 0 < f['y'] - e['y'] < e['h'] * 1.7
               and not RE_TB.match(f['t']) and not RE_COT.match(f['t'])]
         d2 = min(d2, key=lambda f: f['y']) if d2 else None
+        # nhãn cách dây tới ~12pt (nhãn 2-3 dòng đặt trên ký hiệu hộp MC/LBS thường cắt)
+        d, ij, q = min(gan_khung(f) for f in [e] + ([d2] if d2 else []))
+        if d > 12: continue
         # ký hiệu thiết bị: nét đậm gần chữ nhất nằm trên chuỗi
         nhan = [e] + ([d2] if d2 else [])
         ten = [t] + ([d2['t']] if d2 else [])
@@ -275,13 +292,37 @@ for k_, d_ in enumerate(tb):
     e = d_['nhan'][0]
     for sg in day_net:
         cx, cy = (sg[0] + sg[2]) / 2, (sg[1] + sg[3]) / 2
-        if kc_khung(e, cx, cy) < 7:
+        kk = min(kc_khung(f, cx, cy) for f in d_['nhan'])
+        if kk < 10:
             dd, ij, q = gan_chuoi(cx, cy)
-            if dd < 1.0: ung_vien.append((math.hypot(cx - e['x'], cy - e['y']), k_, q, ij))
+            # ký hiệu hộp (MC, LBS) ở điểm thường cắt: cạnh hộp cách dây đi qua vùng chặn tới ~2pt
+            trong_vung = any(v[0] <= cx <= v[2] and v[1] <= cy <= v[3] for v in VUNG_MO if not la_ngat(v))
+            if dd < 1.0 or (trong_vung and dd < 3.0):
+                # xếp theo khoảng cách tới khung chữ (nhãn sát ký hiệu nào thì của ký hiệu đó)
+                ung_vien.append((kk + 0.3 * math.hypot(cx - e['x'], cy - e['y']), k_, q, ij, sg))
 ung_vien.sort(key=lambda u: u[0])
+# cụm nét đậm liền nhau (một ký hiệu): tâm cụm chiếu lên chuỗi là vị trí thiết bị
+def cum_net(sg0):
+    cum = [sg0]; da = {id(sg0)}
+    k = 0
+    while k < len(cum) and len(cum) < 40:
+        a = cum[k]; k += 1
+        for b in day_net:
+            if id(b) in da: continue
+            if min(math.hypot(a[i] - b[j], a[i + 1] - b[j + 1]) for i in (0, 2) for j in (0, 2)) < 0.6:
+                da.add(id(b)); cum.append(b)
+    xs = [v for g in cum for v in (g[0], g[2])]; ys = [v for g in cum for v in (g[1], g[3])]
+    return (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, max(max(xs) - min(xs), max(ys) - min(ys))
 da_gan, da_diem = set(), []
-for dist, k_, q, ij in ung_vien:
+for dist, k_, q, ij, sg in ung_vien:
     if k_ in da_gan: continue
+    # chỉ ký hiệu hộp (MC/recloser, LBS) mới lấy tâm cụm; DCL/DPT là nét gạch đơn, cụm có thể
+    # dính sang hộp bên cạnh
+    hop = re.match(r'(MC|LBS|REC|Recloser)', tb[k_]['ten'][0], re.I)
+    cx, cy, co = cum_net(sg) if hop else (0, 0, 99)
+    if co < 16:
+        dd, ij2, q2 = gan_chuoi(cx, cy)
+        if dd < 3.0: q, ij = q2, ij2
     if any(math.hypot(q[0] - p_[0], q[1] - p_[1]) < 2.0 for p_ in da_diem): continue
     da_gan.add(k_); da_diem.append(q)
     tb[k_]['q'] = q; tb[k_]['ij'] = ij

@@ -519,7 +519,7 @@ function vePdf(dat) {
     }
   };
   // Nắn thẳng: đường dò bắc qua tâm ký hiệu nên dây gần ngang / gần dọc hay lệch 1-2pt.
-  // Mỗi quãng dài >= 8pt mà các đỉnh lệch nhau <= 2pt (độ dốc tổng <= 5%) được đặt đúng
+  // Mỗi quãng dài >= 8pt mà các đỉnh lệch nhau <= 2pt (độ dốc tổng <= 10%) được đặt đúng
   // ngang / dọc. Ghi theo toạ độ gốc của đỉnh để đỉnh chung giữa các chuỗi (điểm rẽ,
   // chân tủ) nắn giống nhau.
   {
@@ -538,7 +538,7 @@ function vePdf(dat) {
           lo = Math.min(lo, v); hi = Math.max(hi, v); e++;
         }
         const dai = Math.abs(P[e][doc] - P[s0][doc]);
-        if (e > s0 && dai >= 8 && Math.abs(P[e][tr] - P[s0][tr]) <= 0.05 * dai) {
+        if (e > s0 && dai >= 8 && Math.abs(P[e][tr] - P[s0][tr]) <= 0.1 * dai) {
           // giá trị nắn: trung bình theo chiều dài các đoạn con
           let tong = 0, w = 0;
           for (let m = s0; m < e; m++) {
@@ -770,9 +770,9 @@ function vePdf(dat) {
     const yTen = T.y1 + 1;           // hàng tên ngăn
     const yTc = T.y1 + 9;            // thanh cái trong tủ
     trongRmu = true;
-    // khung vẽ hai nét hở: đa giác khép kín nhỏ bị coi là ký hiệu thiết bị (chữ trong tủ bị dời ra)
-    net([[trai, day], [trai, dinh], [phai, dinh]].map(W), false);
-    net([[phai, dinh], [phai, day], [trai, day]].map(W), false);
+    // khung khép kín một nét: mô hình công suất nhận là khung tủ, bỏ khỏi lưới dây dẫn (cạnh
+    // đáy đi qua chân các ngăn - nếu coi là dây thì nối tắt các ngăn, kể cả ngăn thường cắt)
+    net([[trai, dinh], [phai, dinh], [phai, day], [trai, day], [trai, dinh]].map(W), false);
     net([[trai, yTen], [phai, yTen]].map(W), false);
     net([[cot[0], yTc], [cot.at(-1), yTc]].map(W), false);
     chan.forEach(([x0, y0], m) => {
