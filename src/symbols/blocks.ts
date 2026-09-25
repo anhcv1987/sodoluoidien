@@ -292,19 +292,15 @@ const CAD_REC: Prim[] = [
 ];
 
 /**
- * LBS: dao cat co tai - theo ky hieu ban ve lo trung ap: hop chu nhat dung, hai
- * tiep diem trong hop lech hai ben truc, luoi dao cheo noi hai tiep diem (dong)
- * hoac nga ra xa tiep diem tren (cat).
+ * LBS: dao cat co tai = than hop (nhu may cat, to dac khi dong, de rong khi cat) +
+ * luoi dao cheo vat qua than hop - nhin la biet "dao" chu khong phai may cat.
  */
-const LBS_HOP: Prim[] = [
-  P(true, false, -6, -15, 6, -15, 6, 15, -6, 15),
-  L(0, 20, 0, 15),
-  L(0, -15, 0, -20),
-  L(2, 15, 2, 2.2),
-  L(-2, -15, -2, -2.2),
+const CAD_LBS: Prim[] = [
+  P(true, false, -5, -9, 5, -9, 5, 9, -5, 9),
+  L(0, 20, 0, 9),
+  L(0, -9, 0, -20),
+  L(-9.5, 7.5, 9.5, -7.5),
 ];
-const CAD_LBS: Prim[] = [...LBS_HOP, L(-2, -2.2, 2, 2.2)];
-const CAD_LBS_MO: Prim[] = [...LBS_HOP, L(-2, -2.2, 3.7, -0.67)];
 
 /** Cau chi tu roi FCO (ve theo quy uoc EVN - khong co block rieng trong file CAD goc). */
 const CAD_FCO: Prim[] = [
@@ -478,8 +474,8 @@ export const BLOCKS: BlockDef[] = [
   }),
   make('LBS', 'Dao cắt có tải (LBS)', 'LBS', 'Đóng cắt', CAD_LBS, {
     switching: true,
-    open: CAD_LBS_MO,
-    source: 'Ký hiệu LBS theo bản vẽ lộ trung áp (hộp chữ nhật, lưỡi dao chéo)',
+    fillWhenClosed: true,
+    source: 'Vẽ theo quy ước: thân hộp (tô đặc khi đóng) + lưỡi dao chéo',
   }),
   make('FCO', 'Cầu chì tự rơi (FCO)', 'FCO', 'Đóng cắt', CAD_FCO, {
     switching: true,

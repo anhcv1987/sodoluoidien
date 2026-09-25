@@ -37,6 +37,7 @@ const s = data.sheets.find((x) => x.code === 'TONG');
 const tram = (x, y) => s.st.find((r) => r.length >= 8 && x >= r[4] && x <= r[6] && y >= r[5] && y <= r[7])?.[0] ?? '?';
 
 const vong = new Set((s.vong ?? []).map(([x, y]) => `${x}|${y}`));
+const nhay = new Set((s.nhay ?? []).map(([x, y]) => `${x}|${y}`));
 const diem = new Map();
 const ents = [];
 s.b.forEach((r, i) => {
@@ -47,7 +48,7 @@ s.b.forEach((r, i) => {
     nodes.push(id);
   }
   const b = { id: `b${i}`, kind: 'branch', layer: data.layers[r[0]], kv: r[1], nodes, lineKind: data.lineKinds[r[2]], srcLayer: data.srcLayers[r[3]] };
-  if (data.srcLayers[r[3]] === 'Kết lưới 110kV') b.khongNoiGiua = true;
+  if (data.srcLayers[r[3]] === 'Kết lưới 110kV' || nhay.has(`${r[4]}|${r[5]}`)) b.khongNoiGiua = true;
   if (vong.has(`${r[4]}|${r[5]}`)) b.vong = true;
   ents.push(b);
 });

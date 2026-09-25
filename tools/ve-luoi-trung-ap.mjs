@@ -49,6 +49,7 @@ const ALIGN = { trai: data.aligns.indexOf('left'), giua: data.aligns.indexOf('ce
 for (const k of ['b', 'd']) s[k] = s[k].filter((r) => r[k === 'b' ? 3 : 8] !== SRC);
 s.t = s.t.filter((r) => r[7] !== SRC);
 s.c = (s.c ?? []).filter((r) => r[5] !== SRC);
+s.nhay = []; // điểm đầu các vòng nhảy giao chéo (chỉ lưới trung áp dùng)
 
 /* ------------------------------ cỡ chữ, khoảng cách ------------------------------ */
 const H_TEN = 4; // tên thiết bị
@@ -57,10 +58,20 @@ const H_DZ = 3.4; // loại dây / cáp
 const SC = 9; // cỡ ký hiệu thiết bị
 const RONG = (txt, h) => String(txt).length * h * 0.5;
 const W_NGAN = 26; // bề rộng một ngăn tủ RMU
+const H_DAU_RMU = 10; // hàng tên tủ RMU khi tủ nằm trên tuyến dọc
 
 let kv = 22;
 let lop = data.layers.indexOf('22kV');
-const net = (pts, cap) => s.b.push([lop, kv, cap ? KIEU.cap : KIEU.dz, SRC, ...pts.flat().map((v) => +v.toFixed(3))]);
+// nét bên trong tủ RMU (khung, thanh cái, dây ngăn) và đoạn đường dây bị giao chéo:
+// không vẽ vòng nhảy giao chéo cho các nét này
+const dongRmu = new Set();
+const dongGiao = new Set();
+let trongRmu = false;
+const net = (pts, cap) => {
+  const r = [lop, kv, cap ? KIEU.cap : KIEU.dz, SRC, ...pts.flat().map((v) => +v.toFixed(3))];
+  s.b.push(r);
+  if (trongRmu) dongRmu.add(r);
+};
 const chu = (x, y, h, text, canh = 'giua', rot = 0) => s.t.push([LOP_CHU, kv, +x.toFixed(3), +y.toFixed(3), h, rot, ALIGN[canh], SRC, text]);
 const thietBi = (block, x, y, rot, mo, scale = SC) =>
   s.d.push([lop, kv, data.blocks.indexOf(block), +x.toFixed(3), +y.toFixed(3), rot, scale, data.states.indexOf(mo ? 'mo' : 'dong'), SRC, 0]);
@@ -93,10 +104,11 @@ function beRong(m, doc = false) {
   if (m.coc !== undefined) return 13;
   // tuyến dọc ghi tên thiết bị bên cạnh nên không cần chừa bề ngang cho chữ
   if (m.tb) return doc || m.gon ? 24 : Math.max(34, RONG(m.ten?.[0] ?? '', H_TEN) + 4);
-  if (m.rmu) return W_NGAN * m.ngan.length + 8;
+  if (m.rmu) return W_NGAN * m.ngan.length + 8 + (doc ? H_DAU_RMU : 0);
   if (m.tu) return 24;
   if (m.ranh) return 22;
   if (m.ghi) return Math.max(16, m.rong ?? 16);
+  if (m.giao) return 16;
   if (m.nhanh) return 12;
   if (m.dz) return 0;
   if (m.khoang) return m.khoang;
@@ -172,9 +184,7 @@ function veDoan(a, huong, muc, opts = {}) {
       else ten.forEach((dong, i) => chu(x, y - 11 - i * (H_TEN + 1), H_TEN, dong, 'giua'));
     } else if (m.rmu) {
       tDayRmu = { t: tDay, cap: loai.cap };
-      veRmu(m, t, P, goc, [dx, dy], [nx, ny]);
-      const iRa = m.ngan.findIndex((ng) => ng.vai === 'ra');
-      tDay = t + 4 + W_NGAN * (iRa + 0.5);
+      tDay = veRmu(m, t, P, goc, [dx, dy], [nx, ny]);
     } else if (m.tu) {
       // tụ bù treo dưới dây
       const [x, y] = P(tm);
@@ -200,6 +210,17 @@ function veDoan(a, huong, muc, opts = {}) {
         chu(ax, ay, H_TEN, `${m.ranh[0]} ←`, 'phai');
         chu(bx, by, H_TEN, `→ ${m.ranh[1]}`, 'trai');
       }
+    } else if (m.giao) {
+      // giao chéo với đường dây khác (không đấu nối): vẽ khúc đường dây kia cắt ngang
+      // tuyến, ghi tên ở đầu khúc; vòng nhảy qua trên tuyến này vẽ chung ở veGiaoCheo()
+      const kvG = m.kv ?? kv;
+      const [ax, ay] = P(tm, 11);
+      const [bx, by] = P(tm, -11);
+      const r = [data.layers.indexOf(`${kvG}kV`), kvG, KIEU.dz, SRC, +ax.toFixed(3), +ay.toFixed(3), +bx.toFixed(3), +by.toFixed(3)];
+      s.b.push(r);
+      dongGiao.add(r);
+      if (doc) chu(Math.max(ax, bx) + 2, ay - H_COT / 2, H_COT, m.giao, 'trai');
+      else chu(ax, Math.max(ay, by) + 2, H_COT, m.giao, 'giua');
     } else if (m.ghi) {
       const [x, y] = P(tm, doc ? 0 : -9);
       chu(doc ? x + 8 : x, y, H_COT, m.ghi, doc ? 'trai' : 'giua');
@@ -223,13 +244,15 @@ function veDoan(a, huong, muc, opts = {}) {
     // đặt nhãn giữa khoảng trống dài nhất của quãng (không đè lên thiết bị, tủ RMU)
     // ưu tiên khoảng trống đầu tiên đủ rộng cho nhãn, không có thì khoảng rộng nhất
     const kmax =
-      kt.find(([a, b]) => b - a >= RONG(l.dai ? `${l.nhan} - ${l.dai}` : l.nhan, H_DZ) * 0.9) ??
+      kt.find(([a, b]) => b - a >= (doc ? 14 : RONG(l.dai ? `${l.nhan} - ${l.dai}` : l.nhan, H_DZ) * 0.9)) ??
       [...kt].sort((a, b) => b[1] - b[0] - (a[1] - a[0]))[0];
     const tm = kmax ? (kmax[0] + kmax[1]) / 2 : (t0 + t1) / 2;
     const txt = l.dai ? `${l.nhan} - ${l.dai}` : l.nhan;
     if (doc) {
+      // tuyến dọc: ghi ngang bên trái dây (loại dây / chiều dài hai dòng)
       const [x, y] = P(tm, 0);
-      chu(x - 5, y, H_DZ, txt, 'giua', 90);
+      const dong = l.dai ? [l.nhan, l.dai] : [l.nhan];
+      dong.forEach((d, i) => chu(x - 4, y + (dong.length / 2 - i - 1) * (H_DZ + 1), H_DZ, d, 'phai'));
     } else {
       const [x, y] = P(tm, 8);
       chu(x, y, H_DZ, txt, 'giua');
@@ -240,47 +263,84 @@ function veDoan(a, huong, muc, opts = {}) {
 
 /**
  * Tủ RMU theo mẫu bản vẽ lộ: khung, hàng tên tủ, hàng tên ngăn, thanh cái trong tủ;
- * mỗi ngăn: dao cách ly (ký hiệu như DCL trong trạm) + dao tiếp địa (-76), cáp đấu ở chân ngăn. Chỉ vẽ ngăn vào,
- * ngăn ra (và ngăn rẽ sang lộ khác). Tủ nằm phía bên trái tuyến (phía trên nếu tuyến
- * chạy sang phải); dây vào đấu chân ngăn đầu, dây ra đi từ chân ngăn cuối.
+ * mỗi ngăn: dao cách ly (ký hiệu như DCL trong trạm) + dao tiếp địa (-76), cáp đấu ở
+ * chân ngăn. Chỉ vẽ ngăn vào, ngăn ra (và ngăn rẽ sang lộ khác). Tủ nằm phía bên trái
+ * tuyến (phía trên nếu tuyến chạy sang phải); dây vào đấu chân ngăn đầu, dây ra đi từ
+ * chân ngăn cuối. Tuyến dọc: các ngăn xếp chồng theo tuyến, hàng tên tủ ở trên cùng,
+ * mọi chữ vẫn nằm ngang (không phải nghiêng đầu khi xem).
+ * Trả về vị trí (theo tuyến) của ngăn ra - nơi đường trục đi tiếp.
  */
-function veRmu(m, t, P, goc, [dx, dy], [nx, ny]) {
+function veRmu(m, t, P, goc, huong, phap) {
+  trongRmu = true;
+  try {
+    return veRmuTrong(m, t, P, goc, huong, phap);
+  } finally {
+    trongRmu = false;
+  }
+}
+function veRmuTrong(m, t, P, goc, [dx, dy], [nx, ny]) {
   const n = m.ngan.length;
+  const doc = Math.abs(dy) > Math.abs(dx);
   const t0 = t + 4;
-  const t1 = t0 + W_NGAN * n;
-  const H = 64; // chiều cao tủ
-  const oTieuDe = H - 9;
+  const H = 64; // chiều cao tủ (theo pháp tuyến)
   const oThanhCai = H - 21;
   const oDao = H - 33;
   const oTd = 13;
-  const gocChu = ((goc + 90) % 180 + 180) % 180 - 90; // chữ luôn đọc xuôi
-  // chữ trong tủ: `o` là mép chữ gần chân tủ - nếu chiều "lên" của chữ ngược pháp
-  // tuyến tủ (tuyến chạy dọc) thì dời chân chữ sang mép kia để chữ không đè nét kẻ
-  const r = (gocChu * Math.PI) / 180;
-  const nguoc = -Math.sin(r) * nx + Math.cos(r) * ny < 0;
-  const chuTu = (t, o, h, txt, can) => chu(...P(t, nguoc ? o + h : o), h, txt, can, gocChu);
-  // khung + kẻ hàng tên tủ + vách ngăn
+  const SD = 8; // cỡ dao tiếp địa
+  // tuyến dọc: hàng tên tủ ở đầu tủ phía trên bản vẽ
+  const HD = doc ? H_DAU_RMU : 0;
+  const t1 = t0 + W_NGAN * n + HD;
+  const c0 = doc && dy < 0 ? t0 + HD : t0; // đầu vùng các ngăn
+  const tc = (i) => c0 + W_NGAN * (i + 0.5);
+  // chữ nằm ngang, dời theo trục y bản vẽ (dyW) để khỏi đè nét
+  const chuNgang = (tt, o, h, txt, can, dyW = 0) => {
+    const [x, y] = P(tt, o);
+    chu(x, y + dyW, h, txt, can);
+  };
+
   net([P(t0, 4), P(t1, 4), P(t1, H), P(t0, H), P(t0, 4)], false);
-  net([P(t0, oTieuDe), P(t1, oTieuDe)], false);
-  for (let i = 1; i < n; i++) net([P(t0 + W_NGAN * i, 4), P(t0 + W_NGAN * i, oTieuDe)], false);
-  chuTu((t0 + t1) / 2, oTieuDe + 2.2, 3.4, m.rmu, 'giua');
-  const tc = (i) => t0 + W_NGAN * (i + 0.5);
+  if (doc) {
+    // hàng tên tủ + vách giữa các ngăn: kẻ ngang hết bề rộng tủ
+    const tDau = dy < 0 ? t0 + HD : t1 - HD;
+    net([P(tDau, 4), P(tDau, H)], false);
+    for (let i = 1; i < n; i++) net([P(c0 + W_NGAN * i, 4), P(c0 + W_NGAN * i, H)], false);
+    chuNgang(dy < 0 ? t0 + HD / 2 : t1 - HD / 2, (4 + H) / 2, 3.4, m.rmu, 'giua', -1.7);
+  } else {
+    // mẫu bản vẽ: hàng tên tủ trên cùng, vách ngăn tới hàng tên tủ, tên ngăn dưới đó
+    const oTieuDe = H - 9;
+    const gocChu = ((goc + 90) % 180 + 180) % 180 - 90; // chữ luôn đọc xuôi
+    net([P(t0, oTieuDe), P(t1, oTieuDe)], false);
+    for (let i = 1; i < n; i++) net([P(t0 + W_NGAN * i, 4), P(t0 + W_NGAN * i, oTieuDe)], false);
+    chu(...P((t0 + t1) / 2, oTieuDe + 2.2), 3.4, m.rmu, 'giua', gocChu);
+    m.ngan.forEach((ng, i) => chu(...P(tc(i), oTieuDe - 5.5), 2.8, ng.ten, 'giua', gocChu));
+  }
   // thanh cái trong tủ
   net([P(tc(0), oThanhCai), P(tc(n - 1), oThanhCai)], false);
   m.ngan.forEach((ng, i) => {
     const x = tc(i);
-    chuTu(x, oTieuDe - 5.5, 2.8, ng.ten, 'giua');
+    // tuyến dọc: tên ngăn ghi ngang ở phía ngoài thanh cái, ngay trên dây ngăn
+    if (doc) chuNgang(x, (oThanhCai + H) / 2, 2.8, ng.ten, 'giua', 1.5);
     // dao cách ly ngăn tủ vẽ như DCL trong trạm (không hộp): dây liền qua ký hiệu
     net([P(x, oThanhCai), P(x, 0)], false);
     thietBi('DCL', ...P(x, oDao), gocDat('DCL', goc + 90), !!ng.mo);
-    if (ng.mo) chuTu(x + 5, oDao - 2, 2.6, '(thường cắt)', 'trai');
+    if (ng.mo) {
+      if (doc) chuNgang(x, oDao, 2.6, '(thường cắt)', 'giua', -6);
+      else chu(...P(x + 5, oDao - 2), 2.6, '(thường cắt)', 'trai');
+    }
     // dao tiếp địa ngăn tủ (-76), bình thường cắt
-    const SD = 8;
-    thietBi('DTD', ...P(x - 0.52 * SD, oTd), ((goc - 90) % 360 + 360) % 360, true, SD);
-    chuTu(x - 7, oTd - 7, 2.6, '-76', 'giua');
+    // (tuyến dọc: dao luôn treo xuống phía dưới bản vẽ)
+    const lat = doc && dy < 0 ? -1 : 1;
+    thietBi('DTD', ...P(x - lat * 0.52 * SD, oTd), ((goc - 90 + (lat < 0 ? 180 : 0)) % 360 + 360) % 360, true, SD);
+    if (doc) chuNgang(x - lat * 0.52 * SD * 2.2, oTd + 7, 2.6, '-76', 'giua', -1.3);
+    else chu(...P(x - 7, oTd - 7), 2.6, '-76', 'giua');
     if (ng.vai === 'vao') net([P(tDayRmu.t, 0), P(x, 0)], tDayRmu.cap);
-    if (ng.vai === 're') veNhanh(P(x, 0), [-nx, -ny], ng.muc ?? [], ng.cuoi, 0, ng.loai);
+    if (ng.vai === 're') {
+      trongRmu = false;
+      veNhanh(P(x, 0), [-nx, -ny], ng.muc ?? [], ng.cuoi, 0, ng.loai);
+      trongRmu = true;
+    }
   });
+  return tc(m.ngan.findIndex((ng) => ng.vai === 'ra'));
 }
 let tDayRmu = { t: 0, cap: false };
 
@@ -329,6 +389,87 @@ function veLo(lo) {
   if (lo.tieuDe) chu(lo.tieuDe[0], lo.tieuDe[1], 6, lo.ten, 'trai');
 }
 
+/**
+ * KÝ HIỆU GIAO CHÉO: chỗ đường trung áp vừa vẽ cắt ngang một đường dây khác mà không
+ * đấu nối thì vẽ vòng nhảy qua (nửa vòng tròn) trên đường trung áp - tuyến ngang
+ * nhảy lên trên, tuyến dọc nhảy sang trái. Hai đường trung áp cắt nhau thì chỉ tuyến
+ * ngang nhảy. Không xét nét trong tủ RMU và các vạch ghi chú / ranh giới.
+ */
+function veGiaoCheo() {
+  // bán kính lớn hơn sai số bắt điểm của mô hình công suất (~3 đơn vị trên tờ tổng)
+  const R = 5;
+  const laLta = (r) => r[3] === SRC && r[0] !== LOP_CHU && !dongRmu.has(r) && !dongGiao.has(r);
+  const dsLta = s.b.filter(laLta);
+  const khac = s.b.filter((r) => r[0] !== LOP_CHU && !dongRmu.has(r));
+  const doan = (r) => {
+    const o = [];
+    for (let k = 4; k + 3 < r.length; k += 2) o.push([r[k], r[k + 1], r[k + 2], r[k + 3]]);
+    return o;
+  };
+  const nhay = new Map(); // dòng -> [[chỉ số đoạn, khoảng cách từ đầu đoạn]]
+  let dem = 0;
+  for (const a of dsLta) {
+    doan(a).forEach(([x1, y1, x2, y2], i) => {
+      const L = Math.hypot(x2 - x1, y2 - y1);
+      if (L < 2 * R + 1) return;
+      const ngang = Math.abs(y2 - y1) < Math.abs(x2 - x1);
+      for (const b of khac) {
+        if (b === a) continue;
+        for (const [x3, y3, x4, y4] of doan(b)) {
+          const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+          if (Math.abs(den) < 1e-9) continue;
+          const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
+          const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / den;
+          const Lb = Math.hypot(x4 - x3, y4 - y3);
+          // phải cắt ngang giữa cả hai đoạn (chạm đầu đoạn là chỗ đấu nối chữ T)
+          if (t * L < R + 0.5 || (1 - t) * L < R + 0.5 || u * Lb < 0.5 || (1 - u) * Lb < 0.5) continue;
+          // hai đường trung áp cắt nhau: chỉ tuyến ngang nhảy
+          if (laLta(b) && !ngang) continue;
+          const ds = nhay.get(a) ?? [];
+          if (!ds.some(([j, d]) => j === i && Math.abs(d - t * L) < 2 * R + 1)) ds.push([i, t * L]);
+          nhay.set(a, ds);
+        }
+      }
+    });
+  }
+  // Tách tuyến tại từng chỗ nhảy: vòng nhảy thành một nét riêng, đánh dấu vào
+  // s.nhay để khi đọc dữ liệu mang cờ khongNoiGiua (chỉ đấu ở hai đầu) - đỉnh vòng
+  // nhảy nằm sát đường dây kia không bị coi là điểm đấu chữ T.
+  for (const [a, ds] of nhay) {
+    const manh = [[]];
+    const vong = [];
+    doan(a).forEach(([x1, y1, x2, y2], i) => {
+      if (i === 0) manh[0].push(x1, y1);
+      const L = Math.hypot(x2 - x1, y2 - y1);
+      const dx = (x2 - x1) / L;
+      const dy = (y2 - y1) / L;
+      // phía nhảy: tuyến ngang lên trên, tuyến dọc sang trái
+      let [nx, ny] = [-dy, dx];
+      if (Math.abs(dy) < Math.abs(dx) ? ny < 0 : nx > 0) [nx, ny] = [-nx, -ny];
+      for (const [, d] of ds.filter(([j]) => j === i).sort((u, v) => u[1] - v[1])) {
+        const cx = x1 + dx * d;
+        const cy = y1 + dy * d;
+        const cung = [];
+        for (let k = 0; k <= 8; k++) {
+          const f = (Math.PI * k) / 8;
+          cung.push(cx - dx * R * Math.cos(f) + nx * R * Math.sin(f), cy - dy * R * Math.cos(f) + ny * R * Math.sin(f));
+        }
+        manh.at(-1).push(cung[0], cung[1]);
+        vong.push(cung);
+        manh.push([cung.at(-2), cung.at(-1)]);
+        dem++;
+      }
+      manh.at(-1).push(x2, y2);
+    });
+    const dau = a.slice(0, 4);
+    const tron = (pts) => pts.map((v) => +v.toFixed(3));
+    const moi = [...manh.map((m) => [...dau, ...tron(m)]), ...vong.map((c) => [...dau, ...tron(c)])];
+    for (const r of vong.map((c) => tron(c))) s.nhay.push([r[0], r[1]]);
+    s.b.splice(s.b.indexOf(a), 1, ...moi);
+  }
+  console.log(`  giao chéo: ${dem} chỗ vẽ vòng nhảy`);
+}
+
 const thuMuc = resolve('tools/luoi-trung-ap');
 const dsLo = [];
 for (const f of readdirSync(thuMuc).filter((f) => f.endsWith('.mjs')).sort()) {
@@ -341,6 +482,7 @@ for (const lo of dsLo) {
   veLo(lo);
   console.log(`  ${lo.ten}: đã vẽ`);
 }
+veGiaoCheo();
 writeFileSync(duongDan, JSON.stringify(data));
 const dem = (k, i) => s[k].filter((r) => r[i] === SRC).length;
 console.log(`Lưới trung áp: ${dsLo.length} lộ - ${dem('b', 3)} nét, ${dem('d', 8)} thiết bị, ${dem('t', 7)} chữ.`);

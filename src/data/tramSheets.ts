@@ -45,6 +45,8 @@ interface CompactSheet {
   st?: (number | string)[][];
   /** Thanh cái đường vòng (C19, C29…): đỉnh đầu [x0, y0] của từng thanh cái. */
   vong?: number[][];
+  /** Điểm đầu các vòng nhảy giao chéo của lưới trung áp: nét chỉ đấu ở hai đầu. */
+  nhay?: number[][];
   /** Máy biến áp (block): [x, y, kV cuộn cao áp, kV cuộn phải, kV cuộn dưới]. */
   kvCuon?: number[][];
 }
@@ -119,6 +121,7 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
   const put = (e: Entity): void => void (entities[e.id] = e);
   // thanh cái đường vòng: ghi theo đỉnh đầu (tools/phuong-thuc-van-hanh.mjs)
   const vong = new Set((s.vong ?? []).map(([x, y]) => `${x}|${y}`));
+  const nhay = new Set((s.nhay ?? []).map(([x, y]) => `${x}|${y}`));
   const kvCuon = new Map((s.kvCuon ?? []).map(([x, y, ...kv]) => [`${x}|${y}`, kv as VoltageKv[]]));
 
   for (const row of s.b) {
@@ -143,7 +146,7 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
     const b: BranchEntity = { id: newId('b'), kind: 'branch', layer, kv, nodes, lineKind };
     if (srcLayer) b.srcLayer = srcLayer;
     // Đường dây nối giữa các trạm chỉ đấu ở hai đầu; chỗ cắt nhau là giao chéo.
-    if (srcLayer === 'Kết lưới 110kV') b.khongNoiGiua = true;
+    if (srcLayer === 'Kết lưới 110kV' || nhay.has(`${row[4]}|${row[5]}`)) b.khongNoiGiua = true;
     if (vong.has(`${row[4]}|${row[5]}`)) b.vong = true;
     put(b);
   }

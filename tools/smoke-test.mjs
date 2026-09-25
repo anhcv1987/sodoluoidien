@@ -241,11 +241,24 @@ const lta = await page.evaluate(() => {
     // 477 E6.4 có điện tới Gia Bảy (trước DCL 7/25), 473 E6.2 có điện trên trục
     d477: coDien(-1400, -600),
     d473: coDien(-1300, 250),
+    // giao chéo: vòng nhảy (chỉ đấu hai đầu), trục vẫn liền điện qua vòng nhảy, khúc
+    // đường dây 376 TCCN bị cắt ngang không nhận điện; không vẽ tụ bù
+    nhay: ds.filter((e) => e.kind === 'branch' && e.khongNoiGiua).length,
+    quaNhay: coDien(-980, 250),
+    giao376: d.chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [x0, y0, x1, y1] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        if (Math.abs(x0 + 994.692) < 0.5 && Math.abs(x1 + 994.692) < 0.5 && Math.min(y0, y1) <= 258 && Math.max(y0, y1) >= 258) return true;
+      }
+      return false;
+    }),
+    tuBu: tb.filter((e) => e.block === 'TUBU').length,
   };
 });
 check(
-  'Lưới trung áp: 477 E6.4 và 473 E6.2 vẽ từ ngăn lộ, nối nhau, có điện, dừng ở điểm thường cắt; RMU có tiếp địa',
-  lta.net > 20 && lta.tb > 25 && lta.mo === 6 && lta.ten && lta.d477 && lta.d473 && lta.noi && lta.dtd === 9 && lta.dtdCat,
+  'Lưới trung áp: 477 E6.4 và 473 E6.2 vẽ từ ngăn lộ, nối nhau, có điện, dừng ở điểm thường cắt; RMU có tiếp địa; giao chéo có vòng nhảy',
+  lta.net > 20 && lta.tb > 25 && lta.mo === 6 && lta.ten && lta.d477 && lta.d473 && lta.noi && lta.dtd === 9 && lta.dtdCat &&
+    lta.nhay === 3 && lta.quaNhay && !lta.giao376 && lta.tuBu === 0,
   JSON.stringify(lta),
 );
 
@@ -406,7 +419,6 @@ const c62 = await page.evaluate(() => {
 // đoạn Đồng Bẩm - Gia Bảy; cắt thêm MC 472E6.4/25 -> phía sau MC 25 mất điện
 const rec = await page.evaluate(() => {
   const a = window.sodo;
-  const tim = (x, y) => a.store.entities.find((e) => e.kind === 'device' && e.block === 'REC' && Math.hypot(e.p.x - x, e.p.y - y) < 0.5);
   const coDien = (x, y) =>
     a.congSuat.duLieu().chuoi.some((c) => {
       for (let k = 2; k < c.pts.length; k += 2) {
@@ -417,8 +429,10 @@ const rec = await page.evaluate(() => {
       }
       return false;
     });
-  const mc61 = tim(-838.12, 250);
-  const mc25 = tim(-999.5, -330);
+  // recloser nằm trên trục 473 (y = 250) và trên đoạn Gia Bảy (y = -330)
+  const trenTruc = (y) => a.store.entities.find((e) => e.kind === 'device' && e.block === 'REC' && Math.abs(e.p.y - y) < 0.5);
+  const mc61 = trenTruc(250);
+  const mc25 = trenTruc(-330);
   const kq = { truoc: coDien(-760, 0) };
   a.ed.doiTrangThai([mc61.id], 'dong');
   kq.dong61 = coDien(-760, 0) && coDien(-1100, -330);

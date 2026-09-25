@@ -101,7 +101,7 @@ in đen trắng vẫn phân biệt được:
 | Thiết bị | Đóng | Cắt | Không xác định |
 |---|---|---|---|
 | Máy cắt, máy cắt hợp bộ, recloser | thân **tô đặc** | thân **để rỗng** | nét đứt, màu cam |
-| LBS (dao cắt có tải) | hộp chữ nhật, lưỡi dao chéo **nối** hai tiếp điểm lệch trục | lưỡi dao **ngả ra xa** tiếp điểm trên | nét đứt, màu cam |
+| LBS (dao cắt có tải) | thân hộp **tô đặc**, lưỡi dao chéo vắt qua thân | thân hộp **để rỗng** | nét đứt, màu cam |
 | Dao cách ly | vạch chéo trên dây | lưỡi dao mở, **đường dây hở** ở khe dao | nét đứt, màu cam |
 | Dao tiếp địa | lưỡi dao **nằm thẳng**, nối dây với đất | lưỡi dao mở | nét đứt, màu cam |
 
@@ -792,14 +792,23 @@ Quy ước thể hiện (đề xuất, chờ Phòng thống nhất):
   "Cu 3x185 - 250m"); đoạn bản vẽ không ghi thì để trống.
 * **Tủ RMU** theo mẫu bản vẽ lộ: khung tủ, hàng tên tủ, hàng tên ngăn, thanh cái
   trong tủ; mỗi ngăn có dao cách ly **vẽ như DCL ngăn 110kV trong trạm (không hộp)** +
-  **dao tiếp địa (-76, bình thường cắt)**, cáp đấu ở chân ngăn. Chỉ vẽ ngăn vào, ngăn ra (thêm ngăn rẽ nếu ngăn đó liên kết sang lộ khác,
-  vd ngăn 477-7/02-2); bỏ ngăn dự phòng, ngăn cấp TBA khách hàng. Tủ nằm tuyến dọc thì
-  chữ trong tủ xoay theo, không đè nét kẻ.
-* **Thiết bị trên trục** đủ: DCL, DPT, LBS (ký hiệu theo bản vẽ lộ), recloser (MC … R,
-  chữ R luôn ở phía trên/bên trái; đóng/cắt recloser thì công suất chạy đổi theo), tụ bù (TBN), đúng trạng
-  thái kết dây cơ bản (thường cắt = Cắt). **Chỉ ghi các cột có thiết bị, tụ bù hoặc
-  điểm rẽ nhánh liên kết** (bỏ cột đỡ thuần túy); nhánh rẽ ngay tại cột đó. Số cột ghi
-  trên trục, tên thiết bị ghi dưới; phần dài còn thừa của cạnh rải đều giữa các phần tử.
+  **dao tiếp địa (-76, bình thường cắt)**, cáp đấu ở chân ngăn. Chỉ vẽ ngăn vào, ngăn ra
+  (thêm ngăn rẽ nếu ngăn đó liên kết sang lộ khác, vd ngăn 477-7/02-2); bỏ ngăn dự
+  phòng, ngăn cấp TBA khách hàng. Tủ nằm trên tuyến dọc: các ngăn xếp chồng theo tuyến,
+  hàng tên tủ ở trên cùng, **mọi chữ vẫn nằm ngang** (không phải nghiêng đầu khi xem);
+  nhãn dây / cáp trên tuyến dọc cũng ghi ngang, bên trái dây.
+* **Thiết bị trên trục** đủ: DCL, DPT, LBS, recloser (MC … R, chữ R luôn ở phía
+  trên/bên trái; đóng/cắt recloser thì công suất chạy đổi theo), đúng trạng
+  thái kết dây cơ bản (thường cắt = Cắt). **Không vẽ tụ bù.** **Chỉ ghi các cột có
+  thiết bị hoặc điểm rẽ nhánh liên kết** (bỏ cột đỡ thuần túy); nhánh rẽ ngay tại cột đó.
+* **Giao chéo**: chỗ bản vẽ lộ ghi "Giao chéo …" vẽ một khúc đường dây kia (đúng cấp
+  điện áp, vd 35kV) cắt ngang tuyến kèm tên; mọi chỗ đường trung áp cắt ngang đường dây
+  khác mà không đấu nối (kể cả trong trạm) tự vẽ **vòng nhảy** nửa hình tròn - tuyến
+  ngang nhảy lên, tuyến dọc nhảy sang trái. Vòng nhảy là nét riêng chỉ đấu ở hai đầu
+  (danh sách `nhay` của tờ TONG), nên công suất chạy tiếp qua vòng nhảy mà không lan
+  sang đường dây bị cắt ngang.
+* Số cột ghi trên trục, tên thiết bị ghi dưới; phần dài còn thừa của cạnh rải đều giữa
+  các phần tử.
 * **Hai lộ nối liền nhau**: đường đi của 477 E6.4 và 473 E6.2 cùng kết thúc tại một điểm
   chung (DCL 472E6.4-7/25 Gia Bảy - thường cắt). 473 E6.2 đi tiếp qua đoạn 472E6.4
   Đồng Bẩm - Gia Bảy (MC 472E6.4/61 thường cắt, RMU 07-472, MC 472E6.4/25, nhánh

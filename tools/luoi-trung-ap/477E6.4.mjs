@@ -42,7 +42,7 @@ export default {
             mo: true,
             muc: [
               { dz: CAP400, dai: '150m', cap: true },
-              { khoang: 80 },
+              { khoang: 40 },
               { tb: 'DCL', ten: ['DCL 472E6.4-7/48-1', 'LT 477 E6.4'] },
               { dz: 'ACSR 185' },
               { khoang: 20 },
@@ -58,8 +58,6 @@ export default {
       { dz: 'ACSR 185' },
       { khoang: 18 },
       { tb: 'DCL', ten: ['DCL 472E6.4-7/53', '(1F)'] },
-      { coc: '54' },
-      { tu: ['TBN 401/54', '600kVAr'] },
       { khoang: 10 },
       {
         coc: '60',
