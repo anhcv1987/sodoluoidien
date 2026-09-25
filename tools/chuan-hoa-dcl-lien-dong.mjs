@@ -765,6 +765,46 @@ for (const T of dtdTu) {
   }
 }
 
+/* ---------- 3c. Trạng thái ban đầu của dao cách ly ----------
+ * a) "Dao cách ly" nằm trong vòng tròn cuộn dây MBA (26 cái ở E26.3, E6.4, E6.3,
+ *    E6.17, E6.23, E6.14, E6.13, E6.20) là nét hình sao / mũi tên điều áp của MBA vẽ
+ *    tay bị nhận nhầm. Trả lại thành nét vẽ thường, đúng hình đang hiện (hình DCL
+ *    mở), để đổi trạng thái dao cách ly không làm méo ký hiệu MBA.
+ * b) Theo quyết định của Phòng Điều độ: mọi dao cách ly đặt ĐÓNG; Phòng tự chỉnh
+ *    các dao cắt theo phương thức vận hành cơ bản ngay trên phần mềm.
+ */
+const DCL_MO = [
+  // hình DCL mở đã chuẩn hoá, lấy từ src/symbols/blocks.ts (primsOpen của block DCL)
+  [[-0.5356, 0], [-0.2741, 0]],
+  [[0.2946, 0], [0.5356, 0]],
+  [[0.2946, 0], [-0.3364, 0.4521]],
+];
+const tronMBA = (s.c ?? []).filter((c) => c[4] >= 8);
+let traNet = 0;
+let veDong = 0;
+s.d.forEach((r, i) => {
+  if (r[2] !== iDCL || boD.has(i)) return;
+  const trong = tronMBA.some((c) => Math.hypot(r[3] - c[2], r[4] - c[3]) < c[4] * 1.15);
+  if (trong) {
+    const m = r[9] ? -1 : 1;
+    const co = Math.cos(rad(r[5]));
+    const si = Math.sin(rad(r[5]));
+    const tx = ([x, y]) => {
+      const X = x * m * r[6];
+      const Y = y * r[6];
+      return [+(r[3] + X * co - Y * si).toFixed(2), +(r[4] + X * si + Y * co).toFixed(2)];
+    };
+    for (const [a, b] of DCL_MO) themB.push([r[0], r[1], 0, r[8], ...tx(a), ...tx(b)]);
+    boD.add(i);
+    traNet++;
+    return;
+  }
+  if (r[7] !== iDong) {
+    r[7] = iDong;
+    veDong++;
+  }
+});
+
 /* ---------- 4. Ghi lại ---------- */
 // Tuyến bị bỏ đỉnh: tách thành các đoạn liền còn lại
 const moi = [];
@@ -807,5 +847,6 @@ for (const T of dtdTu) {
   theoTram[k] = (theoTram[k] ?? 0) + 1;
 }
 console.log('Theo trạm:', JSON.stringify(theoTram));
+console.log(`Trạng thái ban đầu: ${veDong} dao cách ly đặt Đóng; trả ${traNet} nét MBA bị nhận nhầm thành dao cách ly về nét vẽ thường.`);
 if (process.env.XEM) for (const C of [...cum.values(), ...cumNet]) console.log('cụm', tram(C.g0[0], C.g0[1]), C.kv, ((C.g0[0] + C.g1[0]) / 2).toFixed(1), ((C.g0[1] + C.g1[1]) / 2).toFixed(1), C.dtd.length);
 if (process.env.XEM && khongGhep.length) console.log(`Không tìm được khe dao cách ly (${khongGhep.length}):`, khongGhep.join('; '));

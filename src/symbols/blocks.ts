@@ -1,4 +1,5 @@
 import { A, C, L, P, T, normalizeCad, primBounds, xformPrims, type Prim } from './prims';
+import type { SwitchState } from '../core/types';
 
 /**
  * THU VIEN BLOCK THIET BI.
@@ -116,6 +117,19 @@ const CAD_MCHB: Prim[] = [
 const CAD_DTD: Prim[] = [
   L(-3.035, 0, 4.185, 0),
   L(-5.866, 0, -3.543, 2.187),
+  L(-5.866, 0, -11.732, 0),
+  L(-11.732, 2.557, -11.732, -2.505),
+  L(-13.796, 1.834, -13.796, -1.782),
+  L(-15.232, 0.749, -15.232, -0.697),
+];
+
+/**
+ * Dao tiep dia DANG DONG: luoi dao nam thang, cham tiep diem - noi lien duong day
+ * voi dat. Cung he toa do voi hinh mo (CAD_DTD) nen doi trang thai khong xe dich.
+ */
+const CAD_DTD_DONG: Prim[] = [
+  L(-3.035, 0, 4.185, 0),
+  L(-5.866, 0, -3.035, 0),
   L(-5.866, 0, -11.732, 0),
   L(-11.732, 2.557, -11.732, -2.505),
   L(-13.796, 1.834, -13.796, -1.782),
@@ -396,11 +410,12 @@ export const BLOCKS: BlockDef[] = [
     switching: true,
     source: 'CAD: block "22-DCLHB"',
   }),
-  make('DTD', 'Dao tiếp địa', 'DTĐ', 'Đóng cắt', CAD_DTD, {
+  make('DTD', 'Dao tiếp địa', 'DTĐ', 'Đóng cắt', CAD_DTD_DONG, {
     rot: 90,
     switching: true,
     inline: false,
-    source: 'CAD: block "110-Tiep Dia"',
+    open: CAD_DTD,
+    source: 'CAD: block "110-Tiep Dia" (mở); hình đóng: lưỡi dao nằm thẳng chạm tiếp điểm',
   }),
   make('TD', 'Tiếp địa trực tiếp', 'TĐ', 'Đóng cắt', CAD_TD_TRUCTIEP, {
     inline: false,
@@ -498,6 +513,13 @@ export function blockGroups(): { group: BlockGroup; blocks: BlockDef[] }[] {
   const groups: BlockGroup[] = ['Đóng cắt', 'Đo lường - Bảo vệ', 'Máy biến áp - Bù', 'Khác'];
   return groups.map((g) => ({ group: g, blocks: BLOCKS.filter((b) => b.group === g) }));
 }
+
+/** Tên trạng thái thiết bị đóng cắt hiển thị cho người dùng. */
+export const TEN_TRANG_THAI: Record<SwitchState, string> = {
+  dong: 'Đóng',
+  mo: 'Cắt',
+  'khong-xac-dinh': 'Không xác định',
+};
 
 /** Hinh ve thuc te cua thiet bi theo trang thai dong/mo. */
 export function primsFor(def: BlockDef, state?: string): Prim[] {

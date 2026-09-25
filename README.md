@@ -93,7 +93,36 @@ nguyên như bản vẽ CAD:
 Bảng đối chiếu hình học gốc lưu tại `docs/cad-blocks-goc.txt`. Mỗi ký hiệu đều ghi
 rõ nguồn gốc (block CAD nào, hoặc "vẽ theo quy ước EVN") trong bảng thuộc tính.
 
-Máy cắt đang **đóng** được tô đặc, đang **mở** để rỗng — thuận cho thao tác điều độ.
+### Trạng thái Đóng / Cắt của thiết bị đóng cắt
+
+Hình ký hiệu đổi theo trạng thái (giữ màu theo cấp điện áp - phương án A đã duyệt),
+in đen trắng vẫn phân biệt được:
+
+| Thiết bị | Đóng | Cắt | Không xác định |
+|---|---|---|---|
+| Máy cắt, máy cắt hợp bộ | thân **tô đặc** | thân **để rỗng** | nét đứt, màu cam |
+| Dao cách ly | vạch chéo trên dây | lưỡi dao mở, có khe hở | nét đứt, màu cam |
+| Dao tiếp địa | lưỡi dao **nằm thẳng**, nối dây với đất | lưỡi dao mở | nét đứt, màu cam |
+
+* **Đổi trạng thái** (chỉ tài khoản biên tập, đã đăng nhập): **nhấn đúp** vào thiết bị
+  để đảo Đóng ↔ Cắt; hoặc **chuột phải** → Đóng / Cắt / Không xác định; hoặc ô
+  Trạng thái trong bảng Thuộc tính. Hoàn tác được bằng Ctrl+Z. Ở chế độ xem mọi
+  cách đổi đều bị chặn và có thông báo nhắc đăng nhập.
+* **Rê chuột** lên thiết bị hiện nhãn, ví dụ “171 · Máy cắt · Đóng”.
+* **Dữ liệu → Trạng thái thiết bị**: danh sách máy cắt / dao cách ly đang cắt, dao
+  tiếp địa đang đóng, thiết bị chưa rõ trạng thái theo từng trạm; bấm dòng để nhảy
+  tới thiết bị, tải về .csv cho Excel.
+* **Khung chú giải** ký hiệu các trạng thái đặt trong khung A0 (tự chọn chỗ trống,
+  hiện ở góc trên bên phải).
+* Mô hình liên kết điện (tô sáng mạch, kiểm tra liên kết) coi thiết bị đang cắt là
+  hở mạch. Xuất SVG / DXF: thân máy cắt đóng tô đặc (SOLID trong DXF), thiết bị chưa
+  rõ trạng thái màu cam.
+
+**Trạng thái ban đầu** (Phòng Điều độ duyệt): máy cắt, dao cách ly đều **Đóng**, dao
+tiếp địa **Cắt**; Phòng tự chỉnh các dao cắt theo phương thức vận hành. Khi đặt lại,
+26 “dao cách ly” nằm trong vòng tròn cuộn dây MBA ở các trạm vẽ tay (nét hình sao /
+mũi tên điều áp bị nhận nhầm khi nhập từ CAD) đã được trả về nét vẽ thường.
+Nhật ký thao tác và cảnh báo liên động chưa làm ở đợt này.
 
 ---
 

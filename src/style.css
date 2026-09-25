@@ -530,3 +530,9 @@ body {
 @media (max-width: 800px) {
   .bddl { grid-template-columns: 1fr; grid-template-rows: 40% 60%; }
 }
+
+/* Menu chuột phải: đổi trạng thái thiết bị đóng cắt */
+.dropdown-list.menu-trang-thai { position: fixed; display: block; z-index: 1000; min-width: 200px; }
+.menu-trang-thai-dau { padding: 6px 10px 5px; font-size: 12px; color: var(--fg-dim); border-bottom: 1px solid var(--line); margin-bottom: 2px; }
+.menu-trang-thai-chu { padding: 6px 10px; font-size: 11.5px; color: var(--yellow); max-width: 220px; }
+.dropdown-item.dang-chon { font-weight: 600; }

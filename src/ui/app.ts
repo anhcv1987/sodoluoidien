@@ -10,12 +10,12 @@ import {
   stationsOf,
   type CadStation,
 } from '../data/tramSheets';
-import type { Entity, SubstationEntity, VoltageKv } from '../core/types';
+import type { DeviceEntity, Entity, SubstationEntity, VoltageKv } from '../core/types';
 import { allStyles, colorOf } from '../core/voltage';
 import { exportDxf, exportSvg } from '../io/dxfExport';
 import { defaultImportOptions, importDxf, inspectDxf } from '../io/dxfImport';
 import { cungMach, daoCua, dungMangDien, type MangDien } from '../core/lienket';
-import { getBlock } from '../symbols/blocks';
+import { getBlock, TEN_TRANG_THAI } from '../symbols/blocks';
 import {
   BUILD_ID,
   autosave,
@@ -91,6 +91,8 @@ export class App {
         // trên tờ sơ đồ kết dây tổng.
         if (e.kind === 'substation' && e.code) this.gotoStation(e.code);
       },
+      onContextEntity: (e, x, y) => this.menuTrangThai(e, x, y),
+      onHover: (e) => this.goiYThietBi(e),
       onChange: () => {
         // Bản vẽ đổi -> tính lại điểm đấu nối để vừa vẽ xong là thấy ngay
         // thiết bị đã nối được hay chưa.
@@ -226,7 +228,6 @@ export class App {
         ['Bật/tắt tên trạm', () => this.toggleOpt('showLabels')],
         ['Bật/tắt tên thiết bị', () => this.toggleOpt('showDeviceLabels')],
         ['—', () => undefined],
-        ['Tô đặc máy cắt đang đóng', () => this.toggleOpt('fillClosedBreaker')],
         ['Chế độ in (nền trắng)', () => this.toggleOpt('printMode')],
         ['Bật/tắt con trỏ chữ thập', () => {
           this.ed.crosshair = !this.ed.crosshair;
@@ -245,6 +246,7 @@ export class App {
         ['Tô sáng mạch điện của đối tượng đang chọn (Shift+M)', () => this.toSangMach(false)],
         ['Tô sáng cả chuỗi 110kV - MBA - trung áp', () => this.toSangMach(true)],
         ['Kiểm tra liên kết điện…', () => this.kiemTraLienKet()],
+        ['Trạng thái thiết bị (đang cắt / tiếp địa đóng)…', () => this.bangTrangThai()],
         ['—', () => undefined],
         ['Bảng trạm 110/220kV', () => this.showTramTable()],
         ['Bảng đường dây', () => this.showLineTable()],
@@ -883,6 +885,164 @@ export class App {
     this.refreshProps();
   }
 
+  /* ======================= trạng thái đóng / cắt ======================= */
+
+  /** Nhãn gần thiết bị, nhớ lại theo id cho khỏi dò lại mỗi lần rê chuột. */
+  private nhanTB = new Map<string, string>();
+  private nhanCuaThietBi(e: DeviceEntity): string {
+    if (e.label) return e.label;
+    let t = this.nhanTB.get(e.id);
+    if (t === undefined) {
+      t = this.nhanGanNhat(e.p, Math.max(e.scale * 2.5, 25));
+      this.nhanTB.set(e.id, t);
+    }
+    return t;
+  }
+
+  private laThietBiDongCat(e: Entity | null | undefined): e is DeviceEntity {
+    return !!e && e.kind === 'device' && e.layer !== 'Khung bản vẽ' && !!getBlock(e.block)?.switching;
+  }
+
+  /** Rê chuột lên thiết bị đóng cắt: hiện nhãn "171-7 · Dao cách ly · Đóng". */
+  private goiYThietBi(e: Entity | null): void {
+    if (!this.laThietBiDongCat(e)) {
+      this.canvas.title = '';
+      return;
+    }
+    const nhan = this.nhanCuaThietBi(e);
+    const ten = getBlock(e.block)?.name ?? e.block;
+    this.canvas.title = `${nhan ? nhan + ' · ' : ''}${ten} · ${TEN_TRANG_THAI[e.state ?? 'dong']}`;
+  }
+
+  /** Menu chuột phải trên thiết bị đóng cắt: Đóng / Cắt / Không xác định. */
+  private menuTrangThai(e: Entity, x: number, y: number): void {
+    if (!this.laThietBiDongCat(e)) return;
+    document.querySelector('.menu-trang-thai')?.remove();
+    this.ed.select([e.id]);
+    this.refreshProps();
+    const nhan = this.nhanCuaThietBi(e);
+    const menu = el('div', { class: 'dropdown-list open menu-trang-thai' });
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    menu.append(
+      el('div', {
+        class: 'menu-trang-thai-dau',
+        text: `${nhan ? nhan + ' · ' : ''}${getBlock(e.block)?.name ?? e.block}`,
+      }),
+    );
+    const dong = (): void => {
+      menu.remove();
+      document.removeEventListener('pointerdown', ngoai, true);
+      document.removeEventListener('keydown', phim, true);
+    };
+    const ngoai = (ev: Event): void => {
+      if (!menu.contains(ev.target as Node)) dong();
+    };
+    const phim = (ev: KeyboardEvent): void => {
+      if (ev.key === 'Escape') dong();
+    };
+    for (const st of ['dong', 'mo', 'khong-xac-dinh'] as const) {
+      const hien = (e.state ?? 'dong') === st;
+      const it = el('button', {
+        class: `dropdown-item${hien ? ' dang-chon' : ''}`,
+        type: 'button',
+        text: `${hien ? '● ' : ''}${TEN_TRANG_THAI[st]}`,
+      });
+      it.addEventListener('click', () => {
+        dong();
+        this.ed.doiTrangThai([e.id], st);
+        this.refreshProps();
+      });
+      menu.append(it);
+    }
+    if (this.store.chiXem) {
+      menu.append(el('div', { class: 'menu-trang-thai-chu', text: 'Đăng nhập tài khoản biên tập để đổi trạng thái.' }));
+    }
+    document.body.append(menu);
+    // không để menu tràn ra ngoài màn hình
+    const r = menu.getBoundingClientRect();
+    if (r.right > innerWidth) menu.style.left = `${Math.max(0, innerWidth - r.width - 4)}px`;
+    if (r.bottom > innerHeight) menu.style.top = `${Math.max(0, innerHeight - r.height - 4)}px`;
+    setTimeout(() => {
+      document.addEventListener('pointerdown', ngoai, true);
+      document.addEventListener('keydown', phim, true);
+    });
+  }
+
+  /**
+   * Bảng thiết bị KHÁC trạng thái vận hành bình thường: máy cắt / dao cách ly đang
+   * cắt, dao tiếp địa đang đóng, thiết bị chưa rõ trạng thái - theo từng trạm.
+   */
+  private bangTrangThai(): void {
+    const laTong = this.store.sheet.cadCode === MA_TO_TONG;
+    const tram = laTong ? stationsOf(MA_TO_TONG).filter((t) => t.box) : [];
+    const thuTu = new Map(tram.map((t, i) => [t.code, i]));
+    const tramCua = (p: { x: number; y: number }): string =>
+      tram.find((t) => p.x >= t.box!.minX && p.x <= t.box!.maxX && p.y >= t.box!.minY && p.y <= t.box!.maxY)?.code ?? '';
+    const ds: { id: string; tram: string; nhan: string; ten: string; kv: number; tt: string; loai: string }[] = [];
+    for (const e of this.store.entities) {
+      if (!this.laThietBiDongCat(e)) continue;
+      const st = e.state ?? 'dong';
+      const binhThuong = e.block === 'DTD' ? 'mo' : 'dong';
+      if (st === binhThuong) continue;
+      ds.push({
+        id: e.id,
+        tram: tramCua(e.p),
+        nhan: this.nhanCuaThietBi(e),
+        ten: getBlock(e.block)?.name ?? e.block,
+        kv: e.kv,
+        tt: TEN_TRANG_THAI[st],
+        loai: st === 'khong-xac-dinh' ? 'Chưa rõ trạng thái' : e.block === 'DTD' ? 'Tiếp địa đang đóng' : 'Đang cắt',
+      });
+    }
+    ds.sort(
+      (a, b) =>
+        (thuTu.get(a.tram) ?? 999) - (thuTu.get(b.tram) ?? 999) ||
+        b.kv - a.kv ||
+        a.nhan.localeCompare(b.nhan, 'vi', { numeric: true }),
+    );
+    const t = el('table', { class: 'table' });
+    t.append(
+      el('thead', {}, [
+        el('tr', {}, ['Trạm', 'Nhãn', 'Thiết bị', 'Cấp', 'Trạng thái', 'Ghi chú'].map((h) => el('th', { text: h }))),
+      ]),
+    );
+    const tbody = el('tbody');
+    for (const v of ds) {
+      const tr = el('tr', {}, [
+        el('td', { text: v.tram }),
+        el('td', { text: v.nhan }),
+        el('td', { text: v.ten }),
+        el('td', { text: `${v.kv}kV` }),
+        el('td', { text: v.tt }),
+        el('td', { text: v.loai }),
+      ]);
+      tr.title = 'Bấm để nhảy tới thiết bị này';
+      tr.addEventListener('click', () => {
+        dong();
+        this.nhayToiDoiTuong(v.id);
+      });
+      tbody.append(tr);
+    }
+    t.append(tbody);
+    const dem = (l: string): number => ds.filter((v) => v.loai === l).length;
+    const than = el('div', {}, [
+      el('p', {
+        class: 'muted small',
+        text: ds.length
+          ? `${dem('Đang cắt')} thiết bị đang cắt · ${dem('Tiếp địa đang đóng')} dao tiếp địa đang đóng · ${dem('Chưa rõ trạng thái')} chưa rõ trạng thái. ` +
+            'Bấm một dòng để nhảy tới thiết bị. Đổi trạng thái: nhấn đúp vào thiết bị, hoặc chuột phải → Đóng / Cắt.'
+          : 'Mọi máy cắt, dao cách ly đang đóng và mọi dao tiếp địa đang cắt.',
+      }),
+      el('div', { class: 'table-wrap' }, [t]),
+    ]);
+    const csv = button('Tải về .csv', () => {
+      const rows = [['Trạm', 'Nhãn', 'Thiết bị', 'Cấp điện áp', 'Trạng thái', 'Ghi chú'], ...ds.map((v) => [v.tram, v.nhan, v.ten, `${v.kv}kV`, v.tt, v.loai])];
+      download('trang-thai-thiet-bi.csv', '\ufeff' + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n'), 'text/csv');
+    });
+    const dong = dialog(`Trạng thái thiết bị (${ds.length})`, than, [csv, button('Đóng', () => dong())]);
+  }
+
   /** Nhãn ghi gần thiết bị nhất - để biết đó là ngăn lộ nào. */
   private nhanGanNhat(p: { x: number; y: number }, r: number): string {
     let ten = '';
@@ -906,7 +1066,7 @@ export class App {
    */
   private kiemTraLienKet(): void {
     const m = this.mangDien();
-    const tb = this.store.entities.filter((e) => e.kind === 'device').length;
+    const tb = this.store.entities.filter((e) => e.kind === 'device' && e.layer !== 'Khung bản vẽ').length;
     let cuc = 0;
     let cucHo = 0;
     for (const cs of m.cucCua.values()) for (const c of cs) { cuc++; if (!c.batDuoc) cucHo++; }
@@ -1615,11 +1775,17 @@ export class App {
         <li>Mở phần mềm là <b>chế độ xem</b>: xem, tìm trạm, tô sáng mạch, đo, lưu và xuất file.</li>
         <li>Muốn hiệu chỉnh: bấm <b>Đăng nhập</b> (góc trên bên phải). Tài khoản quản trị quản lý được các tài khoản khác.</li>
       </ul>
+      <h4>Trạng thái Đóng / Cắt</h4>
+      <ul>
+        <li><b>Nhấn đúp</b> vào máy cắt, dao cách ly, dao tiếp địa để đảo Đóng ↔ Cắt; <b>chuột phải</b> để chọn Đóng / Cắt / Không xác định (cần đăng nhập tài khoản biên tập).</li>
+        <li>Máy cắt đóng: thân tô đặc; cắt: thân rỗng. Dao tiếp địa đóng: lưỡi dao nằm thẳng. Nét đứt màu cam: chưa rõ trạng thái.</li>
+        <li><b>Dữ liệu → Trạng thái thiết bị</b>: danh sách thiết bị đang cắt / tiếp địa đang đóng theo trạm.</li>
+      </ul>
       <h4>Thao tác chuột (giống CAD)</h4>
       <ul>
         <li><b>Lăn chuột</b>: phóng to / thu nhỏ tại vị trí con trỏ.</li>
         <li><b>Giữ chuột giữa + kéo</b>: di chuyển màn hình (Pan).</li>
-        <li><b>Chuột phải</b>: kết thúc lệnh đang vẽ / bỏ chọn.</li>
+        <li><b>Chuột phải</b>: kết thúc lệnh đang vẽ / bỏ chọn; trên thiết bị đóng cắt: menu đổi trạng thái.</li>
         <li><b>Kéo khung từ trái sang phải</b>: chọn các đối tượng nằm trọn trong khung.</li>
         <li><b>Kéo khung từ phải sang trái</b>: chọn cả đối tượng cắt qua khung.</li>
       </ul>

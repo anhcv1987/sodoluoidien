@@ -176,7 +176,7 @@ export function buildProps(ed: Editor, sel: Entity[]): HTMLElement {
           select(
             [
               { value: 'dong', label: 'Đóng' },
-              { value: 'mo', label: 'Mở / Cắt' },
+              { value: 'mo', label: 'Cắt' },
               { value: 'khong-xac-dinh', label: 'Không xác định' },
             ],
             e.state ?? 'dong',

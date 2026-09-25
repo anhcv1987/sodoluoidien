@@ -1,5 +1,5 @@
 import { DocStore, defaultLayers, newId } from '../core/doc';
-import type { Drawing, Sheet, SubstationEntity, TransformerInfo, VoltageKv } from '../core/types';
+import type { Drawing, NodeEntity, Pt, Sheet, SubstationEntity, TransformerInfo, VoltageKv } from '../core/types';
 import { FILE_VERSION } from '../core/types';
 import { layerOf } from '../core/voltage';
 import { DIA_DANH, HO_BA_BE, HO_NUI_COC, RANH_GIOI_TINH, project } from './geo';
@@ -255,11 +255,33 @@ export function buildDefaultDrawing(): Drawing {
         name: 'Khung bản vẽ',
         color: '#cfd6e0',
         visible: true,
-        locked: false,
+        // khoá lại: khung + chú giải không bị kéo lệch hay đổi trạng thái nhầm
+        locked: true,
         lineWidth: 1.4,
       };
       const today = new Date();
       const ngay = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+      // Ô chữ nhật có đụng hình vẽ nào không (điểm hoặc đoạn dây cắt qua) - để khung
+      // chú giải tìm được chỗ trống, không đè lên sơ đồ
+      const ents = Object.values(tong.entities);
+      const doan: [Pt, Pt][] = [];
+      for (const e of ents) {
+        if (e.kind !== 'branch') continue;
+        const ps = e.nodes.map((id) => tong.entities[id]).filter((n): n is NodeEntity => !!n && n.kind === 'node');
+        for (let i = 1; i < ps.length; i++) doan.push([ps[i - 1].p, ps[i].p]);
+      }
+      const diem = ents.flatMap((e) => (e.kind === 'device' || e.kind === 'text' ? [e.p] : e.kind === 'circle' ? [e.c] : []));
+      const catHop = (a: Pt, b: Pt, h: { minX: number; minY: number; maxX: number; maxY: number }): boolean => {
+        if (Math.max(a.x, b.x) < h.minX || Math.min(a.x, b.x) > h.maxX || Math.max(a.y, b.y) < h.minY || Math.min(a.y, b.y) > h.maxY) return false;
+        // đoạn ngang/dọc (hầu hết) chạm hộp bao là cắt; đoạn xiên thì kiểm thêm theo 4 cạnh
+        if (Math.abs(a.x - b.x) < 1e-6 || Math.abs(a.y - b.y) < 1e-6) return true;
+        const f = (x: number, y: number): number => (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
+        const d = [f(h.minX, h.minY), f(h.maxX, h.minY), f(h.maxX, h.maxY), f(h.minX, h.maxY)];
+        return Math.min(...d) <= 0 && Math.max(...d) >= 0;
+      };
+      const trong = (h: { minX: number; minY: number; maxX: number; maxY: number }): boolean =>
+        !diem.some((q) => q.x >= h.minX && q.x <= h.maxX && q.y >= h.minY && q.y <= h.maxY) &&
+        !doan.some(([a, b]) => catHop(a, b, h));
       for (const e of taoKhungA0(
         { minX, minY, maxX, maxY },
         {
@@ -268,6 +290,7 @@ export function buildDefaultDrawing(): Drawing {
           phong: 'PHÒNG ĐIỀU ĐỘ',
           ngay,
         },
+        trong,
       )) {
         tong.entities[e.id] = e;
       }

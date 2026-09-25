@@ -173,7 +173,8 @@ export function dungMangDien(
   tc: TuyChonMang = {},
 ): MangDien {
   const branches = entities.filter((e): e is BranchEntity => e.kind === 'branch');
-  const devices = entities.filter((e): e is DeviceEntity => e.kind === 'device');
+  // Ký hiệu mẫu trong khung chú giải không phải thiết bị thật trên lưới
+  const devices = entities.filter((e): e is DeviceEntity => e.kind === 'device' && e.layer !== 'Khung bản vẽ');
 
   // Cỡ bản vẽ -> sai số bắt điểm
   let minX = Infinity;

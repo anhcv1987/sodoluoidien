@@ -1,5 +1,5 @@
 import { newId } from '../core/doc';
-import type { BoundaryEntity, Entity, TextEntity } from '../core/types';
+import type { BoundaryEntity, DeviceEntity, Entity, SwitchState, TextEntity } from '../core/types';
 
 /**
  * KHUNG BẢN VẼ KHỔ A0 + KHUNG TÊN cho tờ sơ đồ kết dây.
@@ -40,7 +40,7 @@ export interface ThongTinKhung {
  * Tỷ lệ được chọn để nội dung vừa trong vùng vẽ (đã trừ lề và chừa chỗ khung tên),
  * nên khung luôn bao trọn sơ đồ dù bản vẽ gốc to nhỏ thế nào.
  */
-export function taoKhungA0(noiDung: HopBao, tt: ThongTinKhung): Entity[] {
+export function taoKhungA0(noiDung: HopBao, tt: ThongTinKhung, trong?: (h: HopBao) => boolean): Entity[] {
   const wND = Math.max(noiDung.maxX - noiDung.minX, 1e-6);
   const hND = Math.max(noiDung.maxY - noiDung.minY, 1e-6);
 
@@ -150,6 +150,97 @@ export function taoKhungA0(noiDung: HopBao, tt: ThongTinKhung): Entity[] {
     ),
   );
   if (tt.nguoiLap) out.push(chu(gx, ky0 + mm(KT_CAO * 0.14), `Người lập: ${tt.nguoiLap}`, 5));
+
+  /* --- Chú giải trạng thái thiết bị đóng cắt, bên trái khung tên --- */
+  {
+    const CG_RONG = 200;
+    const CG_CAO = KT_CAO;
+    // Chọn chỗ trống trong khung bản vẽ: góc trên phải (dưới tiêu đề), góc trên trái,
+    // bên trái khung tên, góc dưới trái. Không có chỗ nào trống thì đặt cạnh khung tên.
+    const ung: [number, number][] = [
+      [bx1 - mm(6 + CG_RONG), by1 - mm(34 + CG_CAO)],
+      [bx0 + mm(6), by1 - mm(34 + CG_CAO)],
+      [kx0 - mm(6 + CG_RONG), ky0],
+      [bx0 + mm(6), by0 + mm(6)],
+    ];
+    const hop = (x: number, y: number): HopBao => ({ minX: x, minY: y, maxX: x + mm(CG_RONG), maxY: y + mm(CG_CAO) });
+    const le = mm(4);
+    const cho =
+      ung.find(([x, y]) => {
+        const h = hop(x, y);
+        return !trong || trong({ minX: h.minX - le, minY: h.minY - le, maxX: h.maxX + le, maxY: h.maxY + le });
+      }) ?? ung[2];
+    const gx0 = cho[0];
+    const gx1 = gx0 + mm(CG_RONG);
+    const gy0 = cho[1];
+    const gy1 = gy0 + mm(CG_CAO);
+    out.push(hcn(gx0, gy0, gx1, gy1, 'Chú giải trạng thái'));
+    const doan = (ax: number, ay: number, bx: number, by: number): BoundaryEntity => ({
+      id: newId('kh'),
+      kind: 'boundary',
+      layer: LAYER,
+      kv: 0.4,
+      pts: [
+        { x: ax, y: ay },
+        { x: bx, y: by },
+      ],
+      closed: false,
+      dashed: false,
+      name: 'Chú giải trạng thái',
+    });
+    const tb = (block: string, x: number, y: number, rot: number, scale: number, state: SwitchState): DeviceEntity => ({
+      id: newId('kh'),
+      kind: 'device',
+      layer: LAYER,
+      kv: 110,
+      block,
+      p: { x, y },
+      rot,
+      scale,
+      state,
+    });
+    out.push(chu((gx0 + gx1) / 2, gy1 - mm(9), 'CHÚ GIẢI TRẠNG THÁI THIẾT BỊ', 5.5));
+    // cột: tên thiết bị | Đóng | Cắt | Chưa rõ
+    const cot = [gx0 + mm(62), gx0 + mm(107), gx0 + mm(152)];
+    const yDau = gy1 - mm(17);
+    out.push(doan(gx0, yDau - mm(3), gx1, yDau - mm(3)));
+    ['Đóng', 'Cắt', 'Chưa rõ'].forEach((t, i) => out.push(chu(cot[i] + mm(12), yDau, t, 4.2)));
+    const hang = mm(21);
+    const dong = [
+      { ten: 'Máy cắt', block: 'MC' },
+      { ten: 'Máy cắt hợp bộ', block: 'MCHB' },
+      { ten: 'Dao cách ly', block: 'DCL' },
+      { ten: 'Dao tiếp địa', block: 'DTD' },
+    ];
+    dong.forEach((d, i) => {
+      const yc = yDau - mm(3) - hang * (i + 0.5);
+      out.push(chu(gx0 + mm(6), yc - mm(1.6), d.ten, 4.2, 'left'));
+      (['dong', 'mo', 'khong-xac-dinh'] as SwitchState[]).forEach((st, j) => {
+        const xc = cot[j] + mm(12);
+        const L = mm(8.5); // nửa chiều dài đoạn dây hai bên ký hiệu
+        if (d.block === 'MC') {
+          const S = mm(8);
+          out.push(doan(xc, yc - L, xc, yc - S / 2), doan(xc, yc + S / 2, xc, yc + L));
+          out.push(tb('MC', xc, yc, 0, S, st));
+        } else if (d.block === 'MCHB') {
+          out.push(tb('MCHB', xc, yc, 0, mm(17) / 3.3033, st));
+        } else if (d.block === 'DCL') {
+          const S = mm(14);
+          const nua = st === 'mo' ? 0.5356 * S : 0;
+          if (nua) out.push(doan(xc, yc - L, xc, yc - nua), doan(xc, yc + nua, xc, yc + L));
+          else out.push(doan(xc, yc - L, xc, yc + L));
+          out.push(tb('DCL', xc, yc, -90, S, st));
+        } else {
+          // dao tiếp địa nằm ngang, đầu nối vào đoạn dây dọc bên phải
+          const S = mm(17) / 1.04;
+          const xd = xc + mm(8.5);
+          out.push(doan(xd, yc - mm(6), xd, yc + mm(6)));
+          out.push(tb('DTD', xd - 0.52 * S, yc, 270, S, st));
+        }
+      });
+    });
+    out.push(chu(gx0 + mm(6), gy0 + mm(4), 'Nhấn đúp hoặc chuột phải vào thiết bị để đổi trạng thái (tài khoản biên tập).', 3.4, 'left'));
+  }
 
   // Tiêu đề lớn phía trên khung bản vẽ
   out.push(chu((bx0 + bx1) / 2, by1 - mm(22), tt.tenBanVe, 14));

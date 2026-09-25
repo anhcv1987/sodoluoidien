@@ -193,6 +193,22 @@ check('Mở ra là chế độ xem, ẩn công cụ hiệu chỉnh', xem.chiXem 
   });
   check('Chế độ xem không sửa được sơ đồ', n1.n === n0 && n1.them === 0, `${n1.them} đối tượng lọt qua`);
 }
+/* ---------------- Trạng thái đóng / cắt ---------------- */
+
+const tt0 = await page.evaluate(() => {
+  const a = window.sodo;
+  const tb = a.store.entities.filter((e) => e.kind === 'device' && e.layer !== 'Khung bản vẽ');
+  const dcl = tb.filter((e) => e.block === 'DCL');
+  const dtd = tb.find((e) => e.block === 'DTD');
+  const chuGiai = a.store.entities.filter((e) => e.kind === 'device' && e.layer === 'Khung bản vẽ').length;
+  // Chế độ xem: đổi trạng thái bị chặn
+  const doi = a.ed.doiTrangThai([dtd.id]);
+  return { dclCat: dcl.filter((e) => e.state === 'mo').length, soDcl: dcl.length, chuGiai, doi, dtdId: dtd.id, dtdSt: a.store.get(dtd.id).state };
+});
+check('Mọi dao cách ly ban đầu ở trạng thái Đóng', tt0.dclCat === 0 && tt0.soDcl > 500, `${tt0.soDcl} DCL, ${tt0.dclCat} đang cắt`);
+check('Có khung chú giải trạng thái thiết bị', tt0.chuGiai === 12, `${tt0.chuGiai} ký hiệu mẫu`);
+check('Chế độ xem không đổi được trạng thái thiết bị', tt0.doi === 0 && tt0.dtdSt === 'mo');
+
 const saiMk = await page.evaluate(async () => (await window.sodo.tk.dangNhap('admin', 'sai-mat-khau')) === null);
 check('Sai mật khẩu thì không đăng nhập được', saiMk);
 await page.click('.btn-dang-nhap');
@@ -202,6 +218,17 @@ await page.keyboard.press('Enter');
 await page.waitForTimeout(400);
 const daVao = await page.evaluate(() => ({ chiXem: window.sodo.store.chiXem, nhan: document.querySelector('.tai-khoan')?.textContent ?? '' }));
 check('Đăng nhập admin / mật khẩu mặc định thì được hiệu chỉnh', !daVao.chiXem, daVao.nhan);
+
+// Đã đăng nhập: đổi Đóng <-> Cắt, hoàn tác được
+const tt1 = await page.evaluate((id) => {
+  const a = window.sodo;
+  a.ed.doiTrangThai([id]);
+  const sau = a.store.get(id).state;
+  a.store.undo();
+  const hoan = a.store.get(id).state;
+  return { sau, hoan };
+}, tt0.dtdId);
+check('Đổi trạng thái thiết bị và hoàn tác (Ctrl+Z)', tt1.sau === 'dong' && tt1.hoan === 'mo', `${tt1.sau} → hoàn tác → ${tt1.hoan}`);
 
 /* ---------------- Cong cu ve ---------------- */
 

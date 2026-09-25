@@ -8,6 +8,7 @@ import type {
   NodeEntity,
   Pt,
   SubstationEntity,
+  SwitchState,
   TextEntity,
   VoltageKv,
 } from '../core/types';
@@ -28,7 +29,7 @@ import { Renderer, defaultRenderOptions, type RenderState } from '../render/rend
 import { Viewport } from '../render/viewport';
 import { branchPoints, distToEntity, entityBox, entityOps, deviceOps, type WOp } from '../render/shapes';
 import { applyOrtho, defaultSnap, findSnap, type SnapResult, type SnapSettings } from './snap';
-import { getBlock } from '../symbols/blocks';
+import { getBlock, TEN_TRANG_THAI } from '../symbols/blocks';
 
 export type ToolName =
   | 'select'
@@ -58,6 +59,10 @@ export interface EditorEvents {
   onSelection?: (sel: Entity[]) => void;
   /** Nhấn đúp chuột lên một đối tượng (dùng để mở sơ đồ trạm). */
   onOpenEntity?: (e: Entity) => void;
+  /** Bấm chuột phải lên một đối tượng (toạ độ màn hình của chuột). */
+  onContextEntity?: (e: Entity, clientX: number, clientY: number) => void;
+  /** Con trỏ chuột rê lên / rời khỏi một đối tượng. */
+  onHover?: (e: Entity | null) => void;
 }
 
 interface Tool {
@@ -179,6 +184,35 @@ export class Editor {
   }
 
   /* ============================ cong cu ============================= */
+
+  /**
+   * Đổi trạng thái thiết bị đóng cắt. Không truyền `trangThai` thì đảo Đóng <-> Cắt
+   * (đang "không xác định" thì chuyển sang Đóng). Chế độ xem bị chặn như mọi thao
+   * tác sửa khác (DocStore.transact). Trả về số thiết bị đã đổi.
+   */
+  doiTrangThai(ids: Id[], trangThai?: SwitchState): number {
+    const ds = ids
+      .map((id) => this.store.get(id))
+      .filter((e): e is DeviceEntity => !!e && e.kind === 'device' && !!getBlock(e.block)?.switching);
+    if (!ds.length) return 0;
+    let doi = 0;
+    this.store.transact(ds.length === 1 ? 'Đổi trạng thái thiết bị' : `Đổi trạng thái ${ds.length} thiết bị`, () => {
+      for (const d of ds) {
+        const moi: SwitchState = trangThai ?? ((d.state ?? 'dong') === 'dong' ? 'mo' : 'dong');
+        if (d.state === moi) continue;
+        this.store.update(d.id, (x) => void ((x as DeviceEntity).state = moi));
+        doi++;
+      }
+    });
+    if (doi) {
+      const d = ds[0];
+      const ten = getBlock(d.block)?.name ?? d.block;
+      const tt = TEN_TRANG_THAI[(this.store.get(d.id) as DeviceEntity | undefined)?.state ?? 'dong'];
+      this.events.onStatus?.(ds.length === 1 ? `${ten}: ${tt}` : `Đã đổi trạng thái ${doi} thiết bị`);
+      this.requestDraw();
+    }
+    return doi;
+  }
 
   setTool(name: ToolName): void {
     // Chế độ xem: chỉ được chọn và đo
@@ -529,7 +563,13 @@ export class Editor {
       this.tool.dblclick?.(w);
     });
     c.addEventListener('wheel', (ev) => this.onWheel(ev), { passive: false });
-    c.addEventListener('contextmenu', (ev) => ev.preventDefault());
+    c.addEventListener('contextmenu', (ev) => {
+      ev.preventDefault();
+      // Chỉ khi đang ở công cụ Chọn - lúc đang vẽ, chuột phải là kết thúc lệnh
+      if (this.tool.name !== 'select') return;
+      const hit = this.pick(this.worldOf(ev));
+      if (hit) this.events.onContextEntity?.(hit, ev.clientX, ev.clientY);
+    });
   }
 
   private worldOf(ev: { clientX: number; clientY: number }): Pt {
@@ -721,7 +761,10 @@ export class Editor {
         }
         const hit = self.pick(w);
         const id = hit?.id ?? null;
-        if (id !== self.hover) self.hover = id;
+        if (id !== self.hover) {
+          self.hover = id;
+          self.events.onHover?.(hit ?? null);
+        }
       },
       up(w) {
         if (self.marquee && downWorld) {
@@ -749,6 +792,12 @@ export class Editor {
         if (hit) {
           self.select([hit.id]);
           self.events.onSelection?.(self.selectedEntities());
+          // Thiết bị đóng cắt: nhấn đúp để đổi Đóng <-> Cắt
+          if (hit.kind === 'device' && getBlock(hit.block)?.switching && self.store.isEditable(hit)) {
+            self.doiTrangThai([hit.id]);
+            self.events.onSelection?.(self.selectedEntities());
+            return;
+          }
           self.events.onOpenEntity?.(hit);
         }
       },

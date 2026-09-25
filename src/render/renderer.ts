@@ -1,9 +1,10 @@
 import type { DocStore } from '../core/doc';
 import type { Entity, Pt, SubstationEntity, BranchEntity } from '../core/types';
-import { colorOf, styleOf } from '../core/voltage';
+import { colorOf, MAU_KXD, MAU_KXD_IN, styleOf } from '../core/voltage';
 import type { Box } from '../core/geom';
 import { Index2D, type Indexed } from './index2d';
 import { branchPoints, entityBox, entityOps, type WOp } from './shapes';
+import { getBlock } from '../symbols/blocks';
 import type { Viewport } from './viewport';
 
 export interface RenderOptions {
@@ -24,7 +25,6 @@ export interface RenderOptions {
    * To dac than may cat dang dong. Ban ve CAD goc ve may cat RONG nen mac dinh
    * TAT de giong het ban mau; bat len khi muon nhin nhanh trang thai khi dieu do.
    */
-  fillClosedBreaker: boolean;
   /** Hien diem dau noi cua thiet bi: xanh = da noi vao day, do = chua noi. */
   showTerminals: boolean;
 }
@@ -37,7 +37,6 @@ export const defaultRenderOptions = (): RenderOptions => ({
   showDeviceLabels: true,
   showPlaces: true,
   markDraft: true,
-  fillClosedBreaker: false,
   showTerminals: false,
 });
 
@@ -286,6 +285,11 @@ export class Renderer {
       dash = e.dashed === false ? [] : [7, 5];
     }
     if (e.kind === 'text') color = layer?.color ?? this.fg();
+    // Thiết bị đóng cắt chưa rõ trạng thái: nét đứt màu cam
+    if (e.kind === 'device' && e.state === 'khong-xac-dinh' && getBlock(e.block)?.switching) {
+      color = this.opt.printMode ? MAU_KXD_IN : MAU_KXD;
+      dash = [5, 4];
+    }
 
     if (state.selected.has(e.id)) {
       color = this.opt.printMode ? '#0b6bcb' : '#00e5ff';
@@ -310,7 +314,7 @@ export class Renderer {
     }
 
     const st = this.strokeStyleFor(e, state);
-    const ops = entityOps(this.store, e, this.opt.fillClosedBreaker);
+    const ops = entityOps(this.store, e);
     ctx.save();
     ctx.strokeStyle = st.color;
     ctx.fillStyle = st.color;

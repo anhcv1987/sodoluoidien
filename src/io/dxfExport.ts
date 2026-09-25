@@ -1,6 +1,7 @@
 import type { DocStore } from '../core/doc';
 import type { Entity, VoltageKv } from '../core/types';
 import { entityOps } from '../render/shapes';
+import { MAU_KXD_IN } from '../core/voltage';
 
 /**
  * Xuat ban ve ra DXF R12 (ASCII) - dinh dang moi phan mem CAD deu doc duoc
@@ -89,13 +90,28 @@ export function exportDxf(store: DocStore): string {
     if (!store.isVisible(e)) continue;
     if (e.kind === 'node') continue;
     const layer = safeLayer(e.layer);
+    // Thiết bị đóng cắt chưa rõ trạng thái: tô màu cam (ACI 30) để dễ nhận ra trong CAD
+    const kxd = e.kind === 'device' && e.state === 'khong-xac-dinh';
     for (const op of entityOps(store, e)) {
       switch (op.t) {
         case 'path': {
+          // Thân máy cắt đang đóng (tô đặc): thêm SOLID - thứ tự đỉnh của SOLID là 1-2-4-3
+          if (op.fill && op.close && op.pts.length === 4) {
+            const [a, b, c, d] = op.pts;
+            w.g(0, 'SOLID');
+            w.g(8, layer);
+            if (kxd) w.g(62, 30);
+            for (const [k, p] of [a, b, d, c].entries()) {
+              w.g(10 + k, p.x);
+              w.g(20 + k, p.y);
+              w.g(30 + k, 0);
+            }
+          }
           const pts = op.close && op.pts.length > 2 ? [...op.pts, op.pts[0]] : op.pts;
           for (let i = 1; i < pts.length; i++) {
             w.g(0, 'LINE');
             w.g(8, layer);
+            if (kxd) w.g(62, 30);
             w.g(10, pts[i - 1].x);
             w.g(20, pts[i - 1].y);
             w.g(30, 0);
@@ -195,7 +211,9 @@ export function exportSvg(store: DocStore, colorFor: (e: Entity) => string): str
   let maxY = -Infinity;
   const body: string[] = [];
   for (const e of ents) {
-    const color = colorFor(e);
+    const kxd = e.kind === 'device' && e.state === 'khong-xac-dinh';
+    const color = kxd ? MAU_KXD_IN : colorFor(e);
+    const net = kxd ? ' stroke-dasharray="0.6 0.45"' : '';
     for (const op of entityOps(store, e)) {
       if (op.t === 'path' && op.pts.length >= 2) {
         for (const p of op.pts) {
@@ -206,7 +224,7 @@ export function exportSvg(store: DocStore, colorFor: (e: Entity) => string): str
         }
         const d = op.pts.map((p, i) => `${i ? 'L' : 'M'}${fmt(p.x)} ${fmt(-p.y)}`).join(' ');
         body.push(
-          `<path d="${d}${op.close ? ' Z' : ''}" fill="${op.fill ? color : 'none'}" stroke="${color}" stroke-width="0.12"/>`,
+          `<path d="${d}${op.close ? ' Z' : ''}" fill="${op.fill ? color : 'none'}" stroke="${color}" stroke-width="0.12"${net}/>`,
         );
       } else if (op.t === 'circle' && op.r > 0) {
         minX = Math.min(minX, op.c.x - op.r);

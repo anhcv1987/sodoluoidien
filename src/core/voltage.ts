@@ -48,3 +48,7 @@ export function layerOf(kv: VoltageKv): string {
 export function allStyles(): VoltageStyle[] {
   return Object.values(VOLTAGE_STYLES).sort((a, b) => b.kv - a.kv);
 }
+
+/** Màu thiết bị đóng cắt CHƯA RÕ trạng thái (vẽ nét đứt): trên màn hình / khi in. */
+export const MAU_KXD = '#f59e0b';
+export const MAU_KXD_IN = '#b45309';

@@ -22,7 +22,7 @@ export function branchPoints(store: DocStore, b: BranchEntity): Pt[] {
 }
 
 /** Bien doi hinh ve cua block theo vi tri / goc quay / ty le cua thiet bi. */
-export function deviceOps(d: DeviceEntity, fillClosedBreaker = false): WOp[] {
+export function deviceOps(d: DeviceEntity): WOp[] {
   const def = getBlock(d.block);
   if (!def) return [];
   const s = d.scale || 1;
@@ -59,8 +59,9 @@ export function deviceOps(d: DeviceEntity, fillClosedBreaker = false): WOp[] {
         break;
     }
   }
-  // May cat dang dong: to dac than may cat cho de nhin khi dieu do (tuy chon).
-  if (fillClosedBreaker && def.fillWhenClosed && d.state === 'dong') {
+  // May cat (hop bo) dang dong: to dac than may cat; dang cat de rong - nhin hinh
+  // la biet trang thai, ke ca khi in den trang.
+  if (def.fillWhenClosed && (d.state ?? 'dong') === 'dong') {
     for (const op of ops) if (op.t === 'path' && op.close) op.fill = true;
   }
   return ops;
@@ -85,14 +86,14 @@ export function substationOps(s: SubstationEntity): WOp[] {
 }
 
 /** Sinh cac thao tac ve cho mot doi tuong bat ky. */
-export function entityOps(store: DocStore, e: Entity, fillClosedBreaker = false): WOp[] {
+export function entityOps(store: DocStore, e: Entity): WOp[] {
   switch (e.kind) {
     case 'branch': {
       const pts = branchPoints(store, e);
       return pts.length >= 2 ? [{ t: 'path', pts }] : [];
     }
     case 'device':
-      return deviceOps(e, fillClosedBreaker);
+      return deviceOps(e);
     case 'substation':
       return substationOps(e);
     case 'node':
@@ -133,6 +134,16 @@ export function entityBox(store: DocStore, e: Entity): Box {
 }
 
 /** Khoang cach tu diem den doi tuong (don vi ban ve); Infinity neu qua xa. */
+function trongDaGiac(p: Pt, pts: Pt[]): boolean {
+  let trong = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const a = pts[i];
+    const b = pts[j];
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) trong = !trong;
+  }
+  return trong;
+}
+
 export function distToEntity(store: DocStore, e: Entity, p: Pt): number {
   let best = Infinity;
   if (e.kind === 'node') return dist(p, e.p);
@@ -143,6 +154,8 @@ export function distToEntity(store: DocStore, e: Entity, p: Pt): number {
         for (let i = 1; i < pts.length; i++) best = Math.min(best, distToSeg(p, pts[i - 1], pts[i]).d);
         if (op.close && pts.length > 2) {
           best = Math.min(best, distToSeg(p, pts[pts.length - 1], pts[0]).d);
+          // Bấm vào giữa thân thiết bị (máy cắt...) cũng là trúng thiết bị
+          if (e.kind === 'device' && trongDaGiac(p, pts)) best = 0;
         }
         break;
       }
