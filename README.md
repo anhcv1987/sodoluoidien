@@ -789,10 +789,20 @@ Quy ước thể hiện (đề xuất, chờ Phòng thống nhất):
 * Đủ các **đoạn dây / cáp**: cáp ngầm nét đứt, ĐDK nét liền; ghi loại, tiết diện, chiều
   dài đúng như bản vẽ (vd "3xAL/XLPE/PVC/DATA/PVC 1x400 - 1,76km", "ACSR 185",
   "Cu 3x185 - 250m"); đoạn bản vẽ không ghi thì để trống.
-* **Tủ RMU**: khung tủ + ngăn vào, ngăn ra (và ngăn rẽ sang lộ khác); bỏ ngăn dự phòng,
-  ngăn cấp TBA khách hàng.
+* **Tủ RMU** theo mẫu bản vẽ lộ: khung tủ, hàng tên tủ, hàng tên ngăn, thanh cái
+  trong tủ; mỗi ngăn có dao cắt tải + **dao tiếp địa (-76, bình thường cắt)**, cáp đấu ở
+  chân ngăn. Chỉ vẽ ngăn vào, ngăn ra (thêm ngăn rẽ nếu ngăn đó liên kết sang lộ khác,
+  vd ngăn 477-7/02-2); bỏ ngăn dự phòng, ngăn cấp TBA khách hàng. Tủ nằm tuyến dọc thì
+  chữ trong tủ xoay theo, không đè nét kẻ.
 * **Thiết bị trên trục** đủ: DCL, DPT, LBS, recloser (MC … R), tụ bù (TBN), đúng trạng
-  thái kết dây cơ bản (thường cắt = Cắt). Số cột ghi trên trục, tên thiết bị ghi dưới.
+  thái kết dây cơ bản (thường cắt = Cắt). **Chỉ ghi các cột có thiết bị, tụ bù hoặc
+  điểm rẽ nhánh liên kết** (bỏ cột đỡ thuần túy); nhánh rẽ ngay tại cột đó. Số cột ghi
+  trên trục, tên thiết bị ghi dưới; phần dài còn thừa của cạnh rải đều giữa các phần tử.
+* **Hai lộ nối liền nhau**: đường đi của 477 E6.4 và 473 E6.2 cùng kết thúc tại một điểm
+  chung (DCL 472E6.4-7/25 Gia Bảy - thường cắt). 473 E6.2 đi tiếp qua đoạn 472E6.4
+  Đồng Bẩm - Gia Bảy (MC 472E6.4/61 thường cắt, RMU 07-472, MC 472E6.4/25, nhánh
+  LT 474E6.4 / LT 472E6.2) tới điểm đó. Đoạn này do 474E6.4 cấp - lộ chưa vẽ - nên
+  hiện chưa có công suất chạy.
 * **Ranh giới quản lý / vận hành**: vạch đứt ngang tuyến, hai bên ghi đơn vị / lộ
   (vd "473E6.2 ← | → 472E6.4", "Đồng Hỷ | Thành phố").
 * Chỗ liên kết với lộ chưa vẽ: kết thúc bằng "→ LT …" (vd "→ LT 474 E6.4 (MC 472E6.4/25

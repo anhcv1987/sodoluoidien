@@ -56,6 +56,7 @@ const H_COT = 3.4; // số cột
 const H_DZ = 3.4; // loại dây / cáp
 const SC = 9; // cỡ ký hiệu thiết bị
 const RONG = (txt, h) => String(txt).length * h * 0.5;
+const W_NGAN = 26; // bề rộng một ngăn tủ RMU
 
 let kv = 22;
 let lop = data.layers.indexOf('22kV');
@@ -84,7 +85,7 @@ function beRong(m, doc = false) {
   if (m.coc !== undefined) return 13;
   // tuyến dọc ghi tên thiết bị bên cạnh nên không cần chừa bề ngang cho chữ
   if (m.tb) return doc || m.gon ? 24 : Math.max(34, RONG(m.ten?.[0] ?? '', H_TEN) + 4);
-  if (m.rmu) return 26 * m.ngan.length + 14;
+  if (m.rmu) return W_NGAN * m.ngan.length + 8;
   if (m.tu) return 24;
   if (m.ranh) return 22;
   if (m.ghi) return Math.max(16, m.rong ?? 16);
@@ -130,14 +131,25 @@ function veDoan(a, huong, muc, opts = {}) {
       t += m.khoang;
       continue;
     }
+    // rải đều phần dài còn thừa của cạnh vào khoảng giữa các phần tử
+    if (opts.gian) {
+      trong.push([t, t + opts.gian]);
+      t += opts.gian;
+    }
     const w = beRong(m, doc);
     const tm = t + w / 2;
     if (m.coc !== undefined) {
-      const [x, y] = P(tm, doc ? 0 : 2.5);
+      // số cột: tuyến dọc ghi bên trái, tuyến ngang ghi phía trên (theo hướng bản vẽ)
+      const [x, y] = P(tm);
       if (doc) chu(x - 3, y - H_COT / 2, H_COT, m.coc, 'phai');
-      else chu(x, y, H_COT, m.coc, 'giua');
-      const [cx, cy] = P(tm);
-      cham(cx, cy);
+      else if (m.nhanh) chu(x + 2, y + 2.5, H_COT, m.coc, 'trai'); // tránh nét nhánh
+      else chu(x, y + 2.5, H_COT, m.coc, 'giua');
+      cham(x, y);
+      // nhánh rẽ ngay tại cột (không vẽ thêm điểm rẽ riêng)
+      if (m.nhanh) {
+        const huong2 = m.nhanh.phia === 'trai' ? [nx, ny] : [-nx, -ny];
+        veNhanh([x, y], huong2, m.nhanh.muc, m.nhanh.cuoi, 0, m.nhanh.loai);
+      }
     } else if (m.tb) {
       const h = nuaTruc(m.tb);
       const [x, y] = P(tm);
@@ -151,37 +163,10 @@ function veDoan(a, huong, muc, opts = {}) {
       if (doc) ten.forEach((dong, i) => chu(x + 8, y + 2 - i * (H_TEN + 1), H_TEN, dong, 'trai'));
       else ten.forEach((dong, i) => chu(x, y - 11 - i * (H_TEN + 1), H_TEN, dong, 'giua'));
     } else if (m.rmu) {
-      // tủ RMU: khung + các ngăn nối tiếp (ngăn vào / ngăn ra) + ngăn rẽ nhánh
-      const n = m.ngan.length;
-      const t0 = t + 3;
-      const t1 = t + w - 3;
-      const duoi = m.re?.some((r) => r.phia !== 'trai') ? -34 : -9;
-      const tren = m.re?.some((r) => r.phia === 'trai') ? 30 : 14;
-      const hop = [P(t0, duoi), P(t1, duoi), P(t1, tren), P(t0, tren), P(t0, duoi)];
-      net(hop, false);
-      chu(...(doc ? P(t0 - 2, tren + 2) : P((t0 + t1) / 2, tren + 2)), 3.4, m.rmu, doc ? 'trai' : 'giua', doc ? 90 : 0);
-      // Dây vào / ra nối thẳng tới cực ngăn tủ (không dừng ở mép khung - nét dừng đúng
-      // mép khung sẽ bị nhận nhầm là cạnh khung tủ)
-      const hL = nuaTruc('LBS');
-      const buoc = (t1 - t0) / n;
-      let tTruoc = tDay;
-      m.ngan.forEach((ng, i) => {
-        const tc = t0 + buoc * (i + 0.5);
-        net([P(tTruoc), P(tc - hL)], i === 0 && loai.cap);
-        thietBi('LBS', ...P(tc), gocDat('LBS', goc), !!ng.mo);
-        chu(...P(tc, 8.5), 3, ng.ten ?? ng, 'giua', doc ? 90 : 0);
-        tTruoc = tc + hL;
-      });
-      // ngăn rẽ nhánh từ thanh cái trong tủ
-      for (const r of m.re ?? []) {
-        const tr = (t0 + t1) / 2;
-        const goc2 = r.phia === 'trai' ? [nx, ny] : [-nx, -ny];
-        const [bx, by] = P(tr, 0);
-        // ngăn rẽ vẽ vuông góc, ngay trong khung
-        const a2 = [bx, by];
-        veNhanh(a2, goc2, [{ khoang: 2 }, { tb: 'LBS', ten: r.ten, mo: r.mo, gon: true }, ...(r.muc ?? [])], r.cuoi, 0);
-      }
-      tDay = tTruoc;
+      tDayRmu = { t: tDay, cap: loai.cap };
+      veRmu(m, t, P, goc, [dx, dy], [nx, ny]);
+      const iRa = m.ngan.findIndex((ng) => ng.vai === 'ra');
+      tDay = t + 4 + W_NGAN * (iRa + 0.5);
     } else if (m.tu) {
       // tụ bù treo dưới dây
       const [x, y] = P(tm);
@@ -245,9 +230,57 @@ function veDoan(a, huong, muc, opts = {}) {
   return [P(t), loai];
 }
 
+/**
+ * Tủ RMU theo mẫu bản vẽ lộ: khung, hàng tên tủ, hàng tên ngăn, thanh cái trong tủ;
+ * mỗi ngăn: dao cắt tải + dao tiếp địa (-76), cáp đấu ở chân ngăn. Chỉ vẽ ngăn vào,
+ * ngăn ra (và ngăn rẽ sang lộ khác). Tủ nằm phía bên trái tuyến (phía trên nếu tuyến
+ * chạy sang phải); dây vào đấu chân ngăn đầu, dây ra đi từ chân ngăn cuối.
+ */
+function veRmu(m, t, P, goc, [dx, dy], [nx, ny]) {
+  const n = m.ngan.length;
+  const t0 = t + 4;
+  const t1 = t0 + W_NGAN * n;
+  const H = 64; // chiều cao tủ
+  const oTieuDe = H - 9;
+  const oThanhCai = H - 21;
+  const oLbs = H - 33;
+  const oTd = 13;
+  const gocChu = ((goc + 90) % 180 + 180) % 180 - 90; // chữ luôn đọc xuôi
+  // chữ trong tủ: `o` là mép chữ gần chân tủ - nếu chiều "lên" của chữ ngược pháp
+  // tuyến tủ (tuyến chạy dọc) thì dời chân chữ sang mép kia để chữ không đè nét kẻ
+  const r = (gocChu * Math.PI) / 180;
+  const nguoc = -Math.sin(r) * nx + Math.cos(r) * ny < 0;
+  const chuTu = (t, o, h, txt, can) => chu(...P(t, nguoc ? o + h : o), h, txt, can, gocChu);
+  // khung + kẻ hàng tên tủ + vách ngăn
+  net([P(t0, 4), P(t1, 4), P(t1, H), P(t0, H), P(t0, 4)], false);
+  net([P(t0, oTieuDe), P(t1, oTieuDe)], false);
+  for (let i = 1; i < n; i++) net([P(t0 + W_NGAN * i, 4), P(t0 + W_NGAN * i, oTieuDe)], false);
+  chuTu((t0 + t1) / 2, oTieuDe + 2.2, 3.4, m.rmu, 'giua');
+  const hL = nuaTruc('LBS');
+  const tc = (i) => t0 + W_NGAN * (i + 0.5);
+  // thanh cái trong tủ
+  net([P(tc(0), oThanhCai), P(tc(n - 1), oThanhCai)], false);
+  m.ngan.forEach((ng, i) => {
+    const x = tc(i);
+    chuTu(x, oTieuDe - 5.5, 2.8, ng.ten, 'giua');
+    net([P(x, oThanhCai), P(x, oLbs + hL)], false);
+    thietBi('LBS', ...P(x, oLbs), gocDat('LBS', goc + 90), !!ng.mo);
+    if (ng.mo) chuTu(x + 5, oLbs - 2, 2.6, '(thường cắt)', 'trai');
+    // dao tiếp địa ngăn tủ (-76), bình thường cắt
+    const SD = 8;
+    thietBi('DTD', ...P(x - 0.52 * SD, oTd), ((goc - 90) % 360 + 360) % 360, true, SD);
+    chuTu(x - 7, oTd - 7, 2.6, '-76', 'giua');
+    net([P(x, oLbs - hL), P(x, 0)], false);
+    if (ng.vai === 'vao') net([P(tDayRmu.t, 0), P(x, 0)], tDayRmu.cap);
+    if (ng.vai === 're') veNhanh(P(x, 0), [-nx, -ny], ng.muc ?? [], ng.cuoi, 0, ng.loai);
+  });
+}
+let tDayRmu = { t: 0, cap: false };
+
 /** Nhánh vuông góc: vẽ thẳng rồi ghi đích liên kết ở cuối. */
 function veNhanh(a, huong, muc, cuoi, batDau = 0, loai) {
-  const [b] = veDoan(a, huong, muc, { batDau, them: 14, loai });
+  // chừa một đoạn ở gốc nhánh để tên thiết bị đầu nhánh không đè lên chữ của trục
+  const [b] = veDoan(a, huong, [{ khoang: 14 }, ...muc], { batDau, them: 14, loai });
   if (cuoi) {
     const [dx, dy] = huong;
     const doc = Math.abs(dy) > Math.abs(dx);
@@ -272,7 +305,13 @@ function veLo(lo) {
     const dung = muc.reduce((t, m) => t + beRong(m, Math.abs(huong[1]) > Math.abs(huong[0])), 0);
     const cuoiCung = i + 2 === lo.duong.length;
     // cạnh cuối: vẽ vừa đủ các phần tử rồi thêm một đoạn ngắn tới chữ liên kết
-    const [p, l] = veDoan(a, huong, muc, { loai: loai ?? undefined, daGhi: !!loai?.nhan, them: cuoiCung ? 24 : Math.max(0, L - dung) });
+    // cạnh cuối có ghi "→ LT ..." thì vẽ vừa đủ; không ghi thì kéo đúng tới điểm cuối
+    // của đường đi (điểm gặp lộ khác)
+    const soPt = muc.filter((m) => !m.dz && !m.khoang).length;
+    const du = Math.max(0, L - dung);
+    const gian = cuoiCung && lo.cuoi ? 0 : soPt ? du / (soPt + 1) : 0;
+    const them = cuoiCung && lo.cuoi ? 24 : soPt ? gian : du;
+    const [p, l] = veDoan(a, huong, muc, { loai: loai ?? undefined, daGhi: !!loai?.nhan, them, gian });
     loai = l;
     if (dung > L + 0.5) console.log(`  ! ${lo.ten}: cạnh ${i + 1} cần ${dung.toFixed(0)} đơn vị, đường đi chỉ ${L.toFixed(0)}`);
     if (cuoiCung && lo.cuoi) {

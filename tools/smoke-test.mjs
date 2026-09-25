@@ -216,7 +216,9 @@ const lta = await page.evaluate(() => {
   const a = window.sodo;
   const ds = a.store.entities.filter((e) => e.srcLayer === 'Lưới trung áp');
   const tb = ds.filter((e) => e.kind === 'device');
-  const moTen = ['DCL 472E6.4-7/25', 'LBS 472E6.4/61', 'MC 472E6.4/61', 'LBS 476E6.4/39', '477-7/02-2'];
+  const moTen = ['DCL 472E6.4-7/25', 'LBS 472E6.4/61', 'MC 472E6.4/61', 'LBS 476E6.4/39', '477-7/02-2', 'DCL 472E6.2-7/36'];
+  // dao tiếp địa các ngăn tủ RMU (bình thường cắt) không tính vào điểm thường mở
+  const dtd = tb.filter((e) => e.block === 'DTD');
   const chu = a.store.entities.filter((e) => e.kind === 'text' && e.srcLayer === 'Lưới trung áp').map((e) => e.text);
   const d = a.congSuat.duLieu();
   const coDien = (x, y) =>
@@ -230,7 +232,11 @@ const lta = await page.evaluate(() => {
   return {
     net: ds.filter((e) => e.kind === 'branch').length,
     tb: tb.length,
-    mo: tb.filter((e) => e.state === 'mo').length,
+    mo: tb.filter((e) => e.state === 'mo' && e.block !== 'DTD').length,
+    dtd: dtd.length,
+    dtdCat: dtd.every((e) => e.state === 'mo'),
+    // hai lộ nối nhau: cùng có nét tới điểm gặp chung (DCL 7/25 Gia Bảy)
+    noi: ds.filter((e) => e.kind === 'branch' && e.nodes.some((id) => { const p = a.store.get(id)?.p; return p && Math.hypot(p.x + 1230, p.y + 600) < 0.5; })).length >= 2,
     ten: moTen.every((t) => chu.some((c) => c.startsWith(t))),
     // 477 E6.4 có điện tới Gia Bảy (trước DCL 7/25), 473 E6.2 có điện trên trục
     d477: coDien(-1400, -600),
@@ -238,8 +244,8 @@ const lta = await page.evaluate(() => {
   };
 });
 check(
-  'Lưới trung áp: 477 E6.4 và 473 E6.2 vẽ từ ngăn lộ, có điện, dừng ở điểm thường cắt',
-  lta.net > 20 && lta.tb > 25 && lta.mo === 5 && lta.ten && lta.d477 && lta.d473,
+  'Lưới trung áp: 477 E6.4 và 473 E6.2 vẽ từ ngăn lộ, nối nhau, có điện, dừng ở điểm thường cắt; RMU có tiếp địa',
+  lta.net > 20 && lta.tb > 25 && lta.mo === 6 && lta.ten && lta.d477 && lta.d473 && lta.noi && lta.dtd === 9 && lta.dtdCat,
   JSON.stringify(lta),
 );
 
