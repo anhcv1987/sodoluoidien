@@ -35,6 +35,8 @@ export interface KetQuaDoiChu {
   daDoi: number;
   /** Số nhãn không dời được (giữ nguyên chỗ cũ). */
   conLai: number;
+  /** Nội dung + vị trí các nhãn không dời được (để rà soát). */
+  khongDoi?: string[];
   /** Thời gian xử lý (ms). */
   ms: number;
 }
@@ -274,6 +276,7 @@ export function doiChuKhoiThietBi(entities: Record<Id, Entity>): KetQuaDoiChu {
 
   let biLap = 0;
   let daDoi = 0;
+  const khongDoi: string[] = [];
   for (const t of chu) {
     const h0 = hopCua.get(t)!;
     if (!biChe(h0)) continue;
@@ -304,7 +307,10 @@ export function doiChuKhoiThietBi(entities: Record<Id, Entity>): KetQuaDoiChu {
       tot = { dx, dy };
       break;
     }
-    if (!tot) continue;
+    if (!tot) {
+      khongDoi.push(`${t.text} @(${t.p.x.toFixed(1)}, ${t.p.y.toFixed(1)})`);
+      continue;
+    }
     oChu.bo(h0, t);
     t.p = { x: t.p.x + tot.dx, y: t.p.y + tot.dy };
     const h1 = hopChu(t);
@@ -312,5 +318,5 @@ export function doiChuKhoiThietBi(entities: Record<Id, Entity>): KetQuaDoiChu {
     oChu.them(h1, t);
     daDoi++;
   }
-  return { biLap, daDoi, conLai: biLap - daDoi, ms: Math.round(performance.now() - t0) };
+  return { biLap, daDoi, conLai: biLap - daDoi, khongDoi, ms: Math.round(performance.now() - t0) };
 }

@@ -789,7 +789,7 @@ npm run build
 
 ---
 
-## 7. Lưới trung áp liên thông (đang làm thử: 477 E6.4, 473 E6.2)
+## 7. Lưới trung áp liên thông (đang làm: cụm E6.4)
 
 Nguồn: bản vẽ từng lộ trên Google Drive (`So do luoi dien/1. Lưới trung áp KV Thái
 Nguyên`, vd "18. ĐZ 472+477 E6.4.pdf", "7. ĐZ 473 E6.2.pdf"). Mỗi lộ chép sang một file
@@ -834,6 +834,39 @@ Quy ước thể hiện (đề xuất, chờ Phòng thống nhất):
   Gia Bảy)"); khi vẽ lộ đó sẽ nối liền.
 
 Công suất chạy (F6) đi từ ngăn lộ theo trục, dừng ở các điểm thường cắt.
+
+### 7.1. Nhập lộ thẳng từ hình học bản vẽ PDF (`tools/pdf-lo/`)
+
+Từ cụm E6.4 trở đi các lộ không chép tay nữa mà **dò đường dây trên chính file PDF**
+(bản vẽ xuất từ CAD còn giữ nét vector), giữ nguyên bố cục bản vẽ gốc:
+
+```
+PDF_DIR=<thư mục các file PDF> python3 tools/pdf-lo/xuat.py tools/pdf-lo/cfg17.json tools/luoi-trung-ap/pdf/17.json
+node tools/ve-luoi-trung-ap.mjs      # đọc tools/luoi-trung-ap/pdf/dat.mjs, vẽ lên tờ tổng
+```
+
+* `dothi.py` dựng đồ thị đường dây: nét mảnh = dây (nét đứt ghép thành cáp), nét đậm =
+  ký hiệu thiết bị (vẫn dẫn điện khi dò), bắc qua khe ở ký hiệu, qua chấm cột, nối chỗ
+  giao chữ X.
+* File cấu hình `cfg*.json` cho từng bản vẽ: `cam` = toạ độ các thiết bị **thường cắt**
+  (chặn đường dò), `thanh_cai` = khung thanh cái trạm, `lo` = tên lộ + điểm đầu lộ +
+  điểm cuối (nếu có), `bo_tb` = nhãn thiết bị nhánh rẽ cần bỏ.
+* `xuat.py` đi từ đầu lộ tới mọi điểm thường cắt tới được → **đường trục + nhánh liên
+  kết** (lưới hình tia khi mở các điểm thường cắt nên đường đi là duy nhất), gắn nhãn
+  thiết bị lên đúng ký hiệu nằm trên đường, lấy loại dây / cáp, cột ở điểm rẽ, tủ RMU
+  (ngăn vào / ra), ranh giới quản lý; thiết bị gần điểm "thường cắt" đặt trạng thái Cắt.
+* `ve-luoi-trung-ap.mjs` đặt bản vẽ lên tờ tổng theo `dat.mjs` (điểm gốc, tỷ lệ, tuyến
+  cáp nối từ ngăn lộ trong trạm), cắt dây ở hai cực mọi thiết bị đóng cắt (thiết bị cắt
+  thì hở mạch thật), vẽ tủ RMU theo mẫu, tự thêm vòng nhảy chỗ giao chéo. Tuyến cáp nối
+  phải đi cách các nét có sẵn ≥ 8 đơn vị để không thành chỗ đấu chữ T.
+
+Đã nhập: **bản vẽ 17 - ĐZ 471, 473, 481 E6.4** (473: 38 thiết bị trên trục và nhánh
+liên kết, 6 tủ RMU; 471: 16; 481: RMU 01-481 tới DCL 473E6.4-7/19). Các điểm thường
+cắt: MC 473E6.4/64 (LT 473E6.3), LBS 473E6.4/14B (LT 471), DCL 473E6.4-7/19 (LT 481),
+LBS 477E6.5/115, LBS 473E6.4/47 (LT 471E6.19), DCL 471E6.4-7/01.
+
+Kiểm tra: `node tools/ra-soat-co-lap-thanh-cai.mjs` (không thanh cái nào còn điện khi
+cô lập) và smoke test (cắt MC 473 thì trục 473 mất điện, 471/481 vẫn có điện).
 
 ## 8. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)
 

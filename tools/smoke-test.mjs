@@ -63,7 +63,7 @@ check('Thư viện thiết bị', init.palette >= 20, `${init.palette} block`);
 check(
   'Không còn nhãn bị ký hiệu thiết bị che',
   !!init.doiChu && init.doiChu.daDoi > 100 && init.doiChu.conLai === 0,
-  init.doiChu ? `dời ${init.doiChu.daDoi}/${init.doiChu.biLap} nhãn, còn ${init.doiChu.conLai} · ${init.doiChu.ms} ms` : 'không có số liệu',
+  init.doiChu ? `dời ${init.doiChu.daDoi}/${init.doiChu.biLap} nhãn, còn ${init.doiChu.conLai} ${JSON.stringify(init.doiChu.khongDoi ?? [])} · ${init.doiChu.ms} ms` : 'không có số liệu',
 );
 
 /* ---------------- Nhay toi tung tram tren to tong ---------------- */
@@ -257,8 +257,9 @@ const lta = await page.evaluate(() => {
 });
 check(
   'Lưới trung áp: 477 E6.4 và 473 E6.2 vẽ từ ngăn lộ, nối nhau, có điện, dừng ở điểm thường cắt; RMU có tiếp địa; giao chéo có vòng nhảy',
-  lta.net > 20 && lta.tb > 25 && lta.mo === 6 && lta.ten && lta.d477 && lta.d473 && lta.noi && lta.dtd === 9 && lta.dtdCat &&
-    lta.nhay === 3 && lta.quaNhay && !lta.giao376 && lta.tuBu === 0,
+  // 6 điểm thường mở của hai lộ thí điểm + 6 của bản vẽ PDF 17 (471/473/481 E6.4)
+  lta.net > 20 && lta.tb > 25 && lta.mo === 12 && lta.ten && lta.d477 && lta.d473 && lta.noi && lta.dtd === 19 && lta.dtdCat &&
+    lta.nhay >= 9 && lta.quaNhay && !lta.giao376 && lta.tuBu === 0,
   JSON.stringify(lta),
 );
 
@@ -415,6 +416,41 @@ const c62 = await page.evaluate(() => {
   a.store.undo();
   return { truoc, sau };
 });
+/* ---------------- Lộ trung áp nhập từ bản vẽ PDF (471, 473, 481 E6.4) ---------------- */
+
+const pdf17 = await page.evaluate(() => {
+  const a = window.sodo;
+  const chu = a.store.entities.filter((e) => e.kind === 'text' && e.srcLayer === 'Lưới trung áp').map((e) => e.text);
+  const tb = a.store.entities.filter((e) => e.kind === 'device');
+  const coDien = (x, y) =>
+    a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [ax, ay, bx, by] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+        if (!L) continue;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L));
+        if (Math.hypot(ax + t * dx - x, ay + t * dy - y) < 0.5) return true;
+      }
+      return false;
+    });
+  const ten = ['MC 473E6.4/64', 'LBS 473E6.4/14B', 'DCL 473E6.4-7/19', 'DCL 431-7', 'LBS 473E6.4/47', 'TỦ RMU 01-481E6.4'].every((t) =>
+    chu.some((c) => c.startsWith(t)),
+  );
+  // trục 473 gần MC 64 Ao Cang; cáp đầu lộ 473, 471, 481
+  const diem = [[-1600, -848.516], [-2106, -400], [-2410, -600], [-2420, -600]];
+  const truoc = diem.map(([x, y]) => coDien(x, y));
+  const mc473 = tb.find((e) => e.block === 'MCHB' && Math.hypot(e.p.x + 2105.97, e.p.y + 316.26) < 0.5);
+  a.ed.doiTrangThai([mc473.id], 'mo');
+  const cat473 = diem.map(([x, y]) => coDien(x, y));
+  a.store.undo();
+  return { ten, truoc, cat473 };
+});
+check(
+  'Lộ 471/473/481 E6.4 (bản vẽ PDF): đủ thiết bị, có điện; cắt MC 473 thì trục 473 mất điện (DCL 7/19 thường cắt không cấp ngược từ 481), 471 và 481 vẫn có điện',
+  pdf17.ten && pdf17.truoc.every(Boolean) && JSON.stringify(pdf17.cat473) === '[false,false,true,true]',
+  JSON.stringify(pdf17),
+);
+
 // Recloser trên lưới trung áp: đóng MC 472E6.4/61 (thường cắt) -> 473 E6.2 cấp sang
 // đoạn Đồng Bẩm - Gia Bảy; cắt thêm MC 472E6.4/25 -> phía sau MC 25 mất điện
 const rec = await page.evaluate(() => {
