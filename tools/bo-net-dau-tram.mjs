@@ -9,7 +9,9 @@
  * Nguyên) nên trạm không nối được vào lưới. Công cụ này:
  *   1. tìm các bộ ba nét song song cùng đầu mút, nét giữa dài hơn và đi tiếp vào
  *      ngăn lộ, hai nét bên ngắn, cách đều nét giữa - xoá hai nét bên;
- *   2. đường dây liên trạm nào đang bắt vào nét bên thì dời đầu dây sang nét giữa.
+ *   2. đường dây liên trạm nào đang bắt vào nét bên thì dời đầu dây sang nét giữa;
+ *   3. vá chỗ đầu dây để hở ngay trước ký hiệu vòng nhảy (nửa vòng tròn nhảy qua
+ *      thanh cái / dây khác).
  * Chạy lại bao nhiêu lần cũng được.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -102,5 +104,83 @@ s.b.forEach((r) => {
 });
 
 s.b = s.b.filter((_, i) => !xoa.has(i));
+
+/* 3. Dây / cáp vẽ nhảy qua thanh cái bằng nửa vòng tròn nhưng đầu dây trước vòng nhảy
+ * để hở vài đơn vị (vd cáp tổng MBA T1 E6.4 nhảy qua C41 xuống MC 431 - hở 5,2): trước
+ * đây chỉ "nối" được nhờ đỉnh vòng nhảy chạm thanh cái, nay chỗ vòng nhảy là chỗ cắt
+ * ngang nên phải vá cho liền - kéo đầu dây hở tới đúng đầu vòng nhảy (thẳng hàng). */
+const LOP_CHU = data.layers.indexOf('Ghi chú');
+const SRC_LTA = data.srcLayers.indexOf('Lưới trung áp');
+const dsDoan = [];
+s.b.forEach((r, i) => {
+  if (r[0] === LOP_CHU) return;
+  for (let k = 4; k + 3 < r.length; k += 2) dsDoan.push([i, r[k], r[k + 1], r[k + 2], r[k + 3]]);
+});
+const kc = (px, py, [, ax, ay, bx, by]) => {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const L = dx * dx + dy * dy;
+  const t = L ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L)) : 0;
+  return Math.hypot(ax + t * dx - px, ay + t * dy - py);
+};
+const hoDau = (i, x, y) => !dsDoan.some((d) => d[0] !== i && kc(x, y, d) < 1);
+// Vòng nhảy: nửa vòng tròn (từ 8 khúc ngắn trở lên) nằm giữa hai đoạn thẳng cùng
+// một đường thẳng (dây đi tiếp sau vòng nhảy). Trả về đầu mút còn lại của đoạn
+// thẳng đi tiếp và hướng dây (ngang / dọc), hoặc null.
+const vongNhay = (r) => {
+  const p = [];
+  for (let k = 4; k + 1 < r.length; k += 2) p.push([r[k], r[k + 1]]);
+  let ngan = 0;
+  for (let k = 1; k < p.length; k++) if (Math.hypot(p[k][0] - p[k - 1][0], p[k][1] - p[k - 1][1]) < 4) ngan++;
+  if (ngan < 8 || p.length < 10) return null;
+  const [a, b] = [p[0], p.at(-1)];
+  // hai đầu cung (đỉnh sau đỉnh đầu, đỉnh trước đỉnh cuối) thẳng hàng với dây đi tiếp
+  const doc = Math.abs(a[0] - b[0]) < E;
+  const ngang = Math.abs(a[1] - b[1]) < E;
+  if (!doc && !ngang) return null;
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (L < 15) return null; // ký hiệu nhỏ (máy phát, tiếp địa…) không phải dây nhảy qua
+  return { doc };
+};
+let va = 0;
+s.b.forEach((r, i) => {
+  if (r[0] === LOP_CHU || r[3] === SRC_LTA) return;
+  const v = vongNhay(r);
+  if (!v) return;
+  const n = r.length;
+  for (const [x, y] of [
+    [r[4], r[5]],
+    [r[n - 2], r[n - 1]],
+  ]) {
+    if (!hoDau(i, x, y)) continue;
+    for (const [j, q] of s.b.entries()) {
+      if (j === i || q[0] === LOP_CHU || q[3] === SRC_LTA || q.length < 8) continue;
+      const m = q.length;
+      for (const [kx, kx2] of [
+        [4, 6],
+        [m - 2, m - 4],
+      ]) {
+        const [qx, qy] = [q[kx], q[kx + 1]];
+        const d = Math.hypot(qx - x, qy - y);
+        if (d < 0.01 || d > 6 || !hoDau(j, qx, qy)) continue;
+        // đầu dây hở lệch sang bên (vuông góc hướng dây), đoạn cuối song song hướng dây:
+        // dời cả đoạn cuối sang cho thẳng hàng với vòng nhảy
+        if (v.doc) {
+          if (Math.abs(qy - y) > E || Math.abs(q[kx2] - qx) > E) continue;
+          q[kx] = x;
+          q[kx2] = x;
+        } else {
+          if (Math.abs(qx - x) > E || Math.abs(q[kx2 + 1] - qy) > E) continue;
+          q[kx + 1] = y;
+          q[kx2 + 1] = y;
+        }
+        va++;
+        console.log(`  vá chỗ hở ${d.toFixed(2)} trước vòng nhảy tại ${tram(x, y)} (${x.toFixed(1)}, ${y.toFixed(1)})`);
+      }
+    }
+  }
+});
+
 writeFileSync(duongDan, JSON.stringify(data));
 console.log(`Đầu trạm 110kV: bỏ ${xoa.size} nét thừa ở ${bo} đầu dây; dời ${doi} đầu đường dây liên trạm sang nét giữa.`);
+console.log(`Vòng nhảy: vá ${va} chỗ đầu dây để hở trước vòng nhảy.`);

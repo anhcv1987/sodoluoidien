@@ -168,6 +168,10 @@ Dùng được cả ở chế độ xem, vẫn kéo / phóng bản vẽ bình th
   đấu nối khi có dao cách ly / máy cắt của ngăn lộ ngay sát chỗ cắt; cáp tổng từ MBA vắt
   qua thanh cái xuống máy cắt tổng (vd cáp vào MC 632 vắt qua C62 E6.8) không phải
   đấu nối.
+* Dây vẽ **nhảy qua** thanh cái / dây khác bằng nửa vòng tròn: đỉnh giữa vòng nhảy
+  nằm đúng trên thanh cái nhưng hai phía vòng nhảy nằm hai bên - đó là chỗ cắt ngang,
+  không phải rẽ chữ T (vd cáp tổng MBA T2 E6.4 nhảy qua C42 xuống MC 432: cắt MC 432
+  và MC 412 thì C42 mất điện).
 * `node tools/kiem-cong-suat.mjs --cat=<số thứ tự thiết bị> --diem=x,y --truy=x,y` thử
   cắt thiết bị, kiểm tra điểm có điện, lần ngược đường công suất tới một điểm.
 * Dây **vắt qua** thanh cái không phải là đấu nối: trạm vẽ có chấm đấu nối (vòng tròn
@@ -698,6 +702,9 @@ là dây dẫn đi xuống ngăn lộ, hai nét ngắn hai bên chỉ là ký hi
 có chỗ bắt nhầm vào nét bên (lộ 171 E6.8 Xi măng Thái Nguyên) nên trạm không nối
 được vào lưới. `tools/bo-net-dau-tram.mjs` bỏ hai nét bên ở **13 đầu dây** (E6.7,
 E6.8, E6.9, E6.11, E6.12, E6.21) và dời đầu đường dây đang bắt nhầm sang nét giữa.
+Công cụ cũng vá chỗ **đầu dây để hở ngay trước vòng nhảy** (cáp tổng MBA T1 E6.4 hở
+5,2 đơn vị trước vòng nhảy qua C41 - trước đây chỉ "nối" được nhờ đỉnh vòng nhảy chạm
+thanh cái).
 
 ### Liên kết điện và chiều công suất
 
@@ -902,7 +909,7 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  chuan-hoa-dcl-lien-dong.mjs — vẽ lại DCL + dao tiếp địa kiểu liên động (110/35kV)
                  ra-soat-cap-dien-ap.mjs — sửa màu (cấp điện áp) vẽ nhầm lớp theo liên kết điện
                  phuong-thuc-van-hanh.mjs — đặt các máy cắt cắt theo kết dây cơ bản, sửa tên trạm
-                 bo-net-dau-tram.mjs    — bỏ 2 nét thừa ở đầu trạm 110kV ký hiệu 3 nét song song
+                 bo-net-dau-tram.mjs    — bỏ 2 nét thừa ở đầu trạm 110kV ký hiệu 3 nét song song; vá dây hở trước vòng nhảy
                  ra-soat-mba.mjs        — gán cấp điện áp (màu) từng cuộn dây MBA theo nhãn tỷ số
                  ve-luoi-trung-ap.mjs   — vẽ lộ trung áp (trục + nhánh liên kết) từ tools/luoi-trung-ap/*.mjs
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật

@@ -555,9 +555,30 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   /** Các tuyến rẽ vào từng tuyến (để nhận ra thanh cái vẽ như dây thường). */
   const reVao: Set<number>[] = tuyen.map(() => new Set());
   tuyen.forEach((t, i) => {
-    const ds = t.b.khongNoiGiua ? [t.p[0], t.p[t.p.length - 1]] : t.p;
-    for (const p of ds) {
+    const n = t.p.length;
+    const ds = t.b.khongNoiGiua ? [0, n - 1] : t.p.map((_, k) => k);
+    for (const k of ds) {
+      const p = t.p[k];
       const u = dinh(p.x, p.y);
+      // Đỉnh giữa tuyến mà hai đỉnh kề nằm về HAI PHÍA tuyến kia: dây đi xuyên qua
+      // (vd đỉnh giữa nửa vòng tròn nhảy qua thanh cái - cáp tổng MBA T2 E6.4 nhảy qua
+      // C42 xuống MC 432) - là chỗ cắt ngang, không phải rẽ chữ T. Cắt ngang thanh
+      // cái xét riêng ở bước dưới (chấm nối / dao ngăn lộ sát chỗ cắt).
+      // (xét đỉnh đầu tiên mỗi bên đã ra xa tuyến kia quá sai số - các đỉnh sát
+      // bên cạnh của vòng nhảy cũng nằm gần như trên thanh cái)
+      const xuyenQua = (a: Pt, b: Pt): boolean => {
+        if (k === 0 || k === n - 1) return false;
+        const L = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        const phia = (q: Pt): number => ((b.x - a.x) * (q.y - a.y) - (b.y - a.y) * (q.x - a.x)) / L;
+        const benCanh = (buoc: number): number => {
+          for (let m = k + buoc; m >= 0 && m < n; m += buoc) {
+            const v = phia(t.p[m]);
+            if (Math.abs(v) > saiSo) return Math.sign(v);
+          }
+          return 0;
+        };
+        return benCanh(-1) * benCanh(1) < 0;
+      };
       // Chỉ nới sai số cho đầu dây TỰ DO (không nối tiếp với nét nào): đầu dây đã
       // nối tiếp nét khác là chỗ dây vẽ thành nhiều đoạn đi ngang qua, nới ra sẽ
       // "hàn" nhầm vào thanh cái nó vắt qua.
@@ -587,6 +608,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
         }
         const [tt, d] = chieu(p.x, p.y, a.x, a.y, b.x, b.y);
         if (d <= lim) {
+          if (xuyenQua(a, b)) continue;
           if ((tuyenCoCham.has(j) || tuyen[j].b.vong || !coDaoGan(i, p)) && vatQua(i, p, j) && !coCham(p.x, p.y)) continue;
           noi(u, chiaTai(s, tt));
           reVao[j].add(i);

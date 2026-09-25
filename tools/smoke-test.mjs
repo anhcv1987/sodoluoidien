@@ -448,6 +448,40 @@ check(
   !rec.truoc && rec.dong61 && rec.cat25 && rec.lai,
   JSON.stringify(rec),
 );
+// E6.4: cáp tổng MBA T2 vẽ nhảy qua C42 (nửa vòng tròn) xuống MC 432 - chỗ nhảy không
+// phải đấu nối. Cắt 432 + 412 -> C42 mất điện, C41 vẫn có (T1 qua 431); cắt 431 + 412
+// -> C41 mất điện; chỉ cắt 432 -> C42 nhận điện từ C41 qua 412
+const e64 = await page.evaluate(() => {
+  const a = window.sodo;
+  const tim = (x, y) => a.store.entities.find((e) => e.kind === 'device' && Math.hypot(e.p.x - x, e.p.y - y) < 0.5);
+  const coDien = (x, y) =>
+    a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [x0, y0, x1, y1] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        if (Math.abs(y0 - y) < 0.5 && Math.abs(y1 - y) < 0.5 && Math.min(x0, x1) <= x && Math.max(x0, x1) >= x) return true;
+      }
+      return false;
+    });
+  const c41 = () => coDien(-2400, -289.17);
+  const c42 = () => coDien(-1700, -289.17);
+  const [mc431, mc412, mc432] = [tim(-2374.3, -316.26), tim(-2294.16, -316.26), tim(-1819.55, -316.26)];
+  const kq = {};
+  a.ed.doiTrangThai([mc432.id, mc412.id], 'mo');
+  kq.cat432_412 = { c41: c41(), c42: c42() };
+  a.store.undo();
+  a.ed.doiTrangThai([mc431.id, mc412.id], 'mo');
+  kq.cat431_412 = { c41: c41(), c42: c42() };
+  a.store.undo();
+  a.ed.doiTrangThai([mc432.id], 'mo');
+  kq.cat432 = { c41: c41(), c42: c42() };
+  a.store.undo();
+  return kq;
+});
+check(
+  'E6.4: cắt MC 432 + 412 thì C42 mất điện (cáp T2 nhảy qua C42 không đấu vào), cắt 431 + 412 thì C41 mất điện',
+  e64.cat432_412.c41 && !e64.cat432_412.c42 && !e64.cat431_412.c41 && e64.cat431_412.c42 && e64.cat432.c41 && e64.cat432.c42,
+  JSON.stringify(e64),
+);
 check('Cắt MC 632 và 612 (E6.8): thanh cái C62 mất điện', c62.truoc && !c62.sau, JSON.stringify(c62));
 check(
   'Cắt MC 112 và 112-1, 112-2 (E6.8): khúc giữa mất điện, C11 C12 vẫn có điện',
