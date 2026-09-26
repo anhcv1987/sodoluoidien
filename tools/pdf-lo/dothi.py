@@ -189,10 +189,12 @@ def dung(pdf, CAM=(), VUNG=(), MO=(), tu_chan=True, giao_cheo=True, BO=(), NOI=(
             c=id_(x0+t*(x1-x0),y0+t*(y1-y0))
             noi(a,c,L); chia[i].append((t,c))
     # NOI: nối bổ sung giữa hai điểm (vd hai đầu dây nhảy qua vẽ bằng nét gấp khúc)
+    canh_noi=set()   # cạnh nối bổ sung: hộp BO không xoá
     for (ax,ay,bx,by) in NOI:
         a=min(range(len(xy)),key=lambda n:math.hypot(xy[n][0]-ax,xy[n][1]-ay))
         b=min(range(len(xy)),key=lambda n:math.hypot(xy[n][0]-bx,xy[n][1]-by))
         noi(a,b,math.hypot(xy[b][0]-xy[a][0],xy[b][1]-xy[a][1]))
+        canh_noi.add((min(a,b),max(a,b)))
     # chia nét: bỏ cạnh thẳng hai đầu, nối lần lượt qua các đỉnh giữa nét
     for i,ds in chia.items():
         x0,y0,x1,y1=seg[i]; u,v=id_(x0,y0),id_(x1,y1)
@@ -271,7 +273,7 @@ def dung(pdf, CAM=(), VUNG=(), MO=(), tu_chan=True, giao_cheo=True, BO=(), NOI=(
     # chỉ xoá cạnh xuyên qua hộp, không thành điểm đích
     for u in list(ke):
         for v_,w in ke[u]:
-            if v_<u: continue
+            if v_<u or (u,v_) in canh_noi: continue
             if any(xuyen(xy[u],xy[v_],b) or all(b[0]<=q[0]<=b[2] and b[1]<=q[1]<=b[3] for q in (xy[u],xy[v_])) for b in BO):
                 cat_canh.add((u,v_))
     for u in list(ke): ke[u]=[(v,w) for v,w in ke[u] if v not in chan and (min(u,v),max(u,v)) not in cat_canh]

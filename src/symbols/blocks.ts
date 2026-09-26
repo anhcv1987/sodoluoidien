@@ -82,6 +82,13 @@ const CAD_MC: Prim[] = [P(true, false, -6.127, 0, 6.127, 0, 6.127, -18.669, -6.1
 const CAD_DCL: Prim[] = [L(0, -3.353, 0, 3.353), L(-4.82, 1.384, 4.82, -1.384)];
 
 /**
+ * DCL tren luoi trung ap (ve tu ban ve PDF): thanh tiep diem dai bang hai chan cua hinh MO,
+ * de day dan cat o hai cuc (khe ho du lon cho mo hinh cong suat) ma khi DONG nhin van lien
+ * mach nhu DCL 110kV trong tram.
+ */
+const CAD_DCL_TA: Prim[] = [L(0, -10, 0, 10), L(-4.82, 1.384, 4.82, -1.384)];
+
+/**
  * Dao cach ly o trang thai MO: khe ho tren duong day + luoi dao cheo ra.
  * Ve lai theo ty le block "22-DCL Mo" cua ban CAD nhung LAY TAM KHE HO LAM GOC,
  * de hinh "mo" va hinh "dong" dung chung mot tam - khi doi trang thai ky hieu
@@ -445,6 +452,12 @@ export const BLOCKS: BlockDef[] = [
     switching: true,
     open: CAD_DCL_MO,
     source: 'CAD: block "110-DCL" (đóng) / "22-DCL Mo" (mở)',
+  }),
+  make('DCLTA', 'Dao cách ly (lưới trung áp)', 'DCL', 'Đóng cắt', CAD_DCL_TA, {
+    rot: 90,
+    switching: true,
+    open: CAD_DCL_MO,
+    source: 'Như "110-DCL", thanh tiếp điểm kéo dài tới hai cực của hình mở (lưới trung áp)',
   }),
   make('DCLHB', 'Dao cách ly hợp bộ', 'DCLHB', 'Đóng cắt', CAD_DCLHB, {
     switching: true,

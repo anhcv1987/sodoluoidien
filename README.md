@@ -943,6 +943,22 @@ nối khi vẽ cụm E6.17. Bản vẽ 24 bỏ nhánh DCL 475E6.5-7/26 - MC 1A (
 Thiết bị có ở hai bản vẽ: một bản vẽ giữ thiết bị, bản kia khai `ngat` (ô ngắt, chữ "(Thường cắt)"
 trong ô cũng thành ngắt) + `bo_tb`, rồi nối hai đầu bằng `noi_ban_ve`.
 
+**Ký hiệu và tủ RMU trên lưới trung áp (sửa sau góp ý):**
+
+* DCL trên đường dây và trong tủ RMU dùng ký hiệu `DCLTA`: giống DCL 110kV, thanh tiếp điểm kéo
+  dài tới hai cực của hình mở. Dây vẫn cắt ở hai cực (khe tối thiểu 3,7 đơn vị mỗi phía, lớn hơn
+  sai số bắt điểm của mô hình công suất) nhưng khi đóng nhìn **liền mạch**, không còn điểm hở
+  giữa dây và ký hiệu. LBS, recloser cũng phóng ký hiệu cho cực chạm đúng đầu dây.
+* Dao tiếp địa -76 trong tủ: đầu dao chạm dây ngăn, đầu nối đất quay ra ngoài.
+* Mô hình công suất: một nét chỉ coi là **vách khung tủ** khi hai đầu tựa vào **cùng một** khung;
+  cáp nối chân hai tủ cạnh nhau (vd Cu 3x240 RMU 06 → RMU 07 - 474 E6.4) là dây dẫn - trước
+  đây bị bỏ nhầm nên RMU 07 và phần lưới phía sau mất điện.
+* Chân cáp nằm ngay trên dây ngăn (trong khung tủ) thì dây ngăn dừng ở chân cáp, không vẽ
+  xuống đáy khung rồi quay lên (đầu nhọn đó đã chạm nhầm cáp chạy sát dưới RMU 14-478, nối tắt
+  ngăn 478-7/14-01 thường cắt).
+* Bản vẽ 23: cáp 480 E6.4 nhảy qua cáp RMU 17-478 (vòng nhảy vẽ nét đứt) - khai `bo_noi` +
+  `noi_them`; `noi_them` nay không bị hộp `bo_noi` xoá (tools/pdf-lo/dothi.py).
+
 **Cụm E6.2 22kV (bản vẽ 6, 7, 8)** - thay lộ thí điểm 473E6.2.mjs:
 
 | Bản vẽ | Lộ | Đặt | Thường cắt / liên thông |

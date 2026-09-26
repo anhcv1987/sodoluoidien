@@ -74,8 +74,16 @@ const net = (pts, cap) => {
   if (trongRmu) dongRmu.add(r);
 };
 const chu = (x, y, h, text, canh = 'giua', rot = 0) => s.t.push([LOP_CHU, kv, +x.toFixed(3), +y.toFixed(3), h, rot, ALIGN[canh], SRC, text]);
+// DCL trên lưới trung áp dùng ký hiệu DCLTA: thanh tiếp điểm dài tới hai cực, dây cắt ở hai
+// cực mà khi đóng nhìn vẫn liền mạch
+const KY_HIEU = { DCL: 'DCLTA' };
+const iBlock = (block) => {
+  let i = data.blocks.indexOf(block);
+  if (i < 0) i = data.blocks.push(block) - 1;
+  return i;
+};
 const thietBi = (block, x, y, rot, mo, scale = SC) =>
-  s.d.push([lop, kv, data.blocks.indexOf(block), +x.toFixed(3), +y.toFixed(3), rot, scale, data.states.indexOf(mo ? 'mo' : 'dong'), SRC, 0]);
+  s.d.push([lop, kv, iBlock(KY_HIEU[block] ?? block), +x.toFixed(3), +y.toFixed(3), rot, scale, data.states.indexOf(mo ? 'mo' : 'dong'), SRC, 0]);
 const cham = (x, y) => s.c.push([lop, kv, +x.toFixed(3), +y.toFixed(3), 1.2, SRC]);
 
 /** Nửa chiều dài ký hiệu dọc trục (để cắt dây ở hai cực). */
@@ -580,11 +588,16 @@ function vePdf(dat) {
   // nửa khoảng hở dây ở thiết bị (đơn vị tờ tổng): tới cực xa nhất (kể cả cực khi CẮT) và
   // không nhỏ hơn 1,2 lần sai số bắt điểm của mô hình công suất (~3) - hai đầu dây gần nhau
   // hơn sai số sẽ bị coi là nối liền, dao cắt cũng không hở mạch
-  const nuaPdf = (loai) => {
-    const def = getBlock(loai);
-    const r = Math.max(...[...(def?.cuc ?? []), ...(def?.cucMo ?? [])].map((c) => Math.hypot(c[0], c[1])), 0.5);
-    return Math.max(r * SC_PDF[loai] * k, 3.7);
+  /** Khoảng cách tâm - cực của ký hiệu (đơn vị block). */
+  const rCuc = (loai) => {
+    const def = getBlock(KY_HIEU[loai] ?? loai);
+    return Math.max(...[...(def?.cuc ?? []), ...(def?.cucMo ?? [])].map((c) => Math.hypot(c[0], c[1])), 0.5);
   };
+  // Khe cắt dây ở thiết bị đóng cắt tối thiểu 3,7 đơn vị mỗi phía (lớn hơn sai số bắt điểm của
+  // mô hình công suất, để hai đầu dây không tự nối tắt qua dao). Ký hiệu được phóng cho cực chạm
+  // đúng đầu dây - không còn khe hở nhìn thấy giữa dây và ký hiệu.
+  const scTb = (loai) => Math.max(SC_PDF[loai] * k, 3.7 / rCuc(loai));
+  const nuaPdf = (loai) => rCuc(loai) * scTb(loai);
   const chuPdf = (n, canh = 'trai') => {
     const h = Math.max(n.h, 2.5) * k * 0.92; // chữ quá nhỏ trên PDF nâng lên cho đều
     if (n.doc) {
@@ -809,7 +822,7 @@ function vePdf(dat) {
         const [x, y] = vt ? vt.c : W(t.p);
         const [hx, hy] = vt ? [vt.u[0], -vt.u[1]] : huongTai(t.s);
         const goc = (Math.atan2(-hy, hx) * 180) / Math.PI;
-        thietBi(t.loai, x, y, gocDat(t.loai, goc), !!t.mo, SC_PDF[t.loai] * k);
+        thietBi(t.loai, x, y, gocDat(t.loai, goc), !!t.mo, scTb(t.loai));
         for (const n of t.nhan) chuPdf(n);
       }
       // loại dây: chỉ nhãn nằm dọc theo chuỗi
@@ -866,11 +879,19 @@ function vePdf(dat) {
       const yd = (yTc + day) / 2 - 2;
       const nd = nuaPdf('DCL') / k;
       net([[xc, yTc], [xc, yd - nd]].map(W), false);
-      net([[xc, yd + nd], [xc, day], [x0, y0]].map(W), false);
+      // chân cáp nằm ngay trên dây ngăn, phía trong khung: dây ngăn dừng ở chân cáp (không kéo
+      // xuống đáy khung rồi quay ngược lên - đầu nhọn đó dễ chạm nhầm cáp chạy sát dưới tủ)
+      if (Math.abs(x0 - xc) < 0.5 && y0 > yd + nd && y0 < day) net([[xc, yd + nd], [x0, y0]].map(W), false);
+      else net([[xc, yd + nd], [xc, day], [x0, y0]].map(W), false);
       const [dx, dy] = W([xc, yd]);
-      thietBi('DCL', dx, dy, gocDat('DCL', 90), !!n?.mo, SC_PDF.DCL * k);
-      const [ex, ey] = W([xc - 2.2, day - 4]);
-      thietBi('DTD', ex, ey, 90, true, 3.4 * k);
+      thietBi('DCL', dx, dy, gocDat('DCL', 90), !!n?.mo, scTb('DCL'));
+      // dao tiếp địa: cực nối vào dây ngăn (bên phải), đầu nối đất quay ra ngoài (bên trái)
+      const scD = 3.4 * k;
+      // đầu dao (điểm xa nhất trên trục của ký hiệu) chạm đúng dây ngăn
+      const dDTD = getBlock('DTD');
+      const cucD = [0, Math.max(...(dDTD?.primsOpen ?? dDTD?.prims ?? []).flatMap((q) => (q.t === 'line' ? [q.pts[1], q.pts[3]] : [])), 0.3)];
+      const [ex, ey] = W([xc, day - 4]);
+      thietBi('DTD', ex - cucD[1] * scD, ey + cucD[0] * scD, 270, true, scD);
       const [lx, ly] = W([xc - 5.5, day - 1]);
       chu(lx, ly, 1.8 * k, '-76', 'giua');
       trongRmu = false;

@@ -187,7 +187,7 @@ const ganDau = (x, y, r) => {
       for (const [px, py] of dauKhuc.get(`${Math.floor(x / O) + i}|${Math.floor(y / O) + j}`) ?? []) if (Math.hypot(px - x, py - y) <= r) return true;
   return false;
 };
-const KIEM = new Set(['MC', 'MCHB', 'DCL', 'MBAPP', 'REC', 'LBS']);
+const KIEM = new Set(['MC', 'MCHB', 'DCL', 'DCLTA', 'MBAPP', 'REC', 'LBS']);
 const tbKhong = new Map();
 let soTB = 0;
 s.d.forEach((r) => {

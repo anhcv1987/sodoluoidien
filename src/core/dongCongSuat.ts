@@ -218,11 +218,14 @@ function loaiKhungTu(tuyen: Tuyen[], devices: DeviceEntity[], saiSo: number): Tu
     return false;
   };
   const khung = new Set<number>();
+  /** Khung tủ gốc của mỗi nét khung (-1: không rõ - nét khuất). */
+  const goc = new Map<number, number>();
   const ungVien: number[] = [];
   tuyen.forEach((t, i) => {
     if (t.b.khongNoiGiua || t.b.lineKind === 'Thanh cái' || !vuongGoc(t.p)) return;
     if (t.b.srcLayer === 'netkhuat') {
       khung.add(i);
+      goc.set(i, -1);
       return;
     }
     if (coThietBi(t.p)) return;
@@ -241,22 +244,34 @@ function loaiKhungTu(tuyen: Tuyen[], devices: DeviceEntity[], saiSo: number): Tu
       const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
       if (devices.some((d) => d.p.x > x0 && d.p.x < x1 && d.p.y > y0 && d.p.y < y1)) {
         khung.add(i);
+        goc.set(i, i);
         return;
       }
     }
     ungVien.push(i);
   });
   for (let lan = 0; lan < 6; lan++) {
-    const ds = [...khung].map((i) => tuyen[i].p);
-    const tua = (q: Pt, boQua: Pt[]): boolean => ds.some((p) => p !== boQua && kcDenTuyen(q, p) <= saiSo);
+    const ds = [...khung];
+    /** Các khung gốc mà điểm q tựa vào. */
+    const tua = (q: Pt, boQua: number): Set<number> => {
+      const g = new Set<number>();
+      for (const i of ds) if (i !== boQua && kcDenTuyen(q, tuyen[i].p) <= saiSo) g.add(goc.get(i) ?? -1);
+      return g;
+    };
     let them = 0;
     for (const i of ungVien) {
       if (khung.has(i)) continue;
       const p = tuyen[i].p;
-      if (tua(p[0], p) && tua(p[p.length - 1], p)) {
-        khung.add(i);
-        them++;
-      }
+      const ga = tua(p[0], i);
+      const gb = tua(p[p.length - 1], i);
+      if (!ga.size || !gb.size) continue;
+      // hai đầu tựa vào HAI khung tủ khác nhau: là cáp nối hai tủ (vd RMU 06 - RMU 07), không
+      // phải vách ngăn
+      const chung = [...ga].find((g) => g < 0 || gb.has(g) || gb.has(-1));
+      if (chung === undefined) continue;
+      khung.add(i);
+      goc.set(i, chung >= 0 ? chung : ([...gb].find((g) => g >= 0) ?? -1));
+      them++;
     }
     if (!them) break;
   }

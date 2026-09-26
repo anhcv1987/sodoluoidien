@@ -647,6 +647,26 @@ const cumE65 = await page.evaluate(() => {
   }
   return kq;
 });
+// Cáp nối chân hai tủ RMU cạnh nhau (RMU 06 -> RMU 07 - 474 E6.4, Cu 3x240) là dây dẫn, không phải
+// vách khung tủ; DCL lưới trung áp dùng ký hiệu DCLTA (dây liền tới cực), dao tiếp địa chạm dây ngăn
+const rmu0607 = await page.evaluate(() => {
+  const a = window.sodo;
+  const coDien = (x, y) =>
+    a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [ax, ay, bx, by] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+        if (!L) continue;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L));
+        if (Math.hypot(ax + t * dx - x, ay + t * dy - y) < 0.5) return true;
+      }
+      return false;
+    });
+  const dclTA = a.store.entities.filter((e) => e.kind === 'device' && e.srcLayer === 'Lưới trung áp' && e.block === 'DCLTA').length;
+  const dclCu = a.store.entities.filter((e) => e.kind === 'device' && e.srcLayer === 'Lưới trung áp' && e.block === 'DCL').length;
+  return { cap: coDien(-1280, -1833.103), dclTA, dclCu };
+});
+check('RMU 06 -> RMU 07 (474 E6.4) có điện qua cáp Cu 3x240; DCL lưới trung áp dùng ký hiệu DCLTA', rmu0607.cap && rmu0607.dclTA > 100 && rmu0607.dclCu === 0, JSON.stringify(rmu0607));
 check('Cụm E6.5: cắt MC đầu lộ 471/472/473/475/477 E6.5, 481 E6.9 thì chỉ lộ đó mất điện', cumE65.truoc && !cumE65.loi.length, JSON.stringify(cumE65));
 // Cụm E6.2 (bản vẽ 6, 7, 8, 22): cắt MC đầu lộ 472 / 473 / 474 / 475 E6.2 thì chỉ lộ đó mất điện
 const cumE62 = await page.evaluate(() => {

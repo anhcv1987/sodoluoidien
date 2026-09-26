@@ -63,7 +63,7 @@ ents.push(...tb);
 (s.c ?? []).forEach((r, i) => ents.push({ id: `c${i}`, kind: 'circle', layer: data.layers[r[0]], kv: r[1], c: { x: r[2], y: r[3] }, r: r[4] }));
 const trangThaiGoc = tb.map((d) => d.state);
 
-const DONG_CAT = new Set(['MC', 'MCHB', 'REC', 'LBS', 'DCL', 'DCLHB', 'FCO']);
+const DONG_CAT = new Set(['MC', 'MCHB', 'REC', 'LBS', 'DCL', 'DCLTA', 'DCLHB', 'FCO']);
 const trong = (st, x, y, le = 0) => x >= st[4] - le && x <= st[6] + le && y >= st[5] - le && y <= st[7] + le;
 // khung trạm vẽ tay có chỗ hụt vài đơn vị: chọn thiết bị để cắt thì nới khung ra (cắt
 // nhầm thiết bị trạm bên cạnh chỉ làm mất điện thêm, không sinh báo lỗi sai)
