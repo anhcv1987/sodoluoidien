@@ -221,14 +221,59 @@ def dung(pdf, CAM=(), VUNG=(), MO=(), tu_chan=True, giao_cheo=True, BO=(), NOI=(
         if not ds: return None
         xs=[v for sg in ds for v in (sg[0],sg[2])]; ys=[v for sg in ds for v in (sg[1],sg[3])]
         return (min(xs)-0.6,min(ys)-0.6,max(xs)+0.6,max(ys)+0.6)
+    # nhãn thiết bị (để tìm ký hiệu nét mảnh của thiết bị ghi "(Thường cắt)")
+    _nhan_tb=[]
+    for b_ in p.get_text('dict')['blocks']:
+        for l in b_.get('lines',[]):
+            t=''.join(sp['text'] for sp in l['spans']).strip()
+            if _re.match(r'(DCL|LBS|MC|DPT|REC|CD|Recloser)\b',t,_re.I):
+                r=fitz.Rect(l['bbox'])*M; _nhan_tb.append((r.x0,r.y0,r.x1,r.y1))
+    def kc_hop(h,x,y):
+        return math.hypot(max(h[0]-x,0,x-h[2]),max(h[1]-y,0,y-h[3]))
+    net_dai=[sg for sg in seg if math.hypot(sg[2]-sg[0],sg[3]-sg[1])>=6]
+    def tren_day(cx,cy):
+        best=9
+        for sg in net_dai:
+            t,dd=chieu(cx,cy,*sg)
+            if 0<t<1: best=min(best,dd)
+        return best
+    def ky_hieu_manh(x,y):
+        # nhãn thiết bị gần chữ "(Thường cắt)" nhất -> nét mảnh ngắn cắt ngang dây gần nhãn đó
+        ds=sorted(_nhan_tb,key=lambda h:kc_hop(h,x,y))[:2]
+        ds=[h for h in ds if kc_hop(h,x,y)<22]
+        tot=None
+        for h in ds:
+            for sg in seg:
+                L=math.hypot(sg[2]-sg[0],sg[3]-sg[1])
+                if not 1.5<=L<=10: continue
+                cx,cy=(sg[0]+sg[2])/2,(sg[1]+sg[3])/2
+                k=kc_hop(h,cx,cy)
+                if k>=12: continue
+                if tren_day(cx,cy)>1.5: continue
+                # gạch dao / khung: không trùng hướng dây (cạnh khung song song dây cách dây ~2pt vẫn lấy)
+                sc=k+0.5*math.hypot(cx-x,cy-y)
+                if not tot or sc<tot[0]: tot=(sc,cx,cy)
+            if tot: break
+        if not tot: return None
+        _,cx,cy=tot
+        # cụm nét mảnh ngắn liền nhau quanh ký hiệu
+        cum=[sg for sg in seg if math.hypot(sg[2]-sg[0],sg[3]-sg[1])<=10 and
+             min(math.hypot(sg[0]-cx,sg[1]-cy),math.hypot(sg[2]-cx,sg[3]-cy),math.hypot((sg[0]+sg[2])/2-cx,(sg[1]+sg[3])/2-cy))<5]
+        xs=[v for sg in cum for v in (sg[0],sg[2])]+[cx]; ys=[v for sg in cum for v in (sg[1],sg[3])]+[cy]
+        return (min(xs)-0.6,min(ys)-0.6,max(xs)+0.6,max(ys)+0.6)
     if tu_chan:
         for (x,y) in nhan_mo:
-            if not day: break
-            k=min(day,key=lambda sg:math.hypot((sg[0]+sg[2])/2-x,(sg[1]+sg[3])/2-y))
-            dd=math.hypot((k[0]+k[2])/2-x,(k[1]+k[3])/2-y)
+            dd=99
+            if day:
+                k=min(day,key=lambda sg:math.hypot((sg[0]+sg[2])/2-x,(sg[1]+sg[3])/2-y))
+                dd=math.hypot((k[0]+k[2])/2-x,(k[1]+k[3])/2-y)
             if dd<18:
                 v=cum_quanh((k[0]+k[2])/2,(k[1]+k[3])/2)
                 if v: vung.append(v)
+            elif tu_chan=='manh':
+                v=ky_hieu_manh(x,y)
+                if v: vung.append(v); print('  thường cắt (ký hiệu nét mảnh):', tuple(round(q,1) for q in v))
+                else: print('  ! không thấy ký hiệu cho "(Thường cắt)" tại', (round(x),round(y)))
     for v in VUNG: vung.append(tuple(v))
     for (x,y) in CAM:
         v=cum_quanh(x,y); vung.append(v if v else (x-2.5,y-2.5,x+2.5,y+2.5))

@@ -262,4 +262,80 @@ export default [
       { tu: ['05.json', [87.11, 193.87]], den: ['04.json', [187.43, 492.46]], tu_dong: true },
     ],
   },
+  {
+    json: '12.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 473 E6.3': { tu: [-3971.84, -3145.26], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 473 E6.3': true },
+    noi_ban_ve: [
+      // MC 473E6.4/64 Ao Cang (thường cắt) vẽ ở bản vẽ 17
+      { tu: ['12.json', [144.11, 145.33]], den: ['17.json', [793.02, 294.46]], tu_dong: true },
+    ],
+  },
+  {
+    json: '14.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 479 E6.3': { tu: [-3762.15, -3145.26], ra: 'xuong' },
+      'ĐZ 478 E6.3': { tu: [-3687.34, -3145.26], ra: 'xuong' },
+      'ĐZ 471 E6.3': { tu: [-4001.15, -3145.26], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 479 E6.3': true, 'ĐZ 478 E6.3': true, 'ĐZ 471 E6.3': true },
+  },
+  {
+    json: '10.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 373 E6.3': { tu: [-3323.7, -2648.59], ra: 'len' },
+      'ĐZ 375 E6.3': { tu: [-3021.51, -2646.56], ra: 'len' },
+      'ĐZ 374 E6.3': { tu: [-3021.11, -2919.78], ra: 'xuong' },
+      'ĐZ 375 E6.17': { tu: [2052.37, -2801.32], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 373 E6.3': true, 'ĐZ 375 E6.3': true, 'ĐZ 374 E6.3': true },
+    chu: [
+      { p: [222, 296], t: '↓ LT 372 TCVB' },
+    ],
+    noi_ban_ve: [
+      // đoạn MC 375E6.3/43 - E6.5 vẽ ở bản vẽ 1 (đầu dây "Đi 375 E6.3")
+      { tu: ['10.json', [532.3, 219.03]], den: ['01.json', [502.22, 561.22]], tu_dong: true },
+    ],
+  },
+  {
+    json: '11.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 376 E6.3': { tu: [-3531.37, -2708.36], ra: 'len' },
+      'ĐZ 380 E6.3': { tu: [-3565.11, -2708.36], ra: 'len' },
+    },
+    cap_noi: { 'ĐZ 376 E6.3': true, 'ĐZ 380 E6.3': true },
+    chu: [
+      { p: [680, 168], t: '→ LT 377 E6.19' },
+      { p: [735, 368], t: '↓ LT 372 E6.7' },
+    ],
+    noi_ban_ve: [
+      // DCL 380E6.3-7/23 (thường cắt) LT 374 E6.3 - phía 374 vẽ ở bản vẽ 10
+      { tu: ['11.json', [144.2, 440.85]], den: ['10.json', [144.65, 239.02]], tu_dong: true },
+    ],
+  },
+  {
+    json: '13.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 456 E6.3': { tu: [-3248.78, -3070.71], ra: 'xuong' },
+      'ĐZ 475 E6.3': { tu: [-3940.08, -3145.26], ra: 'xuong' },
+      'ĐZ 472 E6.3': { tu: [-3550.08, -3145.26], ra: 'xuong' },
+      'ĐZ 475 E6.21': { tu: [-2201.08, -2342.85], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 456 E6.3': true, 'ĐZ 475 E6.3': true, 'ĐZ 472 E6.3': true, 'ĐZ 475 E6.21': true },
+    chu: [
+      { p: [805, 342], t: '↑ LT 471 E6.7' },
+    ],
+  },
 ];
