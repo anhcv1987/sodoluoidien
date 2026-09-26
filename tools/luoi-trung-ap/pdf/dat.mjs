@@ -405,9 +405,54 @@ export default [
       'ĐZ 471 E6.7': { tu: [-2655.03, -6230.96], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 471 E6.7': true },
-    chu: [
-      { p: [372, 575], t: '← MC 471E6.7/1A NR Tiên Phong (LT 476 E6.7)', canh: 'phai' },
-      { p: [460, 575], t: '→ LT 477 E6.13' },
+  },
+  {
+    json: '35.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 476 E6.7': { tu: [-2218.11, -6231.42], ra: 'xuong' },
+      'ĐZ 477 E6.13': { tu: [405, -5580.1], ra: 'phai' },
+      'ĐZ 450 E6.14': { tu: [1656.01, -5828.52], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 476 E6.7': true, 'ĐZ 477 E6.13': true, 'ĐZ 450 E6.14': true },
+    noi_ban_ve: [
+      // MC 471E6.7/1A NR Tiên Phong (thường cắt), DCL 471E6.7-7/14 (thường cắt), DCL 471E6.7-7/02
+      // LT 477 E6.13 (thường cắt): thiết bị vẽ ở bản vẽ 34 (lộ 471 E6.7)
+      { tu: ['35.json', [362.27, 376.72]], den: ['34.json', [382.1, 560.1]], tu_dong: true },
+      { tu: ['35.json', [135.56, 240.76]], den: ['34.json', [167.23, 523.75]], tu_dong: true },
+      { tu: ['35.json', [461.36, 376.72]], den: ['34.json', [462.48, 561.34]], tu_dong: true },
+    ],
+  },
+  {
+    json: '36.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 473 E6.7': { tu: [-2476.47, -6230.96], ra: 'xuong' },
+      'ĐZ 475 E6.7': { tu: [-2503.84, -6230.96], ra: 'xuong' },
+      'ĐZ 475 E6.24': { tu: [-3777.96, -6856.34], ra: 'xuong' },
+      'ĐZ 477 E6.24': { tu: [-3812.11, -6856.34], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 473 E6.7': true, 'ĐZ 475 E6.7': true, 'ĐZ 475 E6.24': true, 'ĐZ 477 E6.24': true },
+    noi_ban_ve: [
+      // MC 476E6.7/11 LT 473 E6.7 vẽ ở bản vẽ 35
+      { tu: ['36.json', [392.36, 305.65]], den: ['35.json', [797.48, 69.46]], tu_dong: true },
+    ],
+  },
+  {
+    json: '37.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 472 E6.7': { tu: [-2276.33, -6231.42], ra: 'xuong' },
+      'ĐZ 474 E6.7': { tu: [-2248.96, -6231.42], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 472 E6.7': true, 'ĐZ 474 E6.7': true },
+    chu: [{ p: [790, 400], t: 'C.TY THÉP ĐẠI VIỆT' }],
+    noi_ban_ve: [
+      // DCL 473E6.7-7/25 NR Chã (thường cắt) vẽ ở bản vẽ 36
+      { tu: ['37.json', [760.52, 202.72]], den: ['36.json', [256.13, 166.79]], tu_dong: true },
     ],
   },
 ];
