@@ -29,6 +29,7 @@ execFileSync('npx', ['esbuild', 'src/symbols/blocks.ts', '--bundle', '--format=e
 });
 const { getBlock } = await import(pathToFileURL(bundle).href);
 const { timCho, luoiChiem, timDuong, quyHoachCho } = await import(pathToFileURL(resolve('tools/pdf-lo/tim-duong.mjs')).href);
+const { doiDiem } = await import(pathToFileURL(resolve('tools/vi-tri-tram.mjs')).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const data = JSON.parse(readFileSync(duongDan, 'utf8'));
@@ -536,8 +537,12 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
     kv = l.kv ?? 22;
     lop = data.layers.indexOf(`${kv}kV`);
     if (l.tu_dong) {
-      // tìm đường tự động (ra: hướng đi ra ở đầu 'tu', vao: hướng đi vào đầu 'den')
-      const diem = [a, ...(l.qua ?? []), b];
+      // tìm đường tự động (ra: hướng đi ra ở đầu 'tu', vao: hướng đi vào đầu 'den'). Có 'vao' thì tìm
+      // đường tới điểm lùi ra 16 đơn vị rồi đi thẳng vào: đầu dây sát nét khác của bản vẽ (vd chân
+      // ngăn tủ sát trục) thì vùng tự do quanh đích không cho cáp men theo nét đó
+      const LUI = { len: [0, -16], xuong: [0, 16], phai: [-16, 0], trai: [16, 0] }[l.vao];
+      const b1 = LUI ? [b[0] + LUI[0], b[1] + LUI[1]] : b;
+      const diem = [a, ...(l.qua ?? []), b1];
       let duong = [a];
       for (let m = 0; m + 1 < diem.length && duong; m++) {
         const p = diem[m], q = diem[m + 1], le = l.le ?? 500;
@@ -546,6 +551,7 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
         if (!r) { console.log(`  ! nối giữa bản vẽ: không tìm được đường ${JSON.stringify(p)} -> ${JSON.stringify(q)}`); duong = null; break; }
         duong.push(...r.slice(1));
       }
+      if (duong && LUI) duong.push(b);
       if (duong) net(duong, !!l.cap);
       continue;
     }
@@ -571,6 +577,9 @@ function hopBanVe(J) {
 }
 /** Nguồn nét không tính là chỗ bận khi tìm chỗ đặt bản vẽ: đường dây 110kV liên trạm. */
 const BO_QUA_CHO = new Set(['Kết lưới 110kV'].map((t) => data.srcLayers.indexOf(t)).filter((i) => i >= 0));
+// lề quanh mỗi bản vẽ khi quy hoạch chỗ đặt: hai bản vẽ cách nhau ít nhất 2 lề, cách hình trạm 1 lề -
+// chừa hành lang cho cáp, sơ đồ không dày đặc (chỉnh bằng biến môi trường LE_BAN_VE)
+const LE_BAN_VE = Number(process.env.LE_BAN_VE ?? 150);
 /** Tâm lý tưởng (toạ độ tờ tổng) của các bản vẽ đặt tự động. */
 const TAM_TU_DONG = new Map();
 
@@ -625,7 +634,7 @@ function tinhTamTuDong(ds) {
     }
     bai.push({ id: d.json, w: (t.h[2] - t.h[0]) * t.k, h: (t.h[3] - t.h[1]) * t.k, noi });
   }
-  const tam = quyHoachCho(s, data, bai, { le: 40, boQua: BO_QUA_CHO });
+  const tam = quyHoachCho(s, data, bai, { le: LE_BAN_VE, boQua: BO_QUA_CHO });
   for (const [json, c] of tam) TAM_TU_DONG.set(json, c);
   // đặt đúng chỗ đã quy hoạch (tâm -> góc trái trên của hộp bản vẽ)
   for (const d of ds) {
@@ -634,7 +643,7 @@ function tinhTamTuDong(ds) {
     const t = tt.get(d.json);
     d.goc_pdf = [+t.h[0].toFixed(1), +t.h[1].toFixed(1)];
     d.goc = [+(c[0] - ((t.h[2] - t.h[0]) * t.k) / 2).toFixed(1), +(c[1] + ((t.h[3] - t.h[1]) * t.k) / 2).toFixed(1)];
-    console.log(`  đặt ${d.json}: tâm [${c.map(Math.round)}]`);
+    console.log(`  đặt ${d.json}: tâm [${c.map(Math.round)}] (${((t.h[2] - t.h[0]) * t.k).toFixed(0)} x ${((t.h[3] - t.h[1]) * t.k).toFixed(0)})`);
   }
 }
 
@@ -1050,6 +1059,18 @@ const hopCuaRa = (noi) => {
 const datPdf = resolve('tools/luoi-trung-ap/pdf/dat.mjs');
 if (existsSync(datPdf)) {
   const ds = (await import(pathToFileURL(datPdf).href)).default;
+  // toạ độ tờ tổng khai trong dat.mjs theo bản CAD gốc: đổi theo trạm đã dời (tools/vi-tri-tram.mjs)
+  const D = (p) => doiDiem(p[0], p[1]);
+  for (const d of ds) {
+    for (const [ten, n] of Object.entries(d.noi ?? {})) {
+      if (Array.isArray(n)) d.noi[ten] = n.map(D);
+      else d.noi[ten] = { ...n, tu: D(n.tu), qua: n.qua?.map(D) };
+    }
+    for (const l of d.noi_ban_ve ?? []) {
+      for (const k of ['tu', 'den']) if (typeof l[k][0] !== 'string') l[k] = D(l[k]);
+      if (l.qua) l.qua = l.qua.map(D);
+    }
+  }
   tinhTamTuDong(ds);
   // dây liên thông khai tay (có 'qua') vẽ ngay sau bản vẽ của nó để các cáp tìm đường tự động
   // vẽ sau tránh được; dây tìm đường tự động vẽ cuối cùng

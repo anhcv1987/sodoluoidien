@@ -10,6 +10,7 @@
  */
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { DOI_TRAM, doiDiem } from './vi-tri-tram.mjs';
 
 // Các bản vẽ lưới trung áp tự đặt chỗ (tools/ve-luoi-trung-ap.mjs) -> điểm kiểm thử lấy theo toạ độ
 // PDF của từng bản vẽ, đổi sang tờ tổng bằng vị trí thực ghi trong vi-tri.json
@@ -69,9 +70,19 @@ const check = (name, cond, detail = '') => {
 
 await page.goto(url);
 await page.waitForTimeout(2500);
-// __P: điểm kiểm thử lưới trung áp; __cd(x, y): điểm (bắt vào nét đường dây gần nhất trong 1 đơn vị) có điện
-await page.evaluate((P) => {
+// __P: điểm kiểm thử lưới trung áp; __cd(x, y): điểm (bắt vào nét đường dây gần nhất trong 1 đơn vị) có điện;
+// __D(x, y): điểm theo toạ độ bản CAD gốc -> vị trí sau khi dời trạm (tools/vi-tri-tram.mjs)
+await page.evaluate(([P, DOI]) => {
   window.__P = P;
+  window.__D = (x, y) => {
+    const k = Object.keys(DOI).find((m) => {
+      const [x0, y0, x1, y1] = DOI[m].chon;
+      return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+    });
+    if (!k) return [x, y];
+    const r = (v) => Math.round(v * 1000) / 1000;
+    return [r(x + DOI[k].doi[0]), r(y + DOI[k].doi[1])];
+  };
   const gan = (x, y, ax, ay, bx, by) => {
     const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
     const t = L ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)) : 0;
@@ -97,7 +108,7 @@ await page.evaluate((P) => {
       return false;
     });
   };
-}, P);
+}, [P, DOI_TRAM]);
 
 /* ---------------- Trang mac dinh: so do ket day tong ---------------- */
 
@@ -340,9 +351,11 @@ check(
 const mba = await page.evaluate(() => {
   const a = window.sodo;
   const ds = a.store.entities.filter((e) => e.kind === 'device' && /^MBA[23]$/.test(e.block) && e.kvCuon?.length);
-  const e67 = ds.find((e) => Math.hypot(e.p.x + 2295.66, e.p.y + 5977.96) < 1);
+  const [x67, y67] = __D(-2295.66, -5977.96);
+  const e67 = ds.find((e) => Math.hypot(e.p.x - x67, e.p.y - y67) < 1);
   // cuộn tam giác 6,3kV của T2 E6.4 (vẽ bằng vòng tròn) tô màu 6kV
-  const t2e64 = a.store.entities.find((e) => e.kind === 'circle' && Math.hypot(e.c.x + 1967.85, e.c.y + 139.02) < 1);
+  const [xT2, yT2] = __D(-1967.85, -139.02);
+  const t2e64 = a.store.entities.find((e) => e.kind === 'circle' && Math.hypot(e.c.x - xT2, e.c.y - yT2) < 1);
   return { so: ds.length, e67: e67?.kvCuon?.join('/'), t2e64: t2e64?.kv };
 });
 check(
@@ -376,7 +389,7 @@ const pt = await page.evaluate(() => {
 });
 check(
   'Kết dây cơ bản: MC 171 Thịnh Đán, 112 Xi măng TN, 171 Định Hóa cắt',
-  pt.mcCat.join(' ') === ['-1628,5059', '-2223,87', '1672,3018'].sort().join(' '),
+  pt.mcCat.join(' ') === [[-1628.16, 5059.23], [-2222.59, 87.41], [1671.98, 3017.72]].map(([x, y]) => doiDiem(x, y).map((v) => v.toFixed(0)).join(',')).sort().join(' '),
   pt.mcCat.join(' '),
 );
 check('Đổi tên trạm 110kV Đán thành Thịnh Đán', pt.tieuDe && !pt.conDan);
@@ -392,7 +405,7 @@ const cs = await page.evaluate(() => {
   return {
     hien: !!lop && lop.style.display !== 'none' && lop.width > 0,
     chuoi: d.chuoi.length,
-    dung: [gan(-2222.59, 87.41), gan(1671.98, 3017.72), gan(-1628.16, 5059.23)],
+    dung: [gan(...__D(-2222.59, 87.41)), gan(1671.98, 3017.72), gan(-1628.16, 5059.23)],
     kv: [...new Set(d.chuoi.map((c) => c.kv))].sort((x, y) => x - y).join(','),
     // khung tủ RMU 01-383 E6.9 (cạnh trái x=465.8) không có công suất; lộ ra MBA T1
     // 4000kVA của C.TY Cơ khí Gang Thép (qua ngăn tủ RMU 01-381) thì có
@@ -440,7 +453,7 @@ const tachHaiDau = await page.evaluate(() => {
   const tuyen = a.store.entities
     .filter((e) => e.kind === 'branch' && e.srcLayer === 'Kết lưới 110kV')
     .map((e) => e.nodes.map(pt).filter(Boolean))
-    .find((p) => [[-2315, 177], [-2599, -1270]].every(([x, y]) => [p[0], p.at(-1)].some((q) => Math.hypot(q.x - x, q.y - y) < 2)));
+    .find((p) => [__D(-2315, 177), [-2599, -1270]].every(([x, y]) => [p[0], p.at(-1)].some((q) => Math.hypot(q.x - x, q.y - y) < 2)));
   let dai = 0, diem = null;
   for (let i = 1; i < tuyen.length; i++) {
     const L = Math.hypot(tuyen[i].x - tuyen[i - 1].x, tuyen[i].y - tuyen[i - 1].y);
@@ -513,9 +526,10 @@ const pdf17 = await page.evaluate(() => {
     chu.some((c) => c.startsWith(t)),
   );
   // trục 473 gần MC 64 Ao Cang; cáp đầu lộ 473, 471, 481
-  const diem = [__P.p17, [-2106, -392], [-2181.4, -392], [-2558.8, -392]];
+  const diem = [__P.p17, __D(-2106, -392), __D(-2181.4, -392), __D(-2558.8, -392)];
   const truoc = diem.map(([x, y]) => __cd(x, y));
-  const mc473 = tb.find((e) => e.block === 'MCHB' && Math.hypot(e.p.x + 2105.97, e.p.y + 316.26) < 0.5);
+  const [x473, y473] = __D(-2105.97, -316.26);
+  const mc473 = tb.find((e) => e.block === 'MCHB' && Math.hypot(e.p.x - x473, e.p.y - y473) < 0.5);
   a.ed.doiTrangThai([mc473.id], 'mo');
   const cat473 = diem.map(([x, y]) => __cd(x, y));
   a.store.undo();
@@ -545,7 +559,7 @@ const rec = await page.evaluate(() => {
     });
   const gan = (block, x, y) =>
     a.store.entities.filter((e) => e.kind === 'device' && e.block === block).sort((p, q) => Math.hypot(p.p.x - x, p.p.y - y) - Math.hypot(q.p.x - x, q.p.y - y))[0];
-  const mc472 = gan('MCHB', -1913.8, -316.26);
+  const mc472 = gan('MCHB', ...__D(-1913.8, -316.26));
   const mc61 = gan('REC', ...__P.mc61);
   const mc25 = gan('REC', ...__P.mc25);
   const [dongBam, truc472] = [__P.dongBam, __P.d472];
@@ -582,7 +596,10 @@ const rmu477 = await page.evaluate(() => {
       }
       return false;
     });
-  const mchb = (x) => a.store.entities.find((e) => e.kind === 'device' && e.block === 'MCHB' && Math.hypot(e.p.x - x, e.p.y + 316.26) < 0.5);
+  const mchb = (x0) => {
+    const [x, y] = __D(x0, -316.26);
+    return a.store.entities.find((e) => e.kind === 'device' && e.block === 'MCHB' && Math.hypot(e.p.x - x, e.p.y - y) < 0.5);
+  };
   const diem = () => [__cd(...__P.d477), __cd(...__P.d472)];
   const kq = { truoc: diem() };
   a.ed.doiTrangThai([mchb(-2141.41).id], 'mo');
@@ -627,7 +644,8 @@ const cumE64 = await page.evaluate(() => {
   const trangThai = () => ten.map((t) => __cd(...lo[t][1]));
   const kq = { truoc: trangThai().every(Boolean), loi: [] };
   for (const t of ten) {
-    const mc = a.store.entities.find((e) => e.kind === 'device' && e.block === 'MCHB' && Math.hypot(e.p.x - lo[t][0], e.p.y + 316.26) < 0.5);
+    const [x, y] = __D(lo[t][0], -316.26);
+    const mc = a.store.entities.find((e) => e.kind === 'device' && e.block === 'MCHB' && Math.hypot(e.p.x - x, e.p.y - y) < 0.5);
     a.ed.doiTrangThai([mc.id], 'mo');
     const tt = trangThai();
     a.store.undo();
@@ -655,7 +673,7 @@ const lt475E62 = await page.evaluate(() => {
   const gan = (block, x, y) =>
     a.store.entities.filter((e) => e.kind === 'device' && e.block === block).sort((p, q) => Math.hypot(p.p.x - x, p.p.y - y) - Math.hypot(q.p.x - x, q.p.y - y))[0];
   const dau = __P.dau475;
-  const mc = gan('MCHB', -1476.25, 554.31);
+  const mc = gan('MCHB', ...__D(-1476.25, 554.31));
   const kq = { truoc: __cd(...dau) };
   a.ed.doiTrangThai([mc.id], 'mo');
   kq.cat = !__cd(...dau);
@@ -668,7 +686,7 @@ const lt475E62 = await page.evaluate(() => {
   a.store.undo();
   // đoạn 61A-79 do 471 E6.5 cấp (bản vẽ 24): cắt MC đầu lộ 471 E6.5 thì mất điện, đóng MC 478E6.4/61 có điện lại
   const mc61 = gan('REC', ...__P.mc61A);
-  const mc471 = gan('MCHB', -836.3, -1252.69);
+  const mc471 = gan('MCHB', ...__D(-836.3, -1252.69));
   kq.doan61A = [__cd(...__P.d61A)];
   a.ed.doiTrangThai([mc471.id], 'mo');
   kq.doan61A.push(__cd(...__P.d61A));
@@ -711,7 +729,7 @@ const cumE65 = await page.evaluate(() => {
   const trangThai = () => ten.map((t) => lo[t][1].map((p) => __cd(...p)));
   const kq = { truoc: trangThai().flat().every(Boolean), loi: [] };
   for (const t of ten) {
-    const [x, y] = lo[t][0];
+    const [x, y] = __D(...lo[t][0]);
     const mc = a.store.entities.find((e) => e.kind === 'device' && e.block === 'MCHB' && Math.hypot(e.p.x - x, e.p.y - y) < 0.5);
     if (!mc) { kq.loi.push(t + ': không thấy MC'); continue; }
     a.ed.doiTrangThai([mc.id], 'mo');
@@ -765,7 +783,7 @@ const cumE62 = await page.evaluate(() => {
   const tt = () => ten.map((t) => __cd(...lo[t][1]));
   const kq = { truoc: tt().every(Boolean), loi: [] };
   for (const t of ten) {
-    const [x, y] = lo[t][0];
+    const [x, y] = __D(...lo[t][0]);
     const mc = a.store.entities.find((e) => e.kind === 'device' && e.block === 'MCHB' && Math.hypot(e.p.x - x, e.p.y - y) < 0.5);
     if (!mc) { kq.loi.push(t + ': không thấy MC'); continue; }
     a.ed.doiTrangThai([mc.id], 'mo');
@@ -789,9 +807,9 @@ const e64 = await page.evaluate(() => {
       }
       return false;
     });
-  const c41 = () => coDien(-2400, -289.17);
-  const c42 = () => coDien(-1700, -289.17);
-  const [mc431, mc412, mc432] = [tim(-2374.3, -316.26), tim(-2294.16, -316.26), tim(-1819.55, -316.26)];
+  const c41 = () => coDien(...__D(-2400, -289.17));
+  const c42 = () => coDien(...__D(-1700, -289.17));
+  const [mc431, mc412, mc432] = [tim(...__D(-2374.3, -316.26)), tim(...__D(-2294.16, -316.26)), tim(...__D(-1819.55, -316.26))];
   const kq = {};
   a.ed.doiTrangThai([mc432.id, mc412.id], 'mo');
   kq.cat432_412 = { c41: c41(), c42: c42() };
@@ -837,9 +855,11 @@ check('Vẽ được tuyến mới', after === before + 1, `${after} tuyến`);
 await page.keyboard.press('l');
 const cucMC = await page.evaluate(() => {
   const a = window.sodo;
-  a.ed.vp.fit({ minX: -2262, minY: -60, maxX: -2182, maxY: 0 }, 0.02);
+  const [x0, y0] = __D(-2262, -60);
+  a.ed.vp.fit({ minX: x0, minY: y0, maxX: x0 + 80, maxY: y0 + 60 }, 0.02);
   a.ed.requestDraw();
-  const s = a.ed.vp.toScreen({ x: -2222.59, y: -30.29 + 0.5 * 9.33 });
+  const [xc, yc] = __D(-2222.59, -30.29 + 0.5 * 9.33);
+  const s = a.ed.vp.toScreen({ x: xc, y: yc });
   const r = document.querySelector('canvas.canvas').getBoundingClientRect();
   return { x: r.left + s.x + 9, y: r.top + s.y + 4 };
 });
@@ -868,18 +888,19 @@ check('Hoàn tác (Ctrl+Z)', d2 === d1 - 1);
 // Dao cách ly đang CẮT: đường dây phải hở ở khe dao (cả trên màn hình lẫn file DXF)
 const khe = await page.evaluate(() => {
   const a = window.sodo;
-  const d = a.store.entities.find((e) => e.kind === 'device' && e.block === 'DCL' && Math.abs(e.p.x + 892.38) < 0.1 && Math.abs(e.p.y + 704.46) < 0.1);
+  const [X, Y] = __D(-892.38, -704.46);
+  const d = a.store.entities.find((e) => e.kind === 'device' && e.block === 'DCL' && Math.abs(e.p.x - X) < 0.1 && Math.abs(e.p.y - Y) < 0.1);
   a.ed.doiTrangThai([d.id], 'mo');
   const t = a.exportDxfText();
   a.store.undo();
-  // các LINE thẳng đứng trên trục x = -892.38 có vắt qua tâm dao không
+  // các LINE thẳng đứng trên trục x = X có vắt qua tâm dao không
   const g = t.split(/\r?\n/);
   let vat = 0;
   for (let i = 0; i + 1 < g.length; i++) {
     if (g[i].trim() !== '0' || g[i + 1].trim() !== 'LINE') continue;
     const v = {};
     for (let k = i + 2; k + 1 < g.length && g[k].trim() !== '0'; k += 2) v[g[k].trim()] = Number(g[k + 1]);
-    if (Math.abs(v['10'] + 892.38) < 0.05 && Math.abs(v['11'] + 892.38) < 0.05 && Math.min(v['20'], v['21']) < -704.46 && Math.max(v['20'], v['21']) > -704.46) vat++;
+    if (Math.abs(v['10'] - X) < 0.05 && Math.abs(v['11'] - X) < 0.05 && Math.min(v['20'], v['21']) < Y && Math.max(v['20'], v['21']) > Y) vat++;
   }
   return { vat, sau: a.store.get(d.id).state };
 });

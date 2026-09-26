@@ -399,8 +399,8 @@ const TRAM_NGOAI = [
   ['E16.2', '220kV CAO BẰNG (E16.2)', 2450, 7980, ['171']],
   // Tuyên Quang: phía tây trạm Đại Từ, ngăn 171 nối 171E6.19
   ['E14.1', '220kV TUYÊN QUANG (E14.1)', -4000, 4500, ['171']],
-  // Nhà máy nhiệt điện An Khánh: nằm giữa E6.2, E6.5 và E6.9, ngăn lộ chĩa lên
-  ['A6.15', 'NM NĐ AN KHÁNH (A6.15)', -150, -220, ['171', '172'], 1, 250],
+  // Nhà máy nhiệt điện An Khánh: phía tây, giữa E6.2 và E6.20 (phần giữa tờ để cho lưới trung áp), ngăn lộ chĩa lên
+  ['A6.15', 'NM NĐ AN KHÁNH (A6.15)', -4300, 700, ['171', '172'], 1, 250],
 ];
 
 /**

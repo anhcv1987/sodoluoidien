@@ -800,6 +800,8 @@ node tools/chuan-hoa-dcl-lien-dong.mjs src/data/tram-sld.json
 node tools/ra-soat-cap-dien-ap.mjs src/data/tram-sld.json
 node tools/ra-soat-mba.mjs src/data/tram-sld.json
 node tools/bo-net-dau-tram.mjs src/data/tram-sld.json
+node tools/doi-cho-tram.mjs src/data/tram-sld.json
+node tools/ve-luoi-trung-ap.mjs src/data/tram-sld.json
 node tools/noi-duong-day-110.mjs src/data/tram-sld.json
 node tools/phuong-thuc-van-hanh.mjs src/data/tram-sld.json
 node tools/ve-luoi-trung-ap.mjs src/data/tram-sld.json
@@ -1006,11 +1008,45 @@ trạm / hai bản vẽ liên kết với nhau theo đường ngắn nhất:
   vào sai số bắt điểm của mô hình công suất thành đấu nối); để trống lối ra dài 24 trước đầu
   các ngăn lộ khác.
 
-Tổng chiều dài nét lưới trung áp trên tờ tổng: 119.592 → 81.311 (giảm 32%). Thứ tự chạy khi
-cần làm lại: `node tools/ve-luoi-trung-ap.mjs` → `node tools/noi-duong-day-110.mjs
+Tổng chiều dài nét lưới trung áp trên tờ tổng: 119.592 → 81.311 (giảm 32%); sau khi dời trạm và
+chừa lề hành lang (mục 7.3) là 99.030 - thưa hơn, dễ xem hơn. Thứ tự chạy khi
+cần làm lại (có dời trạm thì chạy `node tools/doi-cho-tram.mjs` trước): `node tools/ve-luoi-trung-ap.mjs` → `node tools/noi-duong-day-110.mjs
 src/data/tram-sld.json` (đường dây 110kV đi vòng quanh lưới trung áp) → `node
 tools/ve-luoi-trung-ap.mjs` (vị trí bản vẽ không phụ thuộc đường dây 110kV nên không đổi) →
 `npx vite build`.
+
+### 7.3. Dời các trạm nhiều liên thông trung áp ra chỗ rộng
+
+Bản CAD gốc vẽ E6.2, E6.4, E6.5 sát nhau ở giữa tờ (E6.21 nằm ngay dưới E6.4), nên các bản vẽ lộ
+trung áp đặt quanh chúng chen chúc, cáp chạy dày đặc. Sáu trạm có nhiều đường dây trung áp liên thông
+được dời ra chỗ trống (khai ở `tools/vi-tri-tram.mjs`, áp bằng `node tools/doi-cho-tram.mjs`):
+
+| Trạm | Dời (dx, dy) | Vị trí mới |
+|---|---|---|
+| E6.2 220kV Thái Nguyên | (+1200, +1100) | phía trên, giữa tờ - lộ 22kV đi xuống vùng giữa E6.2 và E6.4 |
+| E6.4 Thịnh Đán | (+720, +350) | giữa tờ, chỗ E6.5 cũ bỏ trống - bản vẽ 17, 20-23 đặt quanh trạm |
+| E6.5 Lưu Xá | (+1980, -970) | dưới E6.9 Gang Thép - bản vẽ 24-27 phía dưới, phải |
+| E6.3 Gò Đầm | (-830, +515) | sát mép trái - chừa chỗ giữa E6.3 và E6.21, E6.20 cho cụm sau |
+| E6.7 Sông Công | (0, +1300) | lên trên, giữa E6.16 và E6.13 - chừa phía dưới cho cụm E6.7 / E6.24 |
+| E6.17 Phú Bình | (+1920, -2110) | góc dưới bên phải, cạnh E6.25 - chừa chỗ cho cụm E6.13/14/17/18/23 |
+
+NM NĐ An Khánh (A6.15, `tools/noi-duong-day-110.mjs`) chuyển sang phía tây, giữa E6.2 và E6.20.
+
+* Ô trạm trong bản CAD vẽ rộng, chồng sang trạm bên cạnh (thanh cái C41 của E6.4 bắt đầu trong ô
+  E6.20, cáp tổng E6.21 nằm trong ô E6.3...), nên mỗi trạm khai **hộp chọn** riêng theo phần có hình
+  vẽ; nét / thiết bị / chữ / vòng tròn có tâm trong hộp thì đi theo trạm, ô trạm trong danh mục lấy
+  đúng hộp đó. Không đụng tới đường dây 110kV, trạm ngoài tỉnh, lưới trung áp (vẽ lại sau).
+* Độ dời đã áp lưu trong dữ liệu (tờ TONG, `doiTram`): chạy lại chỉ dời phần chênh, sửa số trong
+  `vi-tri-tram.mjs` rồi chạy lại là trạm về chỗ mới. `XEM=1 node tools/doi-cho-tram.mjs` in số nét,
+  thiết bị, chữ được chọn và nét vượt ra ngoài hộp để soát.
+* Toạ độ đầu ngăn lộ trong `dat.mjs`, điểm kiểm tra trong smoke test / rà soát vẫn ghi theo bản CAD
+  gốc, đổi sang vị trí mới bằng `doiDiem()` - không phải sửa tay khi dời trạm.
+* Khi quy hoạch chỗ đặt, mỗi bản vẽ chừa lề `LE_BAN_VE` = 150 (hai bản vẽ cách nhau ít nhất 300,
+  cách hình trạm 150) làm hành lang đi cáp. Dây liên thông khai `vao` thì tìm đường tới điểm lùi ra 16
+  đơn vị rồi đi thẳng vào đầu dây (chân ngăn 480-7/02-2 tủ RMU 02-480 sát trục 480: cáp đi từ dưới lên).
+
+Thứ tự chạy lại: `node tools/doi-cho-tram.mjs` → `node tools/ve-luoi-trung-ap.mjs` → `node
+tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trung-ap.mjs` → `npx vite build`.
 
 ## 8. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)
 

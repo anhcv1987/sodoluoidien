@@ -14,6 +14,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { doiDiem } from './vi-tri-tram.mjs';
 
 const args = process.argv.slice(2);
 const chiTram = args.find((a) => a.startsWith('--tram='))?.slice(7);
@@ -128,12 +129,19 @@ const truy = (kq, x, y) => {
 };
 
 // Đã rà, KHÔNG phải lỗi (thanh cái nhận điện thẳng từ MBA, không có thiết bị đóng cắt
-// cấp đó ở giữa): khoá "trạm|cấp|x đầu|y đầu" thanh cái -> lý do
-const DA_BIET = new Map([
-  ['E6.5|35|-431.9|-685.6', 'đoạn thanh cái ngắn phía MBA của MC 332 (sau TI, chỗ đấu cáp tổng)'],
-  ['E6.6|35|404.1|4153.3', 'đoạn thanh cái ngắn phía MBA của MC 332 (sau TI, chỗ đấu cáp tổng)'],
-  ['E6.9|6|1164.6|-642.0', 'thanh cái 6kV TG NatSteel Vina nhận điện thẳng từ MBA T1 35/6kV khách hàng'],
-]);
+// cấp đó ở giữa): trạm, cấp, điểm đầu thanh cái -> lý do
+// (toạ độ theo bản CAD gốc, đổi theo trạm đã dời - tools/vi-tri-tram.mjs)
+const DA_BIET = new Map(
+  [
+    ['E6.5', 35, -431.9, -685.6, 'đoạn thanh cái ngắn phía MBA của MC 332 (sau TI, chỗ đấu cáp tổng)'],
+    ['E6.6', 35, 404.1, 4153.3, 'đoạn thanh cái ngắn phía MBA của MC 332 (sau TI, chỗ đấu cáp tổng)'],
+    ['E6.9', 6, 1164.6, -642.0, 'thanh cái 6kV TG NatSteel Vina nhận điện thẳng từ MBA T1 35/6kV khách hàng'],
+  ].map(([t, kv, x, y, lyDo]) => [`${t}|${kv}`, [...doiDiem(x, y), lyDo]]),
+);
+const daBietLyDo = (tram, kv, x, y) => {
+  const m = DA_BIET.get(`${tram}|${kv}`);
+  return m && Math.hypot(m[0] - x, m[1] - y) < 0.2 ? m[2] : undefined;
+};
 const SRC_NGOAI = data.srcLayers.indexOf('Trạm ngoài tỉnh');
 
 const tramDs = s.st.filter((r) => r.length >= 8 && (!chiTram || r[0] === chiTram));
@@ -159,7 +167,7 @@ for (const st of tramDs) {
     soLuot++;
     for (const r of tcTram.filter((r) => r[1] === kv)) {
       if (!coDien(kq, r)) continue;
-      const lyDo = DA_BIET.get(`${st[0]}|${kv}|${r[4].toFixed(1)}|${r[5].toFixed(1)}`);
+      const lyDo = daBietLyDo(st[0], kv, r[4], r[5]);
       if (lyDo) {
         daBiet++;
         console.log(`  (đã biết) ${st[0]} ${kv}kV (${r[4].toFixed(1)}, ${r[5].toFixed(1)}): ${lyDo}`);
