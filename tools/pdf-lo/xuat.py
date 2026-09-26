@@ -60,7 +60,9 @@ if moi:
     G = dothi.dung(PDF, CAM=cfg.get('cam', []), VUNG=list(cfg.get('vung', [])) + TC + NGAT, MO=cfg.get('mo', []),
                    tu_chan=cfg.get('tu_chan', True), BO=cfg.get('bo_noi', []), NOI=cfg.get('noi_them', []))
 VUNG_MO = [v for v in G['vung'] if not any(abs(v[0]-t[0])<0.01 and abs(v[1]-t[1])<0.01 for t in TC)]
-la_ngat = lambda v: any(abs(v[0]-t[0])<0.01 and abs(v[1]-t[1])<0.01 for t in NGAT)
+# vùng tự dò (chữ "(Thường cắt)") có tâm nằm trong ô ngắt khai báo cũng coi là ngắt (thiết bị vẽ ở bản vẽ khác)
+la_ngat = lambda v: any((abs(v[0]-t[0])<0.01 and abs(v[1]-t[1])<0.01) or
+                        (t[0] <= (v[0]+v[2])/2 <= t[2] and t[1] <= (v[1]+v[3])/2 <= t[3]) for t in NGAT)
 xy, p, M, chieu, ke = G['xy'], G['p'], G['M'], G['chieu'], G['ke']
 bo_chu = [re.compile(r) for r in cfg.get('bo_chu', [])]
 
@@ -69,7 +71,8 @@ tex = []
 rot = p.rotation
 for b in p.get_text('dict')['blocks']:
     for l in b.get('lines', []):
-        t = ''.join(s['text'] for s in l['spans']).strip()
+        # chữ "R" trong ký hiệu recloser đôi khi dính cùng dòng với tên thiết bị bên cạnh
+        t = ''.join(s['text'] for s in l['spans'] if s['text'].strip() != 'R').strip()
         if not t or any(r.search(t) for r in bo_chu): continue
         r = fitz.Rect(l['bbox']) * M
         h = max(s['size'] for s in l['spans'])

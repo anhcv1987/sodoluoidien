@@ -20,7 +20,6 @@ export default [
     cap_noi: { 'ĐZ 473 E6.4': true, 'ĐZ 471 E6.4': true, 'ĐZ 481 E6.4': true },
     // đầu dây liên thông sang lộ chưa vẽ (toạ độ PDF)
     chu: [
-      { p: [705.5, 376.3], t: '→ LT 477 E6.5' },
       { p: [795, 295.9], t: '→ LT 473 E6.3' },
       { p: [637.6, 423.3], t: '→ LT 471 E6.19' },
       { p: [745, 131], t: '→ TĐ Hồ Núi Cốc (A6.10)' },
@@ -120,8 +119,70 @@ export default [
       'ĐZ 480 E6.4': [[-1744.48, -389.2], [-1744.48, -448], [-300, -448], [-300, -1396], [-1430, -1396], [-1430, -3018.69]],
     },
     cap_noi: { 'ĐZ 478 E6.4': true, 'ĐZ 480 E6.4': true },
-    // đoạn cột 61A - 79 (sau MC 478E6.4/61 thường cắt) vẽ như lộ "ĐZ 475 E6.5": đầu lộ là đầu dây
-    // "ĐZ 475 E6.5" (LBS 478E6.4/82) - sẽ nối khi vẽ cụm E6.5
-    chu: [{ p: [770, 409.9], t: '→ ĐZ 475 E6.5 (sẽ nối khi vẽ cụm E6.5)' }],
+    // đoạn cột 61A - 79 (sau MC 478E6.4/61 thường cắt) do 471 E6.5 cấp (bản vẽ 24: nhánh Phú Xá -
+    // MC 475E6.5/01 - cột 27 - DCL 475E6.5-7/42 - LBS 478E6.4/82): vẽ như lộ, đầu lộ ở đầu dây ĐZ 475 E6.5
+  },
+  // ---------------- cụm E6.5: đặt và đi cáp tự động (tools/pdf-lo/tim-duong.mjs) ----------------
+  {
+    json: '24.json',
+    goc_pdf: [98.9, 116.3],
+    goc: [304, -1415],
+    ti_le: 1.2,
+    noi: { 'ĐZ 471 E6.5': { tu: [-836.25, -1307.72], ra: 'xuong', vao: 'phai' } },
+    cap_noi: { 'ĐZ 471 E6.5': true },
+    noi_ban_ve: [
+      // cột 27 -> DCL 475E6.5-7/42 - LBS 478E6.4/82: đoạn cột 61A - 79 vẽ ở bản vẽ 23
+      { tu: ['24.json', [299.85, 432.58]], den: ['23.json', [768, 411.9]], tu_dong: true, ra: 'phai' },
+      // MC 471E6.5/48 (thường cắt) vẽ ở bản vẽ 21 (phía 475 E6.4)
+      { tu: ['24.json', [480, 116.46]], den: ['21.json', [742.02, 404.45]], tu_dong: true, ra: 'phai' },
+    ],
+  },
+  {
+    json: '25.json',
+    goc_pdf: [92.5, 38.1],
+    goc: [644, -1695],
+    ti_le: 1.2,
+    noi: { 'ĐZ 473 E6.5': { tu: [-1256.9, -1336.06], ra: 'xuong', vao: 'tren' } },
+    cap_noi: { 'ĐZ 473 E6.5': true },
+    // đoạn sau MC 474E6.17/37 (LT 473 E6.5) do 474 E6.17 cấp: nối về E6.17 khi làm cụm E6.17
+    chu: [
+      { p: [527, 93], t: '↑ LT 477 E6.21' },
+      { p: [421, 47.1], t: '474 E6.17 ←', canh: 'phai' },
+      { p: [618, 219], t: '→ ĐZ 481 E6.17' },
+    ],
+  },
+  {
+    json: '26.json',
+    goc_pdf: [99, 130.8],
+    goc: [804, -1135],
+    ti_le: 1.1,
+    noi: {
+      'ĐZ 475 E6.5': { tu: [-951.2, -1312.46], ra: 'xuong', vao: 'trai' },
+      'ĐZ 472 E6.5': { tu: [-1338.5, -1336.06], ra: 'xuong', vao: 'trai' },
+      'ĐZ 481 E6.9': { tu: [421.97, -489.15], ra: 'xuong', vao: 'tren' },
+    },
+    cap_noi: { 'ĐZ 475 E6.5': true, 'ĐZ 472 E6.5': true, 'ĐZ 481 E6.9': true },
+    chu: [{ p: [742, 214], t: 'ĐZ 478 E6.4 ←', canh: 'phai' }],
+    noi_ban_ve: [
+      // đoạn cột 27 - MC 475E6.5/1A Cầu Loàng do 471 E6.5 cấp qua MC 475E6.5/01 (bản vẽ 24)
+      { tu: ['26.json', [435.65, 130.78]], den: ['24.json', [299.85, 432.58]], tu_dong: true, ra: 'tren' },
+      // LBS 28, 61, 93 (473 E6.5) vẽ ở bản vẽ 25
+      { tu: ['26.json', [315.62, 414.58]], den: ['25.json', [320.26, 409.46]], tu_dong: true },
+      { tu: ['26.json', [207.77, 479.38]], den: ['25.json', [553.64, 305.27]], tu_dong: true },
+      { tu: ['26.json', [174.53, 495.04]], den: ['25.json', [726.65, 268.24]], tu_dong: true },
+    ],
+  },
+  {
+    json: '27.json',
+    goc_pdf: [99.1, 181.5],
+    goc: [1324, -1595],
+    ti_le: 1.1,
+    noi: { 'ĐZ 477 E6.5': { tu: [-748.05, -1307.72], ra: 'xuong', vao: 'trai' } },
+    cap_noi: { 'ĐZ 477 E6.5': true },
+    // LBS 477E6.5/115 (thường cắt) vẽ ở bản vẽ 17 (phía 473 E6.4); nhánh 471 E6.5 - cột 84/85 - 475 E6.4
+    // (LBS 471E6.5/83, DCL 471E6.5-7/84, DCL 475E6.4-7/30) thuộc phần MC 471E6.5/48 ở bản vẽ 21/24
+    noi_ban_ve: [
+      { tu: ['27.json', [567.2, 181.51]], den: ['17.json', [703.56, 374.82]], tu_dong: true, ra: 'phai' },
+    ],
   },
 ];

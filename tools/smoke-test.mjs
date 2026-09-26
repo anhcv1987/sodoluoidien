@@ -261,7 +261,7 @@ check(
   'Lưới trung áp: các lộ vẽ từ ngăn lộ, nối nhau, có điện, dừng ở điểm thường cắt (kể cả ngăn tủ RMU); RMU có tiếp địa; giao chéo có vòng nhảy',
   // 26 điểm thường cắt: 1 của 473E6.2, 6 của bản vẽ 17, 5 thiết bị + 2 ngăn tủ RMU của bản vẽ 18,
   // 4 + 1 ngăn của bản vẽ 20, 1 của 21, 2 của 22 (MC 476E6.4/40, MC 474E6.2/07), 2 + 2 ngăn của 23
-  lta.net > 100 && lta.tb > 100 && lta.mo === 26 && lta.ten && lta.d477 && lta.d472 && lta.d473 && lta.noi && lta.dtd >= 20 && lta.dtdCat &&
+  lta.net > 100 && lta.tb > 100 && lta.mo === 35 && lta.ten && lta.d477 && lta.d472 && lta.d473 && lta.noi && lta.dtd >= 20 && lta.dtdCat &&
     lta.nhay >= 9 && lta.giao >= 1 && !lta.giaoCoDien && lta.tuBu === 0,
   JSON.stringify(lta),
 );
@@ -593,18 +593,61 @@ const lt475E62 = await page.evaluate(() => {
     return co;
   });
   a.store.undo();
+  // đoạn 61A-79 do 471 E6.5 cấp (bản vẽ 24): cắt MC đầu lộ 471 E6.5 thì mất điện, đóng MC 478E6.4/61 có điện lại
   const mc61 = gan('REC', -840, -3159);
+  const mc471 = gan('MCHB', -836.3, -1252.69);
   kq.doan61A = [coDien(-650, -3158.69)];
+  a.ed.doiTrangThai([mc471.id], 'mo');
+  kq.doan61A.push(coDien(-650, -3158.69));
   a.ed.doiTrangThai([mc61.id], 'dong');
   kq.doan61A.push(coDien(-650, -3158.69));
+  a.store.undo();
   a.store.undo();
   return kq;
 });
 check(
-  'Liên thông 475 E6.2 qua MC 472E6.4/73, LBS 476E6.4/39, MC 476E6.4/40; đoạn 61A-79 qua MC 478E6.4/61',
-  lt475E62.truoc && lt475E62.cat && lt475E62.dong.every(Boolean) && !lt475E62.doan61A[0] && lt475E62.doan61A[1],
+  'Liên thông 475 E6.2 qua MC 472E6.4/73, LBS 476E6.4/39, MC 476E6.4/40; đoạn 61A-79 (471 E6.5 cấp) qua MC 478E6.4/61',
+  lt475E62.truoc && lt475E62.cat && lt475E62.dong.every(Boolean) && lt475E62.doan61A[0] && !lt475E62.doan61A[1] && lt475E62.doan61A[2],
   JSON.stringify(lt475E62),
 );
+// Cụm E6.5 (bản vẽ 24-27) + 481 E6.9: cắt MC đầu lộ thì chỉ lộ đó mất điện; đoạn cột 27 - MC 475E6.5/1A
+// Cầu Loàng (bản vẽ 26) do 471 E6.5 cấp qua MC 475E6.5/01
+const cumE65 = await page.evaluate(() => {
+  const a = window.sodo;
+  const coDien = (x, y) =>
+    a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [ax, ay, bx, by] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+        if (!L) continue;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L));
+        if (Math.hypot(ax + t * dx - x, ay + t * dy - y) < 0.5) return true;
+      }
+      return false;
+    });
+  // [MC đầu lộ (x, y), các điểm trên lộ]
+  const lo = {
+    '471 E6.5': [[-836.3, -1252.69], [[425.32, -1415.21], [1174.31, -1211.1]]],
+    '473 E6.5': [[-1256.9, -1253.86], [[1133, -2017.93]]],
+    '475 E6.5': [[-951.2, -1252.69], [[915.1, -1387.79], [1000, -1587.28]]],
+    '472 E6.5': [[-1338.5, -1253.86], [[937.1, -1292.73]]],
+    '477 E6.5': [[-748.1, -1252.69], [[1750, -1797.43]]],
+    '481 E6.9': [[421.97, -428.28], [[1245.1, -1387.71]]],
+  };
+  const ten = Object.keys(lo);
+  const trangThai = () => ten.map((t) => lo[t][1].map((p) => coDien(...p)));
+  const kq = { truoc: trangThai().flat().every(Boolean), loi: [] };
+  for (const t of ten) {
+    const [x, y] = lo[t][0];
+    const mc = a.store.entities.find((e) => e.kind === 'device' && e.block === 'MCHB' && Math.hypot(e.p.x - x, e.p.y - y) < 0.5);
+    if (!mc) { kq.loi.push(t + ': không thấy MC'); continue; }
+    a.ed.doiTrangThai([mc.id], 'mo');
+    trangThai().forEach((ds, i) => ds.forEach((co, j) => { if (co === (ten[i] === t)) kq.loi.push(`cắt ${t}: ${ten[i]}#${j} ${co ? 'còn điện' : 'mất điện'}`); }));
+    a.store.undo();
+  }
+  return kq;
+});
+check('Cụm E6.5: cắt MC đầu lộ 471/472/473/475/477 E6.5, 481 E6.9 thì chỉ lộ đó mất điện', cumE65.truoc && !cumE65.loi.length, JSON.stringify(cumE65));
 // E6.4: cáp tổng MBA T2 vẽ nhảy qua C42 (nửa vòng tròn) xuống MC 432 - chỗ nhảy không
 // phải đấu nối. Cắt 432 + 412 -> C42 mất điện, C41 vẫn có (T1 qua 431); cắt 431 + 412
 // -> C41 mất điện; chỉ cắt 432 -> C42 nhận điện từ C41 qua 412

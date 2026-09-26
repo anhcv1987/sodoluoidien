@@ -28,6 +28,7 @@ execFileSync('npx', ['esbuild', 'src/symbols/blocks.ts', '--bundle', '--format=e
   stdio: 'inherit',
 });
 const { getBlock } = await import(pathToFileURL(bundle).href);
+const { timCho, luoiChiem, timDuong } = await import(pathToFileURL(resolve('tools/pdf-lo/tim-duong.mjs')).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const data = JSON.parse(readFileSync(duongDan, 'utf8'));
@@ -506,6 +507,7 @@ for (const lo of dsLo) {
  * phân phối và nhánh không liên kết.
  * ========================================================================== */
 const SC_PDF = { DCL: 7, LBS: 3.4, REC: 3.2 };
+const HOP_BAN_VE = []; // hộp bao các bản vẽ đã đặt (đường cáp tự động tránh đi qua)
 const VI_TRI_PDF = new Map(); // tên file JSON -> hàm đổi điểm PDF sang toạ độ tờ tổng
 
 /**
@@ -520,6 +522,20 @@ function veNoiGiuaBanVe(ds) {
     if (!a || !b) { console.log(`  ! nối giữa bản vẽ: thiếu ${JSON.stringify(l.tu)} / ${JSON.stringify(l.den)}`); continue; }
     kv = l.kv ?? 22;
     lop = data.layers.indexOf(`${kv}kV`);
+    if (l.tu_dong) {
+      // tìm đường tự động (ra: hướng đi ra ở đầu 'tu', vao: hướng đi vào đầu 'den')
+      const diem = [a, ...(l.qua ?? []), b];
+      let duong = [a];
+      for (let m = 0; m + 1 < diem.length && duong; m++) {
+        const p = diem[m], q = diem[m + 1], le = l.le ?? 500;
+        const hop = [Math.min(p[0], q[0]) - le, Math.min(p[1], q[1]) - le, Math.max(p[0], q[0]) + le, Math.max(p[1], q[1]) + le];
+        const r = timDuong(luoiChiem(s, data, hop, { vungPhat: HOP_BAN_VE }), p, q, { ra: m === 0 ? l.ra : null, vao: m === diem.length - 2 ? l.vao : null });
+        if (!r) { console.log(`  ! nối giữa bản vẽ: không tìm được đường ${JSON.stringify(p)} -> ${JSON.stringify(q)}`); duong = null; break; }
+        duong.push(...r.slice(1));
+      }
+      if (duong) net(duong, !!l.cap);
+      continue;
+    }
     net([a, ...(l.qua ?? []), b], !!l.cap);
   }
 }
@@ -527,10 +543,33 @@ function veNoiGiuaBanVe(ds) {
 function vePdf(dat) {
   const J = JSON.parse(readFileSync(resolve('tools/luoi-trung-ap/pdf', dat.json), 'utf8'));
   const k = dat.ti_le ?? 1;
+  // hộp bao bản vẽ (điểm chuỗi, nhãn thiết bị, khung tủ) theo toạ độ PDF
+  const hopPdf = [Infinity, Infinity, -Infinity, -Infinity];
+  {
+    const up = (x, y) => {
+      hopPdf[0] = Math.min(hopPdf[0], x); hopPdf[1] = Math.min(hopPdf[1], y);
+      hopPdf[2] = Math.max(hopPdf[2], x); hopPdf[3] = Math.max(hopPdf[3], y);
+    };
+    for (const lo of J.lo) for (const c of lo.chuoi) {
+      for (const p of c.pts) up(...p);
+      for (const t of c.tb ?? []) for (const n of t.nhan) { up(n.x0, n.y0); up(n.x1, n.y1); }
+    }
+    for (const r of J.rmu ?? []) { up(r.khung[0], r.khung[1]); up(r.khung[2], r.khung[3]); }
+  }
+  // goc: 'tu_dong' -> tìm khoảng trống gần dat.gan (in ra để ghi cố định vào dat.mjs)
+  if (dat.goc === 'tu_dong') {
+    const w = (hopPdf[2] - hopPdf[0]) * k, h = (hopPdf[3] - hopPdf[1]) * k;
+    const c = timCho(s, data, w, h, dat.gan, { le: dat.le ?? 40 });
+    if (!c) throw new Error(`Không tìm được chỗ cho bản vẽ ${dat.json}`);
+    dat.goc_pdf = [+hopPdf[0].toFixed(1), +hopPdf[1].toFixed(1)];
+    dat.goc = [Math.round(c[0]), Math.round(c[1])];
+    console.log(`  đặt ${dat.json}: goc_pdf ${JSON.stringify(dat.goc_pdf)}, goc ${JSON.stringify(dat.goc)} (${w.toFixed(0)} x ${h.toFixed(0)})`);
+  }
   const [gx, gy] = dat.goc_pdf;
   const [X0, Y0] = dat.goc;
   const W = ([x, y]) => [X0 + k * (x - gx), Y0 - k * (y - gy)];
   const bo = new Set(dat.bo_tb ?? []); // tên thiết bị bỏ (nhãn bắt nhầm)
+  const choNoi = [];
   // chữ theo khung chữ trên bản vẽ
   // nửa khoảng hở dây ở thiết bị (đơn vị tờ tổng): tới cực xa nhất (kể cả cực khi CẮT) và
   // không nhỏ hơn 1,2 lần sai số bắt điểm của mô hình công suất (~3) - hai đầu dây gần nhau
@@ -617,7 +656,10 @@ function vePdf(dat) {
     lop = data.layers.indexOf(`${kv}kV`);
     const noi = dat.noi?.[lo.ten];
     // đường nối từ đầu ra ngăn lộ trong trạm tới đầu lộ trên bản vẽ
-    if (noi) net([...noi.map((p) => p), VI_TRI_PDF.get(dat.json)(lo.chuoi[0]?.pts[0] ?? lo.nguon)], !!dat.cap_noi?.[lo.ten]);
+    const dauLo = VI_TRI_PDF.get(dat.json)(lo.chuoi[0]?.pts[0] ?? lo.nguon);
+    if (Array.isArray(noi)) net([...noi.map((p) => p), dauLo], !!dat.cap_noi?.[lo.ten]);
+    // { tu: đầu ra ngăn lộ, ra, vao, qua? }: tìm đường tự động sau khi vẽ xong bản vẽ
+    else if (noi) choNoi.push({ noi, dauLo, cap: !!dat.cap_noi?.[lo.ten], ten: lo.ten, kv, lop });
     lo.chuoi.forEach((c, j) => {
       const P = c.pts;
       const bq = boQua.get(`${i},${j}`) ?? [];
@@ -853,6 +895,27 @@ function vePdf(dat) {
     const [x, y] = W(g.p);
     chu(x, y, (g.h ?? 3) * k, g.t, g.canh ?? 'trai', g.rot ?? 0);
   }
+  // cáp nối ngăn lộ - đầu lộ tìm đường tự động (bản vẽ đã vẽ xong nên đường đi tránh được nó)
+  for (const c of choNoi) {
+    const a = c.noi.tu;
+    const qua = c.noi.qua ?? [];
+    const diem = [a, ...qua, c.dauLo];
+    let duong = [a];
+    for (let m = 0; m + 1 < diem.length; m++) {
+      const p = diem[m], q = diem[m + 1];
+      const le = c.noi.le ?? 500;
+      const hop = [Math.min(p[0], q[0]) - le, Math.min(p[1], q[1]) - le, Math.max(p[0], q[0]) + le, Math.max(p[1], q[1]) + le];
+      const L = luoiChiem(s, data, hop, { vungPhat: HOP_BAN_VE });
+      const r = timDuong(L, p, q, { ra: m === 0 ? c.noi.ra : null, vao: m === diem.length - 2 ? c.noi.vao : null });
+      if (!r) { console.log(`  ! ${c.ten}: không tìm được đường ${JSON.stringify(p)} -> ${JSON.stringify(q)}`); duong = null; break; }
+      duong.push(...r.slice(1));
+    }
+    if (!duong) continue;
+    kv = c.kv; lop = c.lop;
+    net(duong, c.cap);
+    console.log(`  cáp ${c.ten}: ${duong.length - 1} đoạn, dài ${duong.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - duong[i][0], q[1] - duong[i][1]), 0).toFixed(0)}`);
+  }
+  HOP_BAN_VE.push([X0 + k * (hopPdf[0] - gx), Y0 - k * (hopPdf[3] - gy), X0 + k * (hopPdf[2] - gx), Y0 - k * (hopPdf[1] - gy)]);
   console.log(`  bản vẽ ${dat.json}: ${J.lo.map((l) => l.ten).join(', ')}`);
 }
 

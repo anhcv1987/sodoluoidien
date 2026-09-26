@@ -789,7 +789,7 @@ npm run build
 
 ---
 
-## 7. Lưới trung áp liên thông (xong cụm E6.4: bản vẽ 17, 18, 20-23)
+## 7. Lưới trung áp liên thông (xong cụm E6.4: bản vẽ 17, 18, 20-23; cụm E6.5: 24-27)
 
 Nguồn: bản vẽ từng lộ trên Google Drive (`So do luoi dien/1. Lưới trung áp KV Thái
 Nguyên`, vd "18. ĐZ 472+477 E6.4.pdf", "7. ĐZ 473 E6.2.pdf"). Mỗi lộ chép sang một file
@@ -905,6 +905,25 @@ bản vẽ 18 (x = -560), xuống hành lang x = -258 (trái thanh cái NĐ An K
 sau MC 478E6.4/61 (bản vẽ 23) vẽ như lộ "ĐZ 475 E6.5", đầu lộ ở đầu dây ĐZ 475 E6.5 - nối khi
 vẽ cụm E6.5. Trạng thái đóng/cắt các điểm liên thông theo bản vẽ, sẽ hiệu chỉnh theo thực tế sau.
 
+**Cụm E6.5 (bản vẽ 24-27)** đặt bên phải đường 110kV x = -176 (x 304 .. 2055, y -1135 ..
+-2146). Vị trí khung bản vẽ tìm tự động (`goc: 'tu_dong'` + `gan`, `tools/pdf-lo/tim-duong.mjs`
+tìm chỗ trống) rồi **ghi cố định** vào dat.mjs để sơ đồ không xê dịch khi thêm bản vẽ khác. Cáp
+ngăn lộ và dây liên thông giữa hai bản vẽ đi **tự động** (`noi: {tu, ra, vao}`, `noi_ban_ve` có
+`tu_dong`): tìm đường vuông góc tránh chữ, thiết bị, ít rẽ, ít cắt ngang (chỗ cắt có vòng nhảy).
+
+| Bản vẽ | Lộ vẽ | Thường cắt / liên thông |
+|---|---|---|
+| 24 | 471 E6.5 | MC 471E6.5/48 (vẽ ở 21, phía 475 E6.4); nhánh Phú Xá - MC 475E6.5/01 - cột 27 sang đoạn 61A-79 (23) và đoạn Cầu Loàng (26) |
+| 25 | 473 E6.5; đoạn sau MC 474E6.17/37 do 474 E6.17 cấp | LBS 473E6.5/28 LT 475, LBS 473E6.5/61, MC 477E6.21/02 (→ LT 477 E6.21), LBS 473E6.5/93; MC 481E6.17/125 (→ ĐZ 481 E6.17) |
+| 26 | 475, 472 E6.5, 481 E6.9, đoạn cột 27 - Cầu Loàng (471 E6.5) | MC 475E6.5/44, MC 475E6.5/1A Cầu Loàng, LBS 475E6.5/77, DCL 472E6.5-7/18, MC 475E6.5/19 + DCL 7/19-1 (← ĐZ 478 E6.4); LBS 28/61/93 vẽ ở 25 (ở 26 là điểm `ngat`) |
+| 27 | 477 E6.5 | LBS 477E6.5/115 (vẽ ở 17, phía 473 E6.4) |
+
+Đoạn 473 E6.5 sau LBS 61 (cột 63 - 80 - MC 473E6.5/1A - 16) do 475 E6.5 cấp qua DCL 475E6.5-7/27.
+Đoạn 474 E6.17 (MC 474E6.17/233 - MC 474E6.17/37 - cột 24 - 101 - 98 - LBS 93) chưa có nguồn,
+nối khi vẽ cụm E6.17. Bản vẽ 24 bỏ nhánh DCL 475E6.5-7/26 - MC 1A (bản vẽ 26 vẽ chi tiết hơn).
+Thiết bị có ở hai bản vẽ: một bản vẽ giữ thiết bị, bản kia khai `ngat` (ô ngắt, chữ "(Thường cắt)"
+trong ô cũng thành ngắt) + `bo_tb`, rồi nối hai đầu bằng `noi_ban_ve`.
+
 Công cụ dò đã bổ sung: ghép cạnh khung tủ vẽ thành nhiều đoạn; dây nhảy qua (cung
 nhỏ) không coi là nối; `bo_noi` (hộp bỏ nối chỗ bản vẽ đè nét); tủ RMU ghi mọi ngăn có
 dây nối ra và ngăn "(Thường cắt)"; ký hiệu hộp (MC, LBS) lấy tâm cụm nét đậm; chia nét tại đỉnh chữ T /
@@ -915,7 +934,7 @@ cắt khai tay); ngăn thường cắt nối cáp từ ngoài vẫn vẽ trong t
 Kiểm tra: `node tools/ra-soat-co-lap-thanh-cai.mjs` (không thanh cái nào còn điện khi
 cô lập) và smoke test (cắt MC 473 thì trục 473 mất điện, 471/481 vẫn có điện; cắt MC
 477 chỉ mất điện trục 477, cắt MC 472 chỉ mất điện trục 472; đóng MC 472E6.4/61 thì
-473E6.2 cấp ngược sang Đồng Bẩm).
+473E6.2 cấp ngược sang Đồng Bẩm; cụm E6.4, cụm E6.5 + 481 E6.9: cắt MC đầu lộ nào chỉ lộ đó mất điện).
 
 ## 8. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)
 
