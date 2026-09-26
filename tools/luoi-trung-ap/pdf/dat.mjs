@@ -237,7 +237,6 @@ export default [
     noi: {
       'ĐZ 381 E6.2': { tu: [-1195.4, 328.09], ra: 'xuong' },
       'ĐZ 380 E6.2': { tu: [-1144.88, 329.2], ra: 'xuong' },
-      'ĐZ 372 E6.8': { tu: [2261.59, 2551.16], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 381 E6.2': true, 'ĐZ 380 E6.2': true },
     chu: [
@@ -253,9 +252,6 @@ export default [
       'ĐZ 387 E6.9': { tu: [865.1, -724.86], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 387 E6.9': true },
-    chu: [
-      { p: [420, 72], t: '← LT 371 E6.8', canh: 'phai' },
-    ],
     noi_ban_ve: [
       // lộ 371 / 376 TCCN đi từ thanh cái trạm cắt Cao Ngạn (vẽ ở bản vẽ 4)
       { tu: ['05.json', [87.11, 174.79]], den: ['04.json', [187.43, 336.49]], tu_dong: true },
@@ -297,10 +293,9 @@ export default [
       'ĐZ 375 E6.17': { tu: [2052.37, -2801.32], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 373 E6.3': true, 'ĐZ 375 E6.3': true, 'ĐZ 374 E6.3': true },
-    chu: [
-      { p: [222, 296], t: '↓ LT 372 TCVB' },
-    ],
     noi_ban_ve: [
+      // trục 373 E6.3 sau cột 15 (tới MC 373E6.3/74 LT 372 TCVB) vẽ ở bản vẽ 9
+      { tu: ['10.json', [220.91, 216.01]], den: ['09.json', [691.8, 237.02]], tu_dong: true },
       // đoạn MC 375E6.3/43 - E6.5 vẽ ở bản vẽ 1 (đầu dây "Đi 375 E6.3")
       { tu: ['10.json', [532.3, 219.03]], den: ['01.json', [502.22, 561.22]], tu_dong: true },
     ],
@@ -453,6 +448,91 @@ export default [
     noi_ban_ve: [
       // DCL 473E6.7-7/25 NR Chã (thường cắt) vẽ ở bản vẽ 36
       { tu: ['37.json', [760.52, 202.72]], den: ['36.json', [256.13, 166.79]], tu_dong: true },
+    ],
+  },
+  {
+    json: '70.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 373 E6.24': { tu: [-3279.63, -6767.2], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 373 E6.24': true },
+    noi_ban_ve: [
+      // LBS 371E6.24/1A LT 373 E6.24 (thường cắt) - phía 371 E6.24 (đầu lộ sau ngăn) vẽ ở bản vẽ 32
+      { tu: ['70.json', [173.0, 303.33]], den: ['32.json', [577.85, 134.14]], tu_dong: true },
+    ],
+  },
+  {
+    json: '09.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {},
+    cap_noi: {},
+    chu: [{ p: [60, 292], t: 'TRẠM CẮT VÒNG BI (TCVB)' }],
+    noi_ban_ve: [
+      // MC 373E6.17/27 (ngăn 374 TCVB) vẽ ở bản vẽ 33
+      { tu: ['09.json', [92.6, 237.82]], den: ['33.json', [753.8, 241.63]], tu_dong: true },
+    ],
+  },
+  {
+    json: '03.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 373 E6.8': { tu: [1962.46, 2566.86], ra: 'xuong' },
+      'ĐZ 374 E6.8': { tu: [2291.74, 2551.16], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 373 E6.8': true, 'ĐZ 374 E6.8': true },
+    chu: [{ p: [690, 305], t: 'XI MĂNG LA HIÊN' }],
+  },
+  {
+    json: '38.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 371 E6.8': { tu: [1999.02, 2580.6], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 371 E6.8': true },
+    chu: [{ p: [705, 250], t: '→ Tràng Xá (MC 371E6.8/1A)' }, { p: [405, 470], t: '← 375 E13.1 Lạng Sơn (PC Lạng Sơn)', canh: 'phai' }],
+    noi_ban_ve: [
+      // LBS 371E6.8/111 NR Văn Hán (thường cắt) vẽ ở bản vẽ 5 (phía 371 TCCN)
+      { tu: ['38.json', [539.24, 144.67]], den: ['05.json', [463.26, 74.74]], tu_dong: true },
+      // DCL 371E6.8-7/02 LT 372 E6.8 (thường cắt): lộ 372 E6.8 vẽ ở bản vẽ 40
+      { tu: ['38.json', [107.03, 482.2]], den: ['40.json', [141.5, 298.06]], tu_dong: true },
+    ],
+  },
+  {
+    json: '41.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 375 E6.8': { tu: [1920.02, 2678.05], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 375 E6.8': true },
+    noi_ban_ve: [
+      // LBS 375E6.8/04 Cúc Đường (thường cắt) - phía 371 E6.8 cột 58 vẽ ở bản vẽ 38
+      { tu: ['41.json', [161.76, 383.0]], den: ['38.json', [215.99, 246.76]], tu_dong: true },
+      // DCL 375E6.8-7/319 - cột 188 ĐZ 371 E6.8
+      { tu: ['41.json', [311.09, 417.85]], den: ['38.json', [625.7, 310.85]], tu_dong: true },
+      // LBS 375E6.8/333 - cột 202A ĐZ 371 E6.8
+      { tu: ['41.json', [439.16, 409.85]], den: ['38.json', [713.15, 338.08]], tu_dong: true },
+    ],
+  },
+  {
+    json: '40.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 372 E6.8': { tu: [2261.59, 2551.16], ra: 'xuong' },
+      'ĐZ 377 E6.8': { tu: [1873.52, 2678.05], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 372 E6.8': true, 'ĐZ 377 E6.8': true },
+    noi_ban_ve: [
+      // MC 373TCCN/65 LT 372 E6.8 (thường cắt) vẽ ở bản vẽ 4
+      { tu: ['40.json', [336.08, 96.37]], den: ['04.json', [777.17, 480.64]], tu_dong: true },
+      // DCL 377E6.8-7/13 LT 375 E6.8 (thường cắt) vẽ ở bản vẽ 41
+      { tu: ['40.json', [204.35, 388.75]], den: ['41.json', [84.5, 458.65]], tu_dong: true },
     ],
   },
 ];
