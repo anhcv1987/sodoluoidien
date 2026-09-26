@@ -182,6 +182,7 @@ print("tủ:", [(t["ten"], [round(v) for v in t["khung"]]) for t in TU])
 # ---------------- cây các lộ ----------------
 ket = {'lo': [], 'rmu': [], 'ranh': []}
 da_ve = {}          # cạnh (u,v) đã vẽ -> tên lộ (để hai lộ cùng bản vẽ không vẽ trùng)
+da_trong = set()    # đỉnh thuộc cây các lộ đã dò trước
 for lo in cfg['lo']:
     s0 = G['gan'](*lo['nguon'])
     D, P = dothi.dij(G, s0)
@@ -206,6 +207,10 @@ for lo in cfg['lo']:
             if (a, b) not in trong and b not in trong:
                 canh.append((a, b))
             trong.add(b)
+            # hai lộ cùng bản vẽ không có điểm thường cắt ở giữa (vd ngăn lộ trạm bên kia thường cắt):
+            # gặp cây của lộ vẽ trước thì dừng ở đó (đấu vào đỉnh của nó), không vẽ chồng lần nữa
+            if b in da_trong: break
+    da_trong.update(trong)
     # tách cây thành các chuỗi (giữa điểm rẽ / đầu cuối)
     con = {}
     for a, b in canh: con.setdefault(a, []).append(b)
@@ -364,6 +369,23 @@ for k_, d_ in enumerate(tb):
             if dd < 1.0 or (trong_vung and dd < 3.0):
                 # xếp theo khoảng cách tới khung chữ (nhãn sát ký hiệu nào thì của ký hiệu đó)
                 ung_vien.append((kk + 0.3 * math.hypot(cx - e['x'], cy - e['y']), k_, q, ij, sg))
+# bản vẽ vẽ ký hiệu bằng nét mảnh (dao cách ly là gạch xiên mảnh, hộp MC / LBS là khung mảnh): nhãn chưa
+# có ký hiệu nét đậm thì lấy nét mảnh ngắn (1.5 - 10pt) cắt ngang chuỗi (lệch hướng dây > 20 độ) gần nhãn
+co_ung = set(u[1] for u in ung_vien)
+net_manh = [sg for sg in G['seg'][:G['n0']] if 1.5 <= math.hypot(sg[2] - sg[0], sg[3] - sg[1]) <= 10]
+for k_, d_ in enumerate(tb):
+    if k_ in co_ung: continue
+    e = d_['nhan'][0]
+    for sg in net_manh:
+        cx, cy = (sg[0] + sg[2]) / 2, (sg[1] + sg[3]) / 2
+        kk = min(kc_khung(f, cx, cy) for f in d_['nhan'])
+        if kk >= 10: continue
+        dd, ij, q = gan_chuoi(cx, cy)
+        if dd >= 1.5: continue
+        L = math.hypot(sg[2] - sg[0], sg[3] - sg[1])
+        cos = abs((sg[2] - sg[0]) / L * q[2] + (sg[3] - sg[1]) / L * q[3])
+        if cos > 0.94: continue
+        ung_vien.append((kk + 0.3 * math.hypot(cx - e['x'], cy - e['y']) + 2, k_, q, ij, sg))
 ung_vien.sort(key=lambda u: u[0])
 # cụm nét đậm liền nhau (một ký hiệu): tâm cụm chiếu lên chuỗi là vị trí thiết bị
 def cum_net(sg0):

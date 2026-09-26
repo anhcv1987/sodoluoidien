@@ -199,4 +199,67 @@ export default [
       { tu: ['08.json', [86.69, 143.2]], den: ['22.json', [699.58, 173.82]], tu_dong: true },
     ],
   },
+  {
+    json: '01.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 372 E6.2': { tu: [-942.85, 329.13], ra: 'xuong' },
+      'ĐZ 373 E6.2': { tu: [-992.9, 329.13], ra: 'xuong' },
+      'ĐZ 371 E6.5': { tu: [-388.73, -1103.43], ra: 'phai' },
+      'ĐZ 373 E6.5': { tu: [-388.73, -1058.22], ra: 'phai' },
+      'ĐZ 375 E6.5': { tu: [-388.73, -1003.86], ra: 'phai' },
+      'ĐZ 372 E6.5': { tu: [-388.99, -844.09], ra: 'phai' },
+    },
+    cap_noi: { 'ĐZ 372 E6.2': true, 'ĐZ 373 E6.2': true, 'ĐZ 371 E6.5': true, 'ĐZ 373 E6.5': true, 'ĐZ 375 E6.5': true, 'ĐZ 372 E6.5': true },
+    chu: [
+      { p: [505, 568], t: '↓ LT 375 E6.3', canh: 'giua' },
+    ],
+  },
+  {
+    json: '02.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 376 E6.2': { tu: [-1042.31, 328.94], ra: 'xuong' },
+      'ĐZ 377 E6.2': { tu: [-1093.68, 329.13], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 376 E6.2': true, 'ĐZ 377 E6.2': true },
+    chu: [
+      { p: [470, 262], t: '← LT 371 E6.6', canh: 'phai' },
+      { p: [790, 250], t: '↑ LT 375 E6.19' },
+    ],
+  },
+  {
+    json: '04.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 381 E6.2': { tu: [-1195.4, 328.09], ra: 'xuong' },
+      'ĐZ 380 E6.2': { tu: [-1144.88, 329.2], ra: 'xuong' },
+      'ĐZ 372 E6.8': { tu: [2261.59, 2551.16], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 381 E6.2': true, 'ĐZ 380 E6.2': true },
+    chu: [
+      { p: [150, 250], t: 'TRẠM CẮT CAO NGẠN (TCCN)' },
+    ],
+  },
+  {
+    json: '05.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 377 E6.17': { tu: [2018.99, -2801.32], ra: 'xuong' },
+      'ĐZ 387 E6.9': { tu: [865.1, -724.86], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 387 E6.9': true },
+    chu: [
+      { p: [420, 72], t: '← LT 371 E6.8', canh: 'phai' },
+    ],
+    noi_ban_ve: [
+      // lộ 371 / 376 TCCN đi từ thanh cái trạm cắt Cao Ngạn (vẽ ở bản vẽ 4)
+      { tu: ['05.json', [87.11, 174.79]], den: ['04.json', [187.43, 336.49]], tu_dong: true },
+      { tu: ['05.json', [87.11, 193.87]], den: ['04.json', [187.43, 492.46]], tu_dong: true },
+    ],
+  },
 ];

@@ -616,7 +616,7 @@ function tinhTamTuDong(ds) {
       const n = d.noi?.[lo.ten];
       if (!n) continue;
       const A = Array.isArray(n) ? n[0] : n.tu;
-      noi.push({ o: lech(d.json, lo.chuoi[0]?.pts[0] ?? lo.nguon), A, tru: truCua(A), w: 2 });
+      noi.push({ o: lech(d.json, lo.chuoi[0]?.pts[0] ?? lo.nguon), A, tru: truCua(A), ra: Array.isArray(n) ? 'xuong' : n.ra ?? 'xuong', w: 2 });
     }
     for (const l of lien) {
       for (const [a, b] of [[l.tu, l.den], [l.den, l.tu]]) {

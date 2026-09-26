@@ -157,10 +157,14 @@ export function quyHoachCho(s, data, ds, { le = 40, boQua = new Set(), vong = 4,
         A = [t[0] + n.oRef[0], t[1] + n.oRef[1]];
       }
       let d = Math.abs(px - A[0]) + Math.abs(py - A[1]);
-      if (n.tru && py > A[1] - 20) {
-        // ngăn lộ chĩa xuống: điểm nối cao hơn hàng đầu ra ngăn lộ thì cáp phải vòng ra ngoài trạm
-        d += 2 * (py - A[1] + 20);
-        if (px > n.tru[0] && px < n.tru[2]) d += 2 * Math.min(px - n.tru[0], n.tru[2] - px);
+      // điểm nối ở phía sau hàng đầu ra ngăn lộ (ngược hướng ngăn lộ chĩa ra) thì cáp phải vòng ra ngoài trạm
+      const [ux, uy] = { xuong: [0, -1], len: [0, 1], phai: [1, 0], trai: [-1, 0] }[n.ra ?? 'xuong'];
+      const truoc = (px - A[0]) * ux + (py - A[1]) * uy; // > 0: phía trước đầu ra
+      if (n.tru && truoc < 20) {
+        d += 2 * (20 - truoc);
+        // còn nằm trong bề ngang trạm (theo hướng vuông góc) thì phải vòng qua mép trạm
+        if (uy && px > n.tru[0] && px < n.tru[2]) d += 2 * Math.min(px - n.tru[0], n.tru[2] - px);
+        if (ux && py > n.tru[1] && py < n.tru[3]) d += 2 * Math.min(py - n.tru[1], n.tru[3] - py);
       }
       c += d * (n.w ?? 1);
     }

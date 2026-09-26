@@ -313,7 +313,13 @@ const lta = await page.evaluate(() => {
       return false;
     });
   // khúc đường dây 35kV vẽ ở chỗ "Giao chéo 376 TCCN": không được nhận điện từ lưới 22kV
-  const giao = ds.filter((e) => e.kind === 'branch' && e.kv === 35);
+  // (lấy các nét 35kV ngắn sát dòng chữ "Giao chéo 376 TCCN"; lưới 35kV vẽ từ bản vẽ PDF 1-5 không tính)
+  const tGiao = a.store.entities.find((e) => e.kind === 'text' && e.text === 'Giao chéo 376 TCCN');
+  const giao = ds.filter((e) => {
+    if (e.kind !== 'branch' || e.kv !== 35 || !tGiao) return false;
+    const p = e.nodes.map((id) => a.store.get(id)?.p).filter(Boolean);
+    return p.length === 2 && Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) < 20 && p.some((q) => Math.hypot(q.x - tGiao.p.x, q.y - tGiao.p.y) < 25);
+  });
   const giaoCoDien = giao.some((g) => {
     const p = g.nodes.map((id) => a.store.get(id)?.p).filter(Boolean);
     return p.length >= 2 && coDien((p[0].x + p.at(-1).x) / 2, (p[0].y + p.at(-1).y) / 2);
@@ -321,7 +327,8 @@ const lta = await page.evaluate(() => {
   return {
     net: ds.filter((e) => e.kind === 'branch').length,
     tb: tb.length,
-    mo: tb.filter((e) => e.state === 'mo' && e.block !== 'DTD').length,
+    mo: tb.filter((e) => e.state === 'mo' && e.block !== 'DTD' && e.kv === 22).length,
+    mo35: tb.filter((e) => e.state === 'mo' && e.block !== 'DTD' && e.kv === 35).length,
     dtd: dtd.length,
     dtdCat: dtd.every((e) => e.state === 'mo'),
     // 473 E6.2 (bản vẽ 7) nối vào đầu dây "473 E6.2 đến" của bản vẽ 18 (trên MC 472E6.4/61)
