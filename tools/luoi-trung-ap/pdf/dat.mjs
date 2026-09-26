@@ -607,7 +607,7 @@ export default [
       // DCL 474E6.2-7/02 NR Toàn Thắng (thường cắt) vẽ ở bản vẽ 8
       { tu: ['30.json', [482.18, 320.38]], den: ['08.json', [480.46, 421.55]], tu_dong: true },
       // MC 471E6.6/01 NR Đồng Hút (thường cắt) - phía 474 E6.2 cột 16 Liên Hồng
-      { tu: ['30.json', [339.02, 279.03]], den: ['08.json', [480.53, 386.41]], tu_dong: true },
+      { tu: ['30.json', [341.85, 290.59]], den: ['08.json', [480.53, 386.41]], tu_dong: true },
       // LBS 08/474E6.2 MV 471E6.6 (thường cắt) - phía 474 E6.2 cột 71
       { tu: ['30.json', [540.0, 319.87]], den: ['08.json', [597.59, 195.7]], tu_dong: true },
     ],
