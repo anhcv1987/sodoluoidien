@@ -1091,14 +1091,24 @@ tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trun
 Không vẽ (lộ hình tia, không có liên thông, hoặc trùng bản vẽ khác): 0 (tổng hợp TCVB), 31, 39, 45,
 46, 56, 71, 72 và các lộ khách hàng (62, 63, 64A, E6.18, E6.23...).
 
+| BK 1 - 6 | 371, 378, 372, 373, 374, 376 E26.1 (35kV) | MC 371E26.1/90B, MC 373E26.1/08, 150A, 01, 1A, 47, 47-2, AT2, DCL 374E26.1-7/11, LBS 373E26.1/205, MC 376E26.1/03, 202, MC 372E26.1/103, MC 104 (LT 372 E6.6) |
+| BK 7 - 10 | 371, 373, 375, 377, 379 E26.2 | MC 371E26.2/02, 15, 1B, MC 373E26.2/01, DCL 373E26.2-7/9-1, MC 379E26.3/144, MC 375E26.3/45 |
+| BK 11 - 13 | 371, 373, 375 E26.3 | MC 371E26.3/20, MC 375E26.3/85, MC 376E26.1/285 (nối tắt) |
+| BK 14 - 16 | 471, 472, 473, 474, 476 E26.1 (mạng cáp tủ RMU) | ngăn tủ RMU thường cắt (RMU 05, 06, 08 - 471; RMU 04, 11 - 472; RMU 03, 16, 23, 26 - 474; RMU 04 - 476), DPT 473E26.1-7/57, MC 472E26.1/59, MC 474E26.1/18 |
+
+Không vẽ (lộ hình tia, không có liên thông, hoặc trùng bản vẽ khác): 0 (tổng hợp TCVB), 31, 39, 45,
+46, 56, 71, 72 và các lộ khách hàng (62, 63, 64A, E6.18, E6.23...).
+
 Chưa vẽ / còn thiếu: bản vẽ 15 (7 lộ E6.3 + liên thông E6.17, E6.21 - rất dày), 49 (451, 453 E6.17
-LT 485, 486 E6.13 - mạng cáp RMU khu công nghiệp), đoạn trục 471 E6.7 sau RMU 68 - 69 tới LBS 84,
-cụm Bắc Kạn (16 bản vẽ E26.x).
+LT 485, 486 E6.13 - mạng cáp RMU khu công nghiệp), đoạn trục 471 E6.7 sau RMU 68 - 69 tới LBS 84.
+Mạng cáp RMU Bắc Kạn (BK 14 - 16) mới dò trục và các tủ trên đường liên thông; dây nối giữa bản vẽ
+472 / 474 (RMU 20, 24 - 472, MC 474/16) chưa nối.
 
 Công cụ dò bổ sung: ký hiệu vẽ nét mảnh (gạch dao, khung MC) cũng nhận thiết bị; `tu_chan: "manh"`
 tìm ký hiệu nét mảnh cho chữ "(Thường cắt)"; hai lộ cùng bản vẽ không có điểm thường cắt ở giữa thì
 lộ sau dừng ở cây lộ trước (không vẽ chồng); `noi.tu_do` nới vùng tự do ở đầu cáp ngăn lộ khi ngay
-dưới đầu ra có chữ ghi hướng đi. Quy hoạch chỗ đặt chỉ dò trong cửa sổ ±3000 quanh các neo, 9 thứ tự
+dưới đầu ra có chữ ghi hướng đi. Công cụ dò: `tb_vi_tri` khai vị trí thiết bị khi ký hiệu không nhận ra được, `ngan_mo` nhận dạng
+"tên tủ|tên ngăn" cho ngăn tủ RMU thường cắt. Quy hoạch chỗ đặt chỉ dò trong cửa sổ ±3000 quanh các neo, 9 thứ tự
 (35 s cho 30 bản vẽ).
 
 ## 8. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)

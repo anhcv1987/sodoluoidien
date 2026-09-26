@@ -582,9 +582,6 @@ export default [
       'ĐZ 373 E6.6': { tu: [382.65, 4250.14], ra: 'phai' },
     },
     cap_noi: { 'ĐZ 372 E6.6': true, 'ĐZ 373 E6.6': true },
-    chu: [
-      { p: [790, 330], t: '↓ ĐZ 373 E26.1 (PC Bắc Kạn)' },
-    ],
   },
   {
     json: '30.json',
@@ -695,5 +692,202 @@ export default [
       // MC 472E6.22/143 LT 475 E6.19 (thường cắt) vẽ ở bản vẽ 61
       { tu: ['67.json', [767.21, 483.19]], den: ['61.json', [806.2, 201.58]], tu_dong: true },
     ],
+  },
+  {
+    json: 'bk01.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 371 E26.1': { tu: [227.25, 5986.95], ra: 'xuong' },
+      'ĐZ 378 E26.1': { tu: [672.07, 5986.95], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 371 E26.1': true, 'ĐZ 378 E26.1': true },
+  },
+  {
+    json: 'bk02.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 372 E26.1': { tu: [945.28, 5968.75], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 372 E26.1': true },
+  },
+  {
+    json: 'bk03.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 373 E26.1': { tu: [315.12, 5986.95], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 373 E26.1': true },
+  },
+  {
+    json: 'bk04.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+
+    },
+    cap_noi: {  },
+    noi_ban_ve: [
+      { tu: ['bk04.json', [162.26, 439.42]], den: ['bk03.json', [805.82, 232.84]], tu_dong: true },
+      { tu: ['bk04.json', [118.4, 382.24]], den: ['bk03.json', [749.18, 419.41]], tu_dong: true },
+      { tu: ['bk04.json', [237.89, 305.11]], den: ['bk01.json', [366.48, 459.5]], tu_dong: true },
+      { tu: ['bk04.json', [767.9, 439.42]], den: ['29.json', [779.53, 311.99]], tu_dong: true },
+    ],
+  },
+  {
+    json: 'bk05.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 374 E26.1': { tu: [854.29, 5986.95], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 374 E26.1': true },
+    noi_ban_ve: [
+      { tu: ['bk05.json', [370.79, 219.43]], den: ['bk03.json', [576.95, 141.5]], tu_dong: true },
+      { tu: ['bk05.json', [494.96, 318.01]], den: ['bk03.json', [642.26, 175.76]], tu_dong: true },
+      { tu: ['bk05.json', [678.14, 280.9]], den: ['bk04.json', [505.23, 505.0]], tu_dong: true },
+      { tu: ['bk05.json', [704.18, 433.63]], den: ['bk04.json', [540.47, 479.5]], tu_dong: true },
+    ],
+  },
+  {
+    json: 'bk06.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 376 E26.1': { tu: [764.27, 5986.95], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 376 E26.1': true },
+    noi_ban_ve: [
+      { tu: ['bk06.json', [214.1, 302.14]], den: ['bk01.json', [221.05, 90.0]], tu_dong: true },
+      { tu: ['bk06.json', [255.26, 343.18]], den: ['bk01.json', [316.05, 186.02]], tu_dong: true },
+      { tu: ['bk06.json', [367.13, 352.12]], den: ['bk01.json', [567.41, 88.0]], tu_dong: true },
+    ],
+  },
+  {
+    json: 'bk07.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 371 E26.2': { tu: [-1462.98, 5492.07], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 371 E26.2': true },
+    noi_ban_ve: [
+      { tu: ['bk07.json', [497.54, 387.88]], den: ['bk02.json', [593.41, 306.1]], tu_dong: true },
+      { tu: ['bk07.json', [638.75, 338.47]], den: ['bk03.json', [149.45, 343.98]], tu_dong: true },
+    ],
+  },
+  {
+    json: 'bk08.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 373 E26.2': { tu: [-1551.61, 5534.08], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 373 E26.2': true },
+  },
+  {
+    json: 'bk09.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 375 E26.2': { tu: [-1638.23, 5534.08], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 375 E26.2': true },
+    noi_ban_ve: [
+      { tu: ['bk09.json', [339.23, 384.91]], den: ['bk07.json', [318.5, 267.01]], tu_dong: true },
+      { tu: ['bk09.json', [745.43, 274.66]], den: ['bk07.json', [730.0, 152.98]], tu_dong: true },
+    ],
+  },
+  {
+    json: 'bk10.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 377 E26.2': { tu: [-1726.5, 5534.08], ra: 'xuong' },
+      'ĐZ 379 E26.2': { tu: [-1813.21, 5534.08], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 377 E26.2': true, 'ĐZ 379 E26.2': true },
+    noi_ban_ve: [
+      { tu: ['bk10.json', [146.6, 283.84]], den: ['bk08.json', [153.17, 160.5]], tu_dong: true },
+      { tu: ['bk10.json', [335.0, 311.89]], den: ['bk08.json', [328.93, 149.01]], tu_dong: true },
+    ],
+  },
+  {
+    json: 'bk11.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 371 E26.3': { tu: [1747.18, 6491.97], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 371 E26.3': true },
+    noi_ban_ve: [
+      { tu: ['bk11.json', [667.91, 167.38]], den: ['bk01.json', [718.5, 262.8]], tu_dong: true },
+      { tu: ['bk11.json', [212.66, 465.79]], den: ['bk04.json', [117.48, 104.01]], tu_dong: true },
+    ],
+  },
+  {
+    json: 'bk12.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 373 E26.3': { tu: [1839.93, 6540.48], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 373 E26.3': true },
+    noi_ban_ve: [
+      { tu: ['bk12.json', [558.26, 173.86]], den: ['bk11.json', [717.5, 327.31]], tu_dong: true },
+    ],
+  },
+  {
+    json: 'bk13.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 375 E26.3': { tu: [1931.18, 6540.48], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 375 E26.3': true },
+    noi_ban_ve: [
+      { tu: ['bk13.json', [257.87, 380.56]], den: ['bk06.json', [617.38, 247.5]], tu_dong: true },
+      { tu: ['bk13.json', [405.86, 437.56]], den: ['bk06.json', [661.0, 351.94]], tu_dong: true },
+      { tu: ['bk13.json', [716.84, 424.6]], den: ['bk08.json', [751.12, 298.49]], tu_dong: true },
+      { tu: ['bk13.json', [370.22, 537.28]], den: ['bk07.json', [383.52, 441.95]], tu_dong: true },
+    ],
+  },
+  {
+    json: 'bk14.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 473 E26.1': { tu: [430.67, 6172.91], ra: 'xuong' },
+      'ĐZ 471 E26.1': { tu: [383.04, 6172.91], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 473 E26.1': true, 'ĐZ 471 E26.1': true },
+    noi_ban_ve: [
+      { tu: ['bk14.json', [803.13, 349.59]], den: ['bk16.json', [205.3, 254.71]], tu_dong: true },
+    ],
+  },
+  {
+    json: 'bk15.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 472 E26.1': { tu: [778.34, 6217.37], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 472 E26.1': true },
+    noi_ban_ve: [
+      { tu: ['bk15.json', [144.44, 282.25]], den: ['bk14.json', [186.47, 271.82]], tu_dong: true },
+      { tu: ['bk15.json', [588.71, 242.56]], den: ['bk14.json', [626.84, 96.5]], tu_dong: true },
+    ],
+  },
+  {
+    json: 'bk16.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 474 E26.1': { tu: [730.6, 6179.67], ra: 'xuong' },
+      'ĐZ 476 E26.1': { tu: [685.71, 6179.67], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 474 E26.1': true, 'ĐZ 476 E26.1': true },
   },
 ];

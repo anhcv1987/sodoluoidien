@@ -111,7 +111,8 @@ def khung_tu(e):
                     if abs(sg[1] - sg[3]) < 0.3 and e['y0'] - 6 < sg[1] < e['y0'] + 0.8), key=lambda g: (round(g[2] / 0.3), g[0]))
     ghep = []
     for a, b, y in ngang:
-        if ghep and abs(ghep[-1][2] - y) < 0.3 and a <= ghep[-1][1] + 0.3: ghep[-1][1] = max(ghep[-1][1], b)
+        # (hàng làm tròn khác nhau có thể xếp đoạn bên phải trước: chỉ ghép đoạn nằm tiếp bên phải)
+        if ghep and abs(ghep[-1][2] - y) < 0.3 and ghep[-1][0] - 0.3 <= a <= ghep[-1][1] + 0.3: ghep[-1][1] = max(ghep[-1][1], b)
         else: ghep.append([a, b, y])
     tren = [g for g in ghep if g[0] < cx < g[1] and g[1] - g[0] > (e['x1'] - e['x0'])]
     if not tren: return None
@@ -126,6 +127,10 @@ def khung_tu(e):
                 if a < y0 + 1 and b > y0: day = b
             elif a <= day + 0.3: day = max(day, b)
         if day is not None and day > y0 + 5: y1 = max(y1 or 0, day)
+    # cạnh đáy liền một nét hết bề rộng khung (cạnh bên vẽ đứt quãng không dò được hết chiều cao)
+    day_ = [sg[1] for sg in seg_mo if abs(sg[1] - sg[3]) < 0.3 and min(sg[0], sg[2]) <= x0 + 0.5
+            and max(sg[0], sg[2]) >= x1 - 0.5 and y0 + 5 < sg[1] < y0 + 45]
+    if day_ and (y1 is None or min(day_) > y1): y1 = min(day_)
     if y1 is None: y1 = y0 + 32
     return x0, y0, x1, y1
 TU = []   # [ten, khung, tâm (nút), tiêu đề, tên ngăn]
@@ -139,7 +144,7 @@ for e in tex:
     for f in tex:
         if f is e or not (x0 <= f['x'] <= x1 and 0 < f['y'] - e['y'] < 12) or f['t'].strip() in ('DPT', 'MC', 'DCL'): continue
         # nhiều tên ngăn dính một dòng: tách trước DPT/MC/DCL hoặc trước số hiệu ngăn "472-7/02-2"
-        tok = [t.strip() for t in re.split(r'(?=\b(?:DPT|MC|DCL)\s)|\s+(?=\d{3}-\d)', f['t']) if t and t.strip()]
+        tok = [t.strip() for t in re.split(r'(?=\b(?:DPT|MC|DCL)\s)|(?<!DPT)(?<!MC)(?<!DCL)\s+(?=\d{3}-\d)', f['t']) if t and t.strip()]
         if len(tok) > 1:
             w = (f['x1'] - f['x0']) / len(tok)
             for q, t in enumerate(tok): ngan.append(dict(f, t=t, x=f['x0'] + w * (q + 0.5)))
@@ -174,7 +179,8 @@ for e in tex:
     for m in ten_mo:
         if ds_ngan: min(ds_ngan, key=lambda g: abs(g['x'] - m['x']) + abs(g['y'] - m['y']))['mo'] = True
     for g in ds_ngan:
-        if g['t'] in cfg.get('ngan_mo', []): g['mo'] = True
+        # ngăn thường cắt khai tay: "tên ngăn" hoặc "tên tủ|tên ngăn" (tên ngăn trùng ở nhiều tủ)
+        if g['t'] in cfg.get('ngan_mo', []) or f"{e['t']}|{g['t']}" in cfg.get('ngan_mo', []): g['mo'] = True
     TU.append(dict(ten=e['t'], khung=[x0, y0, x1, y1], tam=c, tieude=dict(x0=e['x0'], y0=e['y0'], x1=e['x1'], y1=e['y1'], h=e['h'], t=e['t']),
                    ngan=ds_ngan))
 TAM = {t["tam"]: t for t in TU}
@@ -415,9 +421,11 @@ for dist, k_, q, ij, sg in ung_vien:
     tb[k_]['q'] = q; tb[k_]['ij'] = ij
 # thiết bị khai vị trí bằng tay (ký hiệu vẽ lạ, công cụ không nhận ra): cfg "tb_vi_tri": {"tên": [x, y]}
 for ten_, (px_, py_) in cfg.get('tb_vi_tri', {}).items():
-    k_ = next((k for k, d_ in enumerate(tb) if d_['ten'][0] == ten_ or d_['ten'][0].startswith(ten_ + ' ')), None)
+    # cùng tên có thể có nhiều nhãn (vd "DCL 371E26.1-7/01" ở nhiều nhánh): lấy nhãn gần điểm khai nhất
+    ung_ = [k for k, d_ in enumerate(tb) if d_['ten'][0] == ten_ or d_['ten'][0].startswith(ten_ + ' ')]
+    k_ = min(ung_, key=lambda k: kc_khung(tb[k]['nhan'][0], px_, py_)) if ung_ else None
     if k_ is None:
-        e = next((e for e in tex if e['t'].strip() == ten_), None)
+        e = min((e for e in tex if e['t'].strip() == ten_), key=lambda e: kc_khung(e, px_, py_), default=None)
         if e is None:
             print('tb_vi_tri: không thấy chữ', ten_); continue
         tb.append(dict(ten=[ten_], nhan=[e], d=0, ij=None, q=None)); k_ = len(tb) - 1
