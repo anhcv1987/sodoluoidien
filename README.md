@@ -789,11 +789,11 @@ npm run build
 
 ---
 
-## 7. Lưới trung áp liên thông (xong cụm E6.4: bản vẽ 17, 18, 20-23; cụm E6.5: 24-27)
+## 7. Lưới trung áp liên thông (xong cụm E6.4: bản vẽ 17, 18, 20-23; cụm E6.5: 24-27; E6.2 22kV: 6-8)
 
 Nguồn: bản vẽ từng lộ trên Google Drive (`So do luoi dien/1. Lưới trung áp KV Thái
 Nguyên`, vd "18. ĐZ 472+477 E6.4.pdf", "7. ĐZ 473 E6.2.pdf"). Mỗi lộ chép sang một file
-mô tả trong `tools/luoi-trung-ap/` (477E6.4.mjs, 473E6.2.mjs), rồi
+mô tả trong `tools/luoi-trung-ap/` (nay các lộ đều lấy từ bản vẽ PDF - mục 7.1), rồi
 `node tools/ve-luoi-trung-ap.mjs` vẽ lên tờ sơ đồ tổng, nối thẳng vào đầu ra ngăn lộ
 trong trạm (lớp CAD gốc "Lưới trung áp", chạy lại được).
 
@@ -924,6 +924,22 @@ nối khi vẽ cụm E6.17. Bản vẽ 24 bỏ nhánh DCL 475E6.5-7/26 - MC 1A (
 Thiết bị có ở hai bản vẽ: một bản vẽ giữ thiết bị, bản kia khai `ngat` (ô ngắt, chữ "(Thường cắt)"
 trong ô cũng thành ngắt) + `bo_tb`, rồi nối hai đầu bằng `noi_ban_ve`.
 
+**Cụm E6.2 22kV (bản vẽ 6, 7, 8)** - thay lộ thí điểm 473E6.2.mjs:
+
+| Bản vẽ | Lộ | Đặt | Thường cắt / liên thông |
+|---|---|---|---|
+| 6 | 472 E6.2 (trục ngăn lộ C44 - cột 36) | x = -737,5, y 470 .. 320 | cột 21 nối RMU Công An tỉnh (bản vẽ 18), cột 36 nối DCL 472E6.2-7/36 (18) và đoạn 36 - 43 - RMU 34 (bản vẽ 20) |
+| 7 | 473 E6.2 | trục y = 304 (dưới cáp trong trạm E6.2 y = 317,55, trên cáp 475 E6.2 y = 290), tỷ lệ 0,75 | MC 472E6.4/61 (vẽ ở 18), LBS 476E6.4/39 (vẽ ở đây, nối sang 22); giao chéo 376 TCCN |
+| 8 | 474 E6.2 | bên phải trạm E6.2 (x -530 .. -177), tỷ lệ 0,75 | MC 474E6.2/07 LT 476 E6.4 (vẽ ở 22), DCL 474E6.2-7/02 Toàn Thắng (→ LT 471 E6.6) |
+
+Sửa kèm: bản vẽ 20 - cáp ngăn 472-7/34-2 (thường cắt) và 34-3 tủ RMU 34 **nhảy qua** cáp ngăn
+34-01 (trước bị coi là đấu nối nên 474 E6.4 lọt sang cột 34 - 36); ngăn 472-7/01-5 tủ RMU 01-472
+E6.2 LT 474 E6.4 thường cắt (chữ "(Thường cắt)" ghi ngoài khung). **Tạm** đặt ngăn 472-7/01-2 (MC
+472/01-02 LT 472E6.2) tủ RMU 01-472 E6.4 Công An tỉnh là thường cắt: bản vẽ 6 và 18 không ghi điểm
+thường cắt giữa 472 E6.2 và 477 E6.4 ở đây - cần xác nhận. Dây liên thông khai tay (`qua`) nay vẽ
+ngay sau bản vẽ của nó, trước khi tìm đường tự động (trước đây cáp 473 E6.5 tự đi chạm góc dây
+20 → 18). Mục `giao` trong dat.mjs: khúc đường dây cấp khác cắt ngang tuyến (kv, dai).
+
 Công cụ dò đã bổ sung: ghép cạnh khung tủ vẽ thành nhiều đoạn; dây nhảy qua (cung
 nhỏ) không coi là nối; `bo_noi` (hộp bỏ nối chỗ bản vẽ đè nét); tủ RMU ghi mọi ngăn có
 dây nối ra và ngăn "(Thường cắt)"; ký hiệu hộp (MC, LBS) lấy tâm cụm nét đậm; chia nét tại đỉnh chữ T /
@@ -934,7 +950,7 @@ cắt khai tay); ngăn thường cắt nối cáp từ ngoài vẫn vẽ trong t
 Kiểm tra: `node tools/ra-soat-co-lap-thanh-cai.mjs` (không thanh cái nào còn điện khi
 cô lập) và smoke test (cắt MC 473 thì trục 473 mất điện, 471/481 vẫn có điện; cắt MC
 477 chỉ mất điện trục 477, cắt MC 472 chỉ mất điện trục 472; đóng MC 472E6.4/61 thì
-473E6.2 cấp ngược sang Đồng Bẩm; cụm E6.4, cụm E6.5 + 481 E6.9: cắt MC đầu lộ nào chỉ lộ đó mất điện).
+473E6.2 cấp ngược sang Đồng Bẩm; cụm E6.4, cụm E6.5 + 481 E6.9, cụm E6.2 22kV: cắt MC đầu lộ nào chỉ lộ đó mất điện).
 
 ## 8. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)
 

@@ -41,9 +41,6 @@ export default [
       'ĐZ 471 E6.2': [[-1399.01, 499.32], [-1399.01, 215]],
     },
     cap_noi: { 'ĐZ 477 E6.4': true, 'ĐZ 472 E6.4': true, 'ĐZ 471 E6.2': true },
-    chu: [
-      { p: [587, 337.7], t: '→ LT 472 E6.2' },
-    ],
   },
   // ---------------- bản vẽ 20-23: đặt trong khoảng trống dưới E6.4/E6.5 ----------------
   // Cáp các ngăn lộ E6.4 đi dọc dưới hàng ngăn lộ (y -448 .. -470, trên đường 110kV y=-475),
@@ -84,11 +81,9 @@ export default [
       'ĐZ 475 E6.2': [[-1476.25, 499.32], [-1476.25, 290], [-560, 290], [-560, -300], [-258, -300], [-258, -2385], [-982.8, -2385]],
     },
     cap_noi: { 'ĐZ 476 E6.4': true, 'ĐZ 475 E6.2': true },
-    chu: [{ p: [701.5, 172], t: '↑ LT 474 E6.2' }],
     // liên thông: MC 472E6.4/73 (vẽ ở bản vẽ 18, 471 E6.2), LBS 476E6.4/39 (vẽ ở nhánh cột 65 ĐZ 473 E6.2)
     noi_ban_ve: [
       { tu: ['22.json', [403, 206.67]], den: ['18.json', [471.6, 211.48]], qua: [[-1006.4, -1965], [-246, -1965], [-246, -288], [-574, -288], [-574, 139]] },
-      { tu: ['22.json', [559.76, 475.29]], den: [-1007.13, 56], qua: [[-818.3, -2392], [-252, -2392], [-252, -294], [-586, -294], [-586, 56]] },
     ],
   },
   {
@@ -183,6 +178,51 @@ export default [
     // (LBS 471E6.5/83, DCL 471E6.5-7/84, DCL 475E6.4-7/30) thuộc phần MC 471E6.5/48 ở bản vẽ 21/24
     noi_ban_ve: [
       { tu: ['27.json', [567.2, 181.51]], den: ['17.json', [703.56, 374.82]], tu_dong: true, ra: 'phai' },
+    ],
+  },
+  // ---------------- cụm E6.2 ----------------
+  {
+    // 472 E6.2 (bản vẽ 6): chỉ trục ngăn lộ C44 - cột 36; sau cột 36 (38 - 43 - RMU 34, Trung Tâm)
+    // đã vẽ ở bản vẽ 20 (474 E6.4), nhánh cột 21 - RMU Công An tỉnh và DCL 472E6.2-7/36 ở bản vẽ 18
+    json: '06.json',
+    goc_pdf: [131.75, 124],
+    goc: [-737.51, 470],
+    ti_le: 1.2,
+    noi: { 'ĐZ 472 E6.2': [[-737.51, 499.54], [-737.51, 470]] },
+    noi_ban_ve: [
+      { tu: ['06.json', [131.75, 200.83]], den: ['18.json', [585.11, 336.16]], tu_dong: true, ra: 'trai' },
+      { tu: ['06.json', [131.75, 248.85]], den: ['18.json', [640.8, 408.26]], tu_dong: true, ra: 'xuong' },
+    ],
+  },
+  {
+    // 473 E6.2 (bản vẽ 7, thay lộ thí điểm 473E6.2.mjs): MC 472E6.4/61 (thường cắt) vẽ ở bản vẽ 18;
+    // LBS 476E6.4/39 (thường cắt) vẽ ở đây, phía kia là bản vẽ 22 (476 E6.4)
+    json: '07.json',
+    goc_pdf: [74.27, 380.86],
+    // trục đặt ở y = 304: dưới cáp trong trạm E6.2 (y = 317,55), trên cáp 475 E6.2 (y = 290)
+    goc: [-1437.4, 304],
+    ti_le: 0.75,
+    noi: { 'ĐZ 473 E6.2': [[-1437.4, 499.32], [-1437.4, 304]] },
+    cap_noi: { 'ĐZ 473 E6.2': true },
+    giao: [{ p: [480, 380.86], t: 'Giao chéo 376 TCCN', kv: 35, dai: 7 }],
+    noi_ban_ve: [
+      { tu: ['07.json', [572.57, 380.86]], den: ['18.json', [783.25, 146.19]], tu_dong: true, ra: 'phai' },
+      { tu: ['07.json', [447.39, 485.4]], den: ['22.json', [559.76, 475.29]], tu_dong: true, ra: 'phai' },
+    ],
+  },
+  {
+    // 474 E6.2 (bản vẽ 8): đặt bên phải trạm E6.2 (giữa đường 110kV x = -540 và x = -150).
+    // MC 474E6.2/07 LT 476 E6.4 (thường cắt) vẽ ở bản vẽ 22; DCL 474E6.2-7/02 Toàn Thắng (thường
+    // cắt) - phía bên kia là ĐZ 471 E6.6 (nối khi vẽ cụm E6.6)
+    json: '08.json',
+    goc_pdf: [86, 143],
+    goc: [-530, 500],
+    ti_le: 0.75,
+    noi: { 'ĐZ 474 E6.2': { tu: [-698.29, 499.54], ra: 'xuong', vao: 'tren' } },
+    cap_noi: { 'ĐZ 474 E6.2': true },
+    chu: [{ p: [484, 424], t: '↓ LT 471 E6.6', canh: 'trai' }],
+    noi_ban_ve: [
+      { tu: ['08.json', [86.69, 143.2]], den: ['22.json', [699.58, 173.82]], tu_dong: true, ra: 'trai' },
     ],
   },
 ];

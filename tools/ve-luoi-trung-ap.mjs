@@ -515,11 +515,16 @@ const VI_TRI_PDF = new Map(); // tên file JSON -> hàm đổi điểm PDF sang 
  * bản vẽ này qua các điểm gấp khúc tới đầu dây của bản vẽ kia.
  *   { tu: ['20.json', [x, y]], den: ['18.json', [x, y]] | [X, Y], qua: [[X, Y], ...], cap, kv }
  */
-function veNoiGiuaBanVe(ds) {
+function veNoiGiuaBanVe(ds, { hoan } = {}) {
+  const conLai = [];
   for (const l of ds) {
     const diem = (d) => (typeof d[0] === 'string' ? VI_TRI_PDF.get(d[0])?.(d[1]) : d);
     const a = diem(l.tu), b = diem(l.den);
-    if (!a || !b) { console.log(`  ! nối giữa bản vẽ: thiếu ${JSON.stringify(l.tu)} / ${JSON.stringify(l.den)}`); continue; }
+    if (!a || !b) {
+      if (hoan) conLai.push(l); // bản vẽ bên kia chưa đặt: để vẽ sau
+      else console.log(`  ! nối giữa bản vẽ: thiếu ${JSON.stringify(l.tu)} / ${JSON.stringify(l.den)}`);
+      continue;
+    }
     kv = l.kv ?? 22;
     lop = data.layers.indexOf(`${kv}kV`);
     if (l.tu_dong) {
@@ -538,6 +543,7 @@ function veNoiGiuaBanVe(ds) {
     }
     net([a, ...(l.qua ?? []), b], !!l.cap);
   }
+  return conLai;
 }
 
 function vePdf(dat) {
@@ -890,6 +896,19 @@ function vePdf(dat) {
     s.b.push([LOP_CHU, kv, KIEU.cap, SRC, +(x - nx * L).toFixed(3), +(y - ny * L).toFixed(3), +(x + nx * L).toFixed(3), +(y + ny * L).toFixed(3)]);
     for (const n of r.nhan) chuPdf(n);
   }
+  // giao chéo với đường dây khác cấp điện áp (không đấu nối): khúc đường dây kia cắt ngang tuyến
+  // tại điểm p (toạ độ PDF trên tuyến), vòng nhảy vẽ ở veGiaoCheo(); doc: tuyến dọc
+  for (const g of dat.giao ?? []) {
+    const [x, y] = W(g.p);
+    const kvG = g.kv ?? 35, d = g.dai ?? 11;
+    const r = g.doc
+      ? [data.layers.indexOf(`${kvG}kV`), kvG, KIEU.dz, SRC, +(x - d).toFixed(3), +y.toFixed(3), +(x + d).toFixed(3), +y.toFixed(3)]
+      : [data.layers.indexOf(`${kvG}kV`), kvG, KIEU.dz, SRC, +x.toFixed(3), +(y + d).toFixed(3), +x.toFixed(3), +(y - d).toFixed(3)];
+    s.b.push(r);
+    dongGiao.add(r);
+    if (g.doc) chu(x + d + 2, y - H_COT / 2, H_COT, g.t, 'trai');
+    else chu(x, y + d + 2, H_COT, g.t, 'giua');
+  }
   // chữ thêm (ghi liên thông ở đầu dây cụt ...)
   for (const g of dat.chu ?? []) {
     const [x, y] = W(g.p);
@@ -922,8 +941,16 @@ function vePdf(dat) {
 const datPdf = resolve('tools/luoi-trung-ap/pdf/dat.mjs');
 if (existsSync(datPdf)) {
   const ds = (await import(pathToFileURL(datPdf).href)).default;
-  for (const d of ds) vePdf(d);
-  veNoiGiuaBanVe(ds.flatMap((d) => d.noi_ban_ve ?? []));
+  // dây liên thông khai tay (có 'qua') vẽ ngay sau bản vẽ của nó để các cáp tìm đường tự động
+  // vẽ sau tránh được; dây tìm đường tự động vẽ cuối cùng
+  const tuDong = [];
+  let choTay = [];
+  for (const d of ds) {
+    vePdf(d);
+    choTay = veNoiGiuaBanVe([...choTay, ...(d.noi_ban_ve ?? []).filter((l) => !l.tu_dong)], { hoan: true });
+    tuDong.push(...(d.noi_ban_ve ?? []).filter((l) => l.tu_dong));
+  }
+  veNoiGiuaBanVe([...choTay, ...tuDong]);
 }
 veGiaoCheo();
 writeFileSync(duongDan, JSON.stringify(data));
