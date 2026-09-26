@@ -674,7 +674,6 @@ export default [
       'ĐZ 373 E6.22': { tu: [-1215.59, 4724.08], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 371 E6.22': true, 'ĐZ 373 E6.22': true },
-    chu: [{ p: [742, 272], t: 'DCL 373E6.22-7/01A LT 371 E6.22 (thường cắt)' }],
     noi_ban_ve: [
       // MC 371E6.6/125 LT 371 E6.22 (thường cắt) vẽ ở bản vẽ 28
       { tu: ['66.json', [705.98, 81.01]], den: ['28.json', [252.5, 211.03]], tu_dong: true },

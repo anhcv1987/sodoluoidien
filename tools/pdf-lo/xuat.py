@@ -6,7 +6,8 @@ cfg: {
   "pdf": "...",
   "cam": [[x,y],...], "vung": [[x0,y0,x1,y1],...], "mo": [[x,y],...],
   "lo": [ { "ten": "ĐZ 473 E6.4", "kv": 22, "nguon": [x,y], "dich": [[x,y],...] }, ... ],
-  "bo_chu": ["regex", ...]      # chữ không lấy
+  "bo_chu": ["regex", ...],     # chữ không lấy
+  "tb_vi_tri": {"DCL ...": [x, y]}   # vị trí thiết bị khai tay (ký hiệu không nhận ra được)
 }
 Toạ độ: pt theo trang đã xoay (như ảnh render). JSON giữ nguyên toạ độ pt.
 """
@@ -412,6 +413,17 @@ for dist, k_, q, ij, sg in ung_vien:
     if any(math.hypot(q[0] - p_[0], q[1] - p_[1]) < 2.0 for p_ in da_diem): continue
     da_gan.add(k_); da_diem.append(q)
     tb[k_]['q'] = q; tb[k_]['ij'] = ij
+# thiết bị khai vị trí bằng tay (ký hiệu vẽ lạ, công cụ không nhận ra): cfg "tb_vi_tri": {"tên": [x, y]}
+for ten_, (px_, py_) in cfg.get('tb_vi_tri', {}).items():
+    k_ = next((k for k, d_ in enumerate(tb) if d_['ten'][0] == ten_ or d_['ten'][0].startswith(ten_ + ' ')), None)
+    if k_ is None:
+        e = next((e for e in tex if e['t'].strip() == ten_), None)
+        if e is None:
+            print('tb_vi_tri: không thấy chữ', ten_); continue
+        tb.append(dict(ten=[ten_], nhan=[e], d=0, ij=None, q=None)); k_ = len(tb) - 1
+    dd, ij, q = gan_chuoi(px_, py_)
+    tb[k_]['q'] = q; tb[k_]['ij'] = ij
+    da_gan.add(k_)
 for k_, d_ in enumerate(tb):
     if k_ not in da_gan:
         d_['bo'] = True   # không có ký hiệu trên đường dò: thiết bị ở nhánh rẽ bên cạnh
