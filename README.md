@@ -924,9 +924,7 @@ bản vẽ 18 (x = -560), xuống hành lang x = -258 (trái thanh cái NĐ An K
 sau MC 478E6.4/61 (bản vẽ 23) vẽ như lộ "ĐZ 475 E6.5", đầu lộ ở đầu dây ĐZ 475 E6.5 - nối khi
 vẽ cụm E6.5. Trạng thái đóng/cắt các điểm liên thông theo bản vẽ, sẽ hiệu chỉnh theo thực tế sau.
 
-**Cụm E6.5 (bản vẽ 24-27)** đặt bên phải đường 110kV x = -176 (x 304 .. 2055, y -1135 ..
--2146). Vị trí khung bản vẽ tìm tự động (`goc: 'tu_dong'` + `gan`, `tools/pdf-lo/tim-duong.mjs`
-tìm chỗ trống) rồi **ghi cố định** vào dat.mjs để sơ đồ không xê dịch khi thêm bản vẽ khác. Cáp
+**Cụm E6.5 (bản vẽ 24-27)**: vị trí khung bản vẽ nay quy hoạch tự động theo đường liên kết ngắn nhất (mục 7.2). Cáp
 ngăn lộ và dây liên thông giữa hai bản vẽ đi **tự động** (`noi: {tu, ra, vao}`, `noi_ban_ve` có
 `tu_dong`): tìm đường vuông góc tránh chữ, thiết bị, ít rẽ, ít cắt ngang (chỗ cắt có vòng nhảy).
 
@@ -986,6 +984,33 @@ Kiểm tra: `node tools/ra-soat-co-lap-thanh-cai.mjs` (không thanh cái nào c�
 cô lập) và smoke test (cắt MC 473 thì trục 473 mất điện, 471/481 vẫn có điện; cắt MC
 477 chỉ mất điện trục 477, cắt MC 472 chỉ mất điện trục 472; đóng MC 472E6.4/61 thì
 473E6.2 cấp ngược sang Đồng Bẩm; cụm E6.4, cụm E6.5 + 481 E6.9, cụm E6.2 22kV: cắt MC đầu lộ nào chỉ lộ đó mất điện).
+
+### 7.2. Đặt bản vẽ theo đường liên kết ngắn nhất
+
+Mọi bản vẽ trong `tools/luoi-trung-ap/pdf/dat.mjs` khai `goc: 'tu_dong'`: vị trí **không ghi
+cố định** mà tính lại mỗi lần chạy bằng `quyHoachCho` (`tools/pdf-lo/tim-duong.mjs`) để hai
+trạm / hai bản vẽ liên kết với nhau theo đường ngắn nhất:
+
+* Mỗi bản vẽ có các "neo": đầu ra ngăn lộ nguồn (`noi.tu`, trọng số 2 - kèm phạt đi vòng qua
+  mặt trạm) và dây liên thông với bản vẽ khác (`noi_ban_ve`, trọng số 1). Chi phí = tổng
+  trọng số × khoảng cách vuông góc (Manhattan) từ điểm nối trên bản vẽ tới neo.
+* Đặt lần lượt vào ô trống (lưới 20 đơn vị, tránh nét / chữ / thiết bị và các bản vẽ đã đặt),
+  thử 15 thứ tự (gốc, đảo, theo số neo trạm, 12 thứ tự ngẫu nhiên có hạt cố định) và dò cục bộ
+  (nhấc từng bản vẽ đặt lại) tới khi không giảm được nữa - kết quả luôn như nhau giữa các lần chạy.
+* Vị trí thực ghi ra `tools/luoi-trung-ap/pdf/vi-tri.json` (smoke test đổi điểm kiểm tra từ toạ
+  độ PDF sang tờ tổng theo file này).
+* Cáp ngăn lộ - đầu lộ vẽ **sau khi đã đặt xong mọi bản vẽ** (bản vẽ đặt sau có thể nằm trên
+  hướng đi của cáp bản vẽ trước), dây liên thông tự động vẽ cuối cùng.
+* Tìm đường (`timDuong`): cấm đi trong 1 ô (4 đơn vị) quanh đầu mút / góc của nét khác, cấm
+  cắt ngang trong 2 ô quanh đỉnh, không rẽ sát chỗ cắt (vòng nhảy bán kính 5 chạm góc sẽ lọt
+  vào sai số bắt điểm của mô hình công suất thành đấu nối); để trống lối ra dài 24 trước đầu
+  các ngăn lộ khác.
+
+Tổng chiều dài nét lưới trung áp trên tờ tổng: 119.592 → 81.311 (giảm 32%). Thứ tự chạy khi
+cần làm lại: `node tools/ve-luoi-trung-ap.mjs` → `node tools/noi-duong-day-110.mjs
+src/data/tram-sld.json` (đường dây 110kV đi vòng quanh lưới trung áp) → `node
+tools/ve-luoi-trung-ap.mjs` (vị trí bản vẽ không phụ thuộc đường dây 110kV nên không đổi) →
+`npx vite build`.
 
 ## 8. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)
 

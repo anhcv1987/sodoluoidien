@@ -9,7 +9,47 @@
  * ve tuyen, dat thiet bi, hoan tac, gian tram chong lan, xuat/nhap DXF.
  */
 import { chromium } from 'playwright';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+
+// Các bản vẽ lưới trung áp tự đặt chỗ (tools/ve-luoi-trung-ap.mjs) -> điểm kiểm thử lấy theo toạ độ
+// PDF của từng bản vẽ, đổi sang tờ tổng bằng vị trí thực ghi trong vi-tri.json
+const VI_TRI = JSON.parse(readFileSync('tools/luoi-trung-ap/pdf/vi-tri.json', 'utf8'));
+const T = (j, [x, y]) => {
+  const v = VI_TRI[j];
+  return [v.goc[0] + v.ti_le * (x - v.goc_pdf[0]), v.goc[1] - v.ti_le * (y - v.goc_pdf[1])];
+};
+const P = {
+  d477: T('18.json', [372.054, 384.82]),
+  d472: T('18.json', [280.002, 384.82]),
+  d473: T('07.json', [190.803, 380.86]),
+  noi: T('18.json', [783.25, 146.19]),
+  p17: T('17.json', [700, 294.43]),
+  mc61: T('18.json', [783.25, 156.45]),
+  mc25: T('18.json', [626.993, 387.453]),
+  dongBam: T('18.json', [781.64, 243.953]),
+  l474: T('20.json', [82.067, 178.242]),
+  l475: T('21.json', [106.4, 328.033]),
+  l476: T('22.json', [99.708, 224.2]),
+  l478: T('23.json', [92.417, 181.542]),
+  l480: T('23.json', [145.158, 295.242]),
+  dau475: T('22.json', [422.692, 475.25]),
+  rec1048: T('18.json', [461.743, 211.453]),
+  lbs: T('07.json', [437.377, 486.167]),
+  rec1096: T('22.json', [328.333, 265.667]),
+  mc61A: T('23.json', [533.667, 412.167]),
+  d61A: T('23.json', [692, 411.908]),
+  a471: T('24.json', [200, 116.475]),
+  b471: T('26.json', [435.645, 199.982]),
+  a473: T('25.json', [500, 307.208]),
+  a475: T('26.json', [200, 360.609]),
+  b475: T('26.json', [277.182, 541.964]),
+  a472: T('26.json', [220, 274.191]),
+  a477: T('27.json', [486.373, 365.527]),
+  a481: T('26.json', [500, 360.536]),
+  e472: T('06.json', [131.75, 182.333]),
+  e474: T('08.json', [145.427, 250]),
+  rmu0607: T('20.json', [133, 396.253]),
+};
 
 const shot = process.argv[2] ?? 'smoke.png';
 const url = 'file://' + process.cwd() + '/dist/index.html';
@@ -29,6 +69,35 @@ const check = (name, cond, detail = '') => {
 
 await page.goto(url);
 await page.waitForTimeout(2500);
+// __P: điểm kiểm thử lưới trung áp; __cd(x, y): điểm (bắt vào nét đường dây gần nhất trong 1 đơn vị) có điện
+await page.evaluate((P) => {
+  window.__P = P;
+  const gan = (x, y, ax, ay, bx, by) => {
+    const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+    const t = L ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)) : 0;
+    return [ax + t * dx, ay + t * dy];
+  };
+  window.__cd = (x, y) => {
+    const a = window.sodo;
+    let best = [x, y], d0 = 1;
+    for (const e of a.store.entities) {
+      if (e.kind !== 'branch') continue;
+      const p = e.nodes.map((id) => a.store.get(id)?.p).filter(Boolean);
+      for (let i = 1; i < p.length; i++) {
+        const q = gan(x, y, p[i - 1].x, p[i - 1].y, p[i].x, p[i].y);
+        const d = Math.hypot(q[0] - x, q[1] - y);
+        if (d < d0) [d0, best] = [d, q];
+      }
+    }
+    return a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const q = gan(best[0], best[1], c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]);
+        if (Math.hypot(q[0] - best[0], q[1] - best[1]) < 0.5) return true;
+      }
+      return false;
+    });
+  };
+}, P);
 
 /* ---------------- Trang mac dinh: so do ket day tong ---------------- */
 
@@ -245,12 +314,12 @@ const lta = await page.evaluate(() => {
     dtd: dtd.length,
     dtdCat: dtd.every((e) => e.state === 'mo'),
     // 473 E6.2 (bản vẽ 7) nối vào đầu dây "473 E6.2 đến" của bản vẽ 18 (trên MC 472E6.4/61)
-    noi: ds.filter((e) => e.kind === 'branch' && e.nodes.some((id) => { const p = a.store.get(id)?.p; return p && Math.hypot(p.x + 663.16, p.y - 217.32) < 0.5; })).length >= 2,
+    noi: ds.filter((e) => e.kind === 'branch' && e.nodes.some((id) => { const p = a.store.get(id)?.p; return p && Math.hypot(p.x - __P.noi[0], p.y - __P.noi[1]) < 1; })).length >= 2,
     ten: moTen.every((t) => chu.some((c) => c.startsWith(t))),
     // trục 477 E6.4 (sau cột 48), trục 472 E6.4 (trước cột 48), 473 E6.2 trên trục
-    d477: coDien(-1155.627, -69.04),
-    d472: coDien(-1266.09, -69.04),
-    d473: coDien(-1350, 304),
+    d477: __cd(...__P.d477),
+    d472: __cd(...__P.d472),
+    d473: __cd(...__P.d473),
     nhay: ds.filter((e) => e.kind === 'branch' && e.khongNoiGiua).length,
     giao: giao.length,
     giaoCoDien,
@@ -365,15 +434,19 @@ check('Đổi trạng thái thiết bị và hoàn tác (Ctrl+Z)', tt1.sau === '
 const tachHaiDau = await page.evaluate(() => {
   const a = window.sodo;
   const mc = a.store.entities.find((e) => e.kind === 'device' && e.block === 'MC' && Math.hypot(e.p.x + 2578.2, e.p.y + 1106.2) < 1);
-  // có khúc công suất đi qua điểm (-2456, 250) trên tuyến đường dây
-  const coDien = () =>
-    a.congSuat.duLieu().chuoi.some((c) => {
-      for (let k = 2; k < c.pts.length; k += 2) {
-        const [x0, y0, x1, y1] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
-        if (Math.abs(x0 + 2456) < 0.5 && Math.abs(x1 + 2456) < 0.5 && Math.min(y0, y1) <= 250 && Math.max(y0, y1) >= 250) return true;
-      }
-      return false;
-    });
+  // tuyến 110kV nối ngăn 171 E6.4 (-2315, 177) với 175 E6.20 (-2599, -1270) - tuyến tự đi vòng quanh
+  // lưới trung áp nên lấy trung điểm khúc dài nhất của nó làm điểm kiểm tra
+  const pt = (id) => a.store.get(id)?.p;
+  const tuyen = a.store.entities
+    .filter((e) => e.kind === 'branch' && e.srcLayer === 'Kết lưới 110kV')
+    .map((e) => e.nodes.map(pt).filter(Boolean))
+    .find((p) => [[-2315, 177], [-2599, -1270]].every(([x, y]) => [p[0], p.at(-1)].some((q) => Math.hypot(q.x - x, q.y - y) < 2)));
+  let dai = 0, diem = null;
+  for (let i = 1; i < tuyen.length; i++) {
+    const L = Math.hypot(tuyen[i].x - tuyen[i - 1].x, tuyen[i].y - tuyen[i - 1].y);
+    if (L > dai) [dai, diem] = [L, [(tuyen[i].x + tuyen[i - 1].x) / 2, (tuyen[i].y + tuyen[i - 1].y) / 2]];
+  }
+  const coDien = () => __cd(...diem);
   const truoc = coDien();
   a.ed.doiTrangThai([mc.id], 'mo');
   const sau = coDien();
@@ -440,11 +513,11 @@ const pdf17 = await page.evaluate(() => {
     chu.some((c) => c.startsWith(t)),
   );
   // trục 473 gần MC 64 Ao Cang; cáp đầu lộ 473, 471, 481
-  const diem = [[-1600, -848.516], [-2106, -400], [-2410, -600], [-2420, -600]];
-  const truoc = diem.map(([x, y]) => coDien(x, y));
+  const diem = [__P.p17, [-2106, -392], [-2181.4, -392], [-2558.8, -392]];
+  const truoc = diem.map(([x, y]) => __cd(x, y));
   const mc473 = tb.find((e) => e.block === 'MCHB' && Math.hypot(e.p.x + 2105.97, e.p.y + 316.26) < 0.5);
   a.ed.doiTrangThai([mc473.id], 'mo');
-  const cat473 = diem.map(([x, y]) => coDien(x, y));
+  const cat473 = diem.map(([x, y]) => __cd(x, y));
   a.store.undo();
   return { ten, truoc, cat473 };
 });
@@ -473,20 +546,20 @@ const rec = await page.evaluate(() => {
   const gan = (block, x, y) =>
     a.store.entities.filter((e) => e.kind === 'device' && e.block === block).sort((p, q) => Math.hypot(p.p.x - x, p.p.y - y) - Math.hypot(q.p.x - x, q.p.y - y))[0];
   const mc472 = gan('MCHB', -1913.8, -316.26);
-  const mc61 = gan('REC', -662.2, 205);
-  const mc25 = gan('REC', -849.7, -72.2);
-  const [dongBam, truc472] = [[-664.124, 100], [-1266.09, -69.04]];
-  const kq = { truoc: coDien(...dongBam) && coDien(...truc472) };
+  const mc61 = gan('REC', ...__P.mc61);
+  const mc25 = gan('REC', ...__P.mc25);
+  const [dongBam, truc472] = [__P.dongBam, __P.d472];
+  const kq = { truoc: __cd(...dongBam) && __cd(...truc472) };
   a.ed.doiTrangThai([mc472.id], 'mo');
-  kq.cat472 = !coDien(...dongBam) && !coDien(...truc472);
+  kq.cat472 = !__cd(...dongBam) && !__cd(...truc472);
   a.ed.doiTrangThai([mc61.id], 'dong');
-  kq.dong61 = coDien(...dongBam) && coDien(...truc472);
+  kq.dong61 = __cd(...dongBam) && __cd(...truc472);
   a.ed.doiTrangThai([mc25.id], 'mo');
-  kq.cat25 = coDien(...dongBam) && !coDien(...truc472);
+  kq.cat25 = __cd(...dongBam) && !__cd(...truc472);
   a.store.undo();
   a.store.undo();
   a.store.undo();
-  kq.lai = coDien(...dongBam) && a.store.get(mc61.id).state === 'mo';
+  kq.lai = __cd(...dongBam) && a.store.get(mc61.id).state === 'mo';
   return kq;
 });
 check(
@@ -510,7 +583,7 @@ const rmu477 = await page.evaluate(() => {
       return false;
     });
   const mchb = (x) => a.store.entities.find((e) => e.kind === 'device' && e.block === 'MCHB' && Math.hypot(e.p.x - x, e.p.y + 316.26) < 0.5);
-  const diem = () => [coDien(-1155.627, -69.04), coDien(-1266.09, -69.04)];
+  const diem = () => [__cd(...__P.d477), __cd(...__P.d472)];
   const kq = { truoc: diem() };
   a.ed.doiTrangThai([mchb(-2141.41).id], 'mo');
   kq.cat477 = diem();
@@ -542,16 +615,16 @@ const cumE64 = await page.evaluate(() => {
     });
   // [x ngăn lộ, điểm đầu lộ trên bản vẽ]
   const lo = {
-    474: [-1875.05, [-1341.12, -1571.49]],
-    475: [-2257.16, [-1352.72, -2575.64]],
-    476: [-1782.55, [-1370.35, -2050.24]],
-    478: [-2328.57, [-1369.5, -2882.25]],
-    480: [-1744.48, [-1306.21, -3018.69]],
-    477: [-2141.41, [-1155.627, -69.04]],
-    472: [-1913.8, [-1266.09, -69.04]],
+    474: [-1875.05, __P.l474],
+    475: [-2257.16, __P.l475],
+    476: [-1782.55, __P.l476],
+    478: [-2328.57, __P.l478],
+    480: [-1744.48, __P.l480],
+    477: [-2141.41, __P.d477],
+    472: [-1913.8, __P.d472],
   };
   const ten = Object.keys(lo);
-  const trangThai = () => ten.map((t) => coDien(...lo[t][1]));
+  const trangThai = () => ten.map((t) => __cd(...lo[t][1]));
   const kq = { truoc: trangThai().every(Boolean), loi: [] };
   for (const t of ten) {
     const mc = a.store.entities.find((e) => e.kind === 'device' && e.block === 'MCHB' && Math.hypot(e.p.x - lo[t][0], e.p.y + 316.26) < 0.5);
@@ -581,26 +654,26 @@ const lt475E62 = await page.evaluate(() => {
     });
   const gan = (block, x, y) =>
     a.store.entities.filter((e) => e.kind === 'device' && e.block === block).sort((p, q) => Math.hypot(p.p.x - x, p.p.y - y) - Math.hypot(q.p.x - x, q.p.y - y))[0];
-  const dau = [-982.77, -2351.5];
+  const dau = __P.dau475;
   const mc = gan('MCHB', -1476.25, 554.31);
-  const kq = { truoc: coDien(...dau) };
+  const kq = { truoc: __cd(...dau) };
   a.ed.doiTrangThai([mc.id], 'mo');
-  kq.cat = !coDien(...dau);
-  kq.dong = [gan('REC', -1048, 139), gan('LBS', -1165.07, 225.02), gan('REC', -1096, -2100)].map((d) => {
+  kq.cat = !__cd(...dau);
+  kq.dong = [gan('REC', ...__P.rec1048), gan('LBS', ...__P.lbs), gan('REC', ...__P.rec1096)].map((d) => {
     a.ed.doiTrangThai([d.id], 'dong');
-    const co = coDien(...dau);
+    const co = __cd(...dau);
     a.store.undo();
     return co;
   });
   a.store.undo();
   // đoạn 61A-79 do 471 E6.5 cấp (bản vẽ 24): cắt MC đầu lộ 471 E6.5 thì mất điện, đóng MC 478E6.4/61 có điện lại
-  const mc61 = gan('REC', -840, -3159);
+  const mc61 = gan('REC', ...__P.mc61A);
   const mc471 = gan('MCHB', -836.3, -1252.69);
-  kq.doan61A = [coDien(-650, -3158.69)];
+  kq.doan61A = [__cd(...__P.d61A)];
   a.ed.doiTrangThai([mc471.id], 'mo');
-  kq.doan61A.push(coDien(-650, -3158.69));
+  kq.doan61A.push(__cd(...__P.d61A));
   a.ed.doiTrangThai([mc61.id], 'dong');
-  kq.doan61A.push(coDien(-650, -3158.69));
+  kq.doan61A.push(__cd(...__P.d61A));
   a.store.undo();
   a.store.undo();
   return kq;
@@ -627,15 +700,15 @@ const cumE65 = await page.evaluate(() => {
     });
   // [MC đầu lộ (x, y), các điểm trên lộ]
   const lo = {
-    '471 E6.5': [[-836.3, -1252.69], [[425.32, -1415.21], [1174.31, -1211.1]]],
-    '473 E6.5': [[-1256.9, -1253.86], [[1133, -2017.93]]],
-    '475 E6.5': [[-951.2, -1252.69], [[915.1, -1387.79], [1000, -1587.28]]],
-    '472 E6.5': [[-1338.5, -1253.86], [[937.1, -1292.73]]],
-    '477 E6.5': [[-748.1, -1252.69], [[1750, -1797.43]]],
-    '481 E6.9': [[421.97, -428.28], [[1245.1, -1387.71]]],
+    '471 E6.5': [[-836.3, -1252.69], [__P.a471, __P.b471]],
+    '473 E6.5': [[-1256.9, -1253.86], [__P.a473]],
+    '475 E6.5': [[-951.2, -1252.69], [__P.a475, __P.b475]],
+    '472 E6.5': [[-1338.5, -1253.86], [__P.a472]],
+    '477 E6.5': [[-748.1, -1252.69], [__P.a477]],
+    '481 E6.9': [[421.97, -428.28], [__P.a481]],
   };
   const ten = Object.keys(lo);
-  const trangThai = () => ten.map((t) => lo[t][1].map((p) => coDien(...p)));
+  const trangThai = () => ten.map((t) => lo[t][1].map((p) => __cd(...p)));
   const kq = { truoc: trangThai().flat().every(Boolean), loi: [] };
   for (const t of ten) {
     const [x, y] = lo[t][0];
@@ -664,7 +737,7 @@ const rmu0607 = await page.evaluate(() => {
     });
   const dclTA = a.store.entities.filter((e) => e.kind === 'device' && e.srcLayer === 'Lưới trung áp' && e.block === 'DCLTA').length;
   const dclCu = a.store.entities.filter((e) => e.kind === 'device' && e.srcLayer === 'Lưới trung áp' && e.block === 'DCL').length;
-  return { cap: coDien(-1280, -1833.103), dclTA, dclCu };
+  return { cap: __cd(...__P.rmu0607), dclTA, dclCu };
 });
 check('RMU 06 -> RMU 07 (474 E6.4) có điện qua cáp Cu 3x240; DCL lưới trung áp dùng ký hiệu DCLTA', rmu0607.cap && rmu0607.dclTA > 100 && rmu0607.dclCu === 0, JSON.stringify(rmu0607));
 check('Cụm E6.5: cắt MC đầu lộ 471/472/473/475/477 E6.5, 481 E6.9 thì chỉ lộ đó mất điện', cumE65.truoc && !cumE65.loi.length, JSON.stringify(cumE65));
@@ -683,13 +756,13 @@ const cumE62 = await page.evaluate(() => {
       return false;
     });
   const lo = {
-    '472 E6.2': [[-737.51, 554.53], [-737.51, 400]],
-    '474 E6.2': [[-698.29, 554.53], [-485.43, 419.75]],
-    '473 E6.2': [[-1437.41, 554.31], [-1350, 304]],
-    '475 E6.2': [[-1476.25, 554.31], [-982.77, -2351.5]],
+    '472 E6.2': [[-737.51, 554.53], __P.e472],
+    '474 E6.2': [[-698.29, 554.53], __P.e474],
+    '473 E6.2': [[-1437.41, 554.31], __P.d473],
+    '475 E6.2': [[-1476.25, 554.31], __P.dau475],
   };
   const ten = Object.keys(lo);
-  const tt = () => ten.map((t) => coDien(...lo[t][1]));
+  const tt = () => ten.map((t) => __cd(...lo[t][1]));
   const kq = { truoc: tt().every(Boolean), loi: [] };
   for (const t of ten) {
     const [x, y] = lo[t][0];
