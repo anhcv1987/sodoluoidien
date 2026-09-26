@@ -31,6 +31,8 @@ export interface ChuoiCongSuat {
   /** Quãng đường (theo bản vẽ) từ nguồn tới điểm đầu - để các vạch chạy nối tiếp nhau. */
   pha: number;
   kv: VoltageKv;
+  /** Lớp của đường dây (để ẩn chạy công suất khi tắt lớp). */
+  lop?: string;
   minX: number;
   minY: number;
   maxX: number;
@@ -337,7 +339,9 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       cuonMBA.some((c) => kcDenTuyen(c, p) <= c.r * 0.9 && p.every((q) => Math.hypot(q.x - c.x, q.y - c.y) <= c.r * 3))
     )
       continue;
-    for (const q of p) {
+    // cỡ bản vẽ (để suy ra sai số bắt điểm) không tính đường dây kết lưới liên trạm: dời
+    // các tuyến đó ra mép khổ giấy không được làm đổi sai số bắt điểm trong trạm / lưới trung áp
+    if (!b.khongNoiGiua) for (const q of p) {
       if (q.x < minX) minX = q.x;
       if (q.y < minY) minY = q.y;
       if (q.x > maxX) maxX = q.x;
@@ -1088,6 +1092,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     pha: number;
     L: number;
     kv: VoltageKv;
+    lop: string;
   }
   const khuc: Khuc[] = [];
   const diemDung: Pt[] = [];
@@ -1100,15 +1105,16 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     const du = kc[u];
     const dv = kc[v];
     const kv = veKv[i];
-    if (dv - du >= L - eps) khuc.push({ a: u, b: v, ax: vx[u], ay: vy[u], bx: vx[v], by: vy[v], pha: du, L, kv });
-    else if (du - dv >= L - eps) khuc.push({ a: v, b: u, ax: vx[v], ay: vy[v], bx: vx[u], by: vy[u], pha: dv, L, kv });
+    const lop = tuyen[veTuyen[i]].b.layer;
+    if (dv - du >= L - eps) khuc.push({ a: u, b: v, ax: vx[u], ay: vy[u], bx: vx[v], by: vy[v], pha: du, L, kv, lop });
+    else if (du - dv >= L - eps) khuc.push({ a: v, b: u, ax: vx[v], ay: vy[v], bx: vx[u], by: vy[u], pha: dv, L, kv, lop });
     else {
       // mạch vòng: hai dòng gặp nhau trên đoạn này
       const x = Math.max(0, Math.min(L, (L + dv - du) / 2));
       const mx = vx[u] + ((vx[v] - vx[u]) * x) / L;
       const my = vy[u] + ((vy[v] - vy[u]) * x) / L;
-      if (x > eps) khuc.push({ a: u, b: -1, ax: vx[u], ay: vy[u], bx: mx, by: my, pha: du, L: x, kv });
-      if (L - x > eps) khuc.push({ a: v, b: -1, ax: vx[v], ay: vy[v], bx: mx, by: my, pha: dv, L: L - x, kv });
+      if (x > eps) khuc.push({ a: u, b: -1, ax: vx[u], ay: vy[u], bx: mx, by: my, pha: du, L: x, kv, lop });
+      if (L - x > eps) khuc.push({ a: v, b: -1, ax: vx[v], ay: vy[v], bx: mx, by: my, pha: dv, L: L - x, kv, lop });
     }
   }
   for (const u of cucCat) if (isFinite(kc[u]) && bac[u] > 0) diemDung.push({ x: vx[u], y: vy[u] });
@@ -1126,7 +1132,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     const r = ra.get(k.b);
     if (!r || r.length !== 1) return -1;
     const k2 = khuc[r[0]];
-    if (k2.kv !== k.kv || Math.abs(k2.pha - (k.pha + k.L)) > saiSo * 0.01) return -1;
+    if (k2.kv !== k.kv || k2.lop !== k.lop || Math.abs(k2.pha - (k.pha + k.L)) > saiSo * 0.01) return -1;
     return r[0];
   };
   const laTiep = new Uint8Array(khuc.length);
@@ -1138,7 +1144,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   const chuoi: ChuoiCongSuat[] = [];
   const dungChuoi = (i0: number): void => {
     const k0 = khuc[i0];
-    const c: ChuoiCongSuat = { pts: [k0.ax, k0.ay], pha: k0.pha, kv: k0.kv, minX: k0.ax, minY: k0.ay, maxX: k0.ax, maxY: k0.ay };
+    const c: ChuoiCongSuat = { pts: [k0.ax, k0.ay], pha: k0.pha, kv: k0.kv, lop: k0.lop, minX: k0.ax, minY: k0.ay, maxX: k0.ax, maxY: k0.ay };
     let i = i0;
     while (i >= 0 && !daDung[i]) {
       daDung[i] = 1;

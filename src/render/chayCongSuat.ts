@@ -120,6 +120,7 @@ export class ChayCongSuat {
     // Gom theo cấp điện áp để đổi màu ít lần
     const theoCap = new Map<VoltageKv, number[]>();
     d.chuoi.forEach((c, i) => {
+      if (c.lop && this.store.layer(c.lop)?.visible === false) return; // lớp đang tắt
       if (c.maxX < view.minX || c.minX > view.maxX || c.maxY < view.minY || c.minY > view.maxY) return;
       if ((c.maxX - c.minX + c.maxY - c.minY) * sc < 1.5) return;
       const a = theoCap.get(c.kv);

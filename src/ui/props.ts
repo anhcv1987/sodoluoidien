@@ -1,6 +1,6 @@
 import type { Editor } from '../editor/editor';
 import type { Entity, LineKind, VoltageKv } from '../core/types';
-import { allStyles } from '../core/voltage';
+import { allStyles, colorOf } from '../core/voltage';
 import { MA_DAY, tietDienTuMa } from '../data/grid110';
 import { getBlock } from '../symbols/blocks';
 import { unproject, project, formatLatLon } from '../data/geo';
@@ -300,12 +300,23 @@ export function buildProps(ed: Editor, sel: Entity[]): HTMLElement {
   return root;
 }
 
-/** Bang danh sach cac lop. */
+/** Bang danh sach cac lop: nhom "Duong day" (ngoai tram, theo cap dien ap) len dau. */
 export function buildLayers(ed: Editor, onChange: () => void): HTMLElement {
   const root = el('div', { class: 'layers' });
-  const names = Object.keys(ed.store.drawing.layers).sort();
-  for (const name of names) {
-    const l = ed.store.drawing.layers[name];
+  const layers = ed.store.drawing.layers;
+  const DZ = 'Đường dây ';
+  // cấp điện áp của lớp đường dây ("Đường dây 22kV" -> 22) theo thứ tự cao xuống thấp
+  const capDz = new Map(allStyles().map((st) => [DZ + st.name, st.kv]));
+  const coDoiTuong = new Set(ed.store.entities.map((e) => e.layer));
+  const dz = Object.keys(layers)
+    .filter((n) => capDz.has(n) && coDoiTuong.has(n))
+    .sort((a, b) => Number(capDz.get(b)) - Number(capDz.get(a)));
+  const khac = Object.keys(layers)
+    .filter((n) => !capDz.has(n))
+    .sort();
+
+  const dong = (name: string): HTMLElement => {
+    const l = layers[name];
     const row = el('div', { class: 'layer-row' });
     row.append(
       checkbox('', l.visible, (v) => {
@@ -314,7 +325,8 @@ export function buildLayers(ed: Editor, onChange: () => void): HTMLElement {
       }),
     );
     const sw = el('span', { class: 'swatch' });
-    sw.style.background = l.color ?? '#888';
+    const kv = capDz.get(name);
+    sw.style.background = l.color ?? (kv !== undefined ? colorOf(kv, false) : '#888');
     row.append(sw);
     row.append(el('span', { class: 'layer-name', text: name }));
     const lock = el('button', {
@@ -328,7 +340,30 @@ export function buildLayers(ed: Editor, onChange: () => void): HTMLElement {
       onChange();
     });
     row.append(lock);
-    root.append(row);
+    return row;
+  };
+
+  if (dz.length) {
+    root.append(el('div', { class: 'layer-nhom', text: 'Đường dây (ngoài trạm)' }));
+    // bật/tắt nhanh: chỉ lưới trung áp, chỉ lưới 110-220kV, hiện hết
+    const nut = (text: string, title: string, hien: (kv: number) => boolean): HTMLElement => {
+      const b = el('button', { class: 'btn small', type: 'button', text, title });
+      b.addEventListener('click', () => {
+        for (const n of dz) ed.store.setLayerVisible(n, hien(Number(capDz.get(n))));
+        onChange();
+      });
+      return b;
+    };
+    root.append(
+      el('div', { class: 'layer-nut' }, [
+        nut('Trung áp', 'Chỉ hiện đường dây 35kV trở xuống', (kv) => kv <= 35),
+        nut('110-220kV', 'Chỉ hiện đường dây 110kV, 220kV', (kv) => kv >= 110),
+        nut('Tất cả', 'Hiện mọi đường dây', () => true),
+      ]),
+    );
+    for (const n of dz) root.append(dong(n));
+    root.append(el('div', { class: 'layer-nhom', text: 'Trong trạm và lớp khác' }));
   }
+  for (const n of khac) root.append(dong(n));
   return root;
 }

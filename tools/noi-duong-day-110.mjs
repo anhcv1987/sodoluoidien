@@ -547,12 +547,25 @@ function huongRa(m) {
   return [0, Math.sign(dy) || 1];
 }
 
+/**
+ * ĐƯA ĐƯỜNG DÂY 110kV RA MÉP KHỔ GIẤY.
+ *
+ * Phần giữa tờ sơ đồ dành cho lưới trung áp. Quanh toàn bộ các trạm chừa một VÀNH rộng
+ * VANH đơn vị; trong phần lõi, đi theo hướng ra mép gần nhất (vuông góc với mép) thì rẻ,
+ * còn chạy dọc song song với mép đó thì bị phạt PHAT_DOC_LOI mỗi ô. Nhờ vậy đường dây
+ * ra thẳng tới vành, chạy dọc theo vành rồi mới rẽ vào trạm đầu kia; chỉ những nấc lệch
+ * ngắn mới còn đi trong lõi. Đặt PHAT_DOC_LOI=0 để trở lại cách đi dây theo hành lang cũ.
+ */
+const VANH = Number(process.env.VANH ?? 1200);
+const PHAT_DOC_LOI = Number(process.env.PHAT_DOC_LOI ?? 1200);
+const BIEN_TD = Number(process.env.BIEN_TD ?? 2500);
+
 /* --- Lưới tìm đường --- */
 const bao = {
-  x0: Math.min(...hopList.map((h) => h.x0)) - 700,
-  y0: Math.min(...hopList.map((h) => h.y0)) - 700,
-  x1: Math.max(...hopList.map((h) => h.x1)) + 700,
-  y1: Math.max(...hopList.map((h) => h.y1)) + 700,
+  x0: Math.min(...hopList.map((h) => h.x0)) - 700 - VANH,
+  y0: Math.min(...hopList.map((h) => h.y0)) - 700 - VANH,
+  x1: Math.max(...hopList.map((h) => h.x1)) + 700 + VANH,
+  y1: Math.max(...hopList.map((h) => h.y1)) + 700 + VANH,
 };
 const NX = Math.ceil((bao.x1 - bao.x0) / O) + 1;
 const NY = Math.ceil((bao.y1 - bao.y0) / O) + 1;
@@ -659,6 +672,74 @@ const chayNgang = new Uint8Array(NX * NY);
 const chayDoc = new Uint8Array(NX * NY);
 
 /**
+ * Lõi tờ sơ đồ (ngoài vành VANH): sauLoi > 0. ngangLaRa: mép gần nhất là mép trái/phải,
+ * tức đi NGANG là đi ra/vào mép (rẻ), đi DỌC là chạy song song với mép (bị phạt).
+ */
+const sauLoi = new Uint8Array(NX * NY);
+const ngangLaRa = new Array(NX * NY).fill(false);
+{
+  const nV = Math.round(VANH / O);
+  const nTD = Math.round(BIEN_TD / O);
+  for (let j = 0; j < NY; j++) {
+    for (let i = 0; i < NX; i++) {
+      const dx = Math.min(i, NX - 1 - i);
+      const dy = Math.min(j, NY - 1 - j);
+      const k = j * NX + i;
+      sauLoi[k] = Math.min(dx, dy) > nV ? 1 : 0;
+      // tờ khổ đứng: chỉ dải sát mép trên/dưới (BIEN_TD) mới coi đi dọc là đi ra mép
+      ngangLaRa[k] = dx <= dy || dy > nTD;
+    }
+  }
+}
+
+/** Đống nhị phân nhỏ nhất theo khoá f, giá trị k. */
+class Dong {
+  constructor() {
+    this.f = [];
+    this.k = [];
+  }
+  get size() {
+    return this.f.length;
+  }
+  push(f, k) {
+    const F = this.f, K = this.k;
+    let i = F.length;
+    F.push(f);
+    K.push(k);
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (F[p] <= f) break;
+      F[i] = F[p];
+      K[i] = K[p];
+      i = p;
+    }
+    F[i] = f;
+    K[i] = k;
+  }
+  pop() {
+    const F = this.f, K = this.k;
+    const top = [F[0], K[0]];
+    const f = F.pop(), k = K.pop();
+    const n = F.length;
+    if (n) {
+      let i = 0;
+      for (;;) {
+        let c = 2 * i + 1;
+        if (c >= n) break;
+        if (c + 1 < n && F[c + 1] < F[c]) c++;
+        if (F[c] >= f) break;
+        F[i] = F[c];
+        K[i] = K[c];
+        i = c;
+      }
+      F[i] = f;
+      K[i] = k;
+    }
+    return top;
+  }
+}
+
+/**
  * Tìm đường đi vuông góc từ A tới B bằng A*, tránh ô của các trạm khác.
  * Chi phí = chiều dài + phạt mỗi lần rẽ + phạt đi trùng tuyến đã có.
  */
@@ -722,19 +803,19 @@ function timDuong(A, B, tru, dA, dB) {
   /** Phạt khi chạy cùng chiều trong ô mà tuyến khác đã chạy qua (hai tuyến đè nhau). */
   const PHAT_CHONG = 400;
   const h = (i, j) => (Math.abs(i - ti) + Math.abs(j - tj)) * O;
-  // hàng đợi ưu tiên đơn giản (mảng + sắp xếp theo lô)
-  let bien = [];
+  // hàng đợi ưu tiên (đống nhị phân)
+  const bien = new Dong();
   {
     // coi như vừa đi tới A theo hướng dA
     const k = (sj * NX + si) * 4 + chiSoHuong(dA);
     g[k] = 0;
-    bien.push([h(si, sj), k]);
+    bien.push(h(si, sj), k);
   }
   const cam = chiSoHuong(dB); // đi tới B theo hướng này là đi từ phía ngăn lộ ra
   let dich = -1;
-  while (bien.length) {
-    bien.sort((a, b) => a[0] - b[0]);
-    const [f, k] = bien.shift();
+  let buoc = 0;
+  while (bien.size) {
+    const [f, k] = bien.pop();
     const d0 = k & 3;
     const o = k >> 2;
     const i0 = o % NX;
@@ -752,20 +833,24 @@ function timDuong(A, B, tru, dA, dB) {
       const pt = phatO(i1, j1);
       if (pt < 0) continue;
       const k1 = (j1 * NX + i1) * 4 + d;
+      // lõi tờ sơ đồ: chạy dọc song song với mép gần nhất thì bị phạt (xem VANH)
+      const k1o = j1 * NX + i1;
+      const doc = PHAT_DOC_LOI > 0 && sauLoi[k1o] > 0 && (d < 2) !== ngangLaRa[k1o] ? PHAT_DOC_LOI : 0;
       const c =
         g[k] +
         O +
         pt +
+        doc +
         (d === d0 ? 0 : PHAT_RE + reTai[o] * PHAT_RE_TRUNG) +
         dongDuc[j1 * NX + i1] * PHAT_DUC +
         ((d < 2 ? chayNgang[j1 * NX + i1] : chayDoc[j1 * NX + i1]) ? PHAT_CHONG : 0);
       if (c + 1e-9 < g[k1]) {
         g[k1] = c;
         truocO[k1] = k;
-        bien.push([c + h(i1, j1), k1]);
+        bien.push(c + h(i1, j1), k1);
       }
     }
-    if (bien.length > 260000) return null;
+    if (++buoc > 3000000) return null;
   }
   if (dich < 0) return null;
   const o = [];

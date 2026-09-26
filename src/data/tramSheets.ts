@@ -1,6 +1,7 @@
 import raw from './tram-sld.json';
 import { newId } from '../core/doc';
 import { doiChuKhoiThietBi, type KetQuaDoiChu } from '../core/doiChu';
+import { allStyles, styleOf } from '../core/voltage';
 import type {
   BranchEntity,
   CircleEntity,
@@ -202,6 +203,10 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
     put(t);
   }
 
+  // Tờ tổng: phần nằm ngoài ô các trạm (đường dây, lưới trung áp) sang lớp "Đường dây xxkV"
+  // để bật/tắt riêng từng cấp điện áp mà không ẩn sơ đồ trong trạm.
+  if (code === MA_TO_TONG) tachLopDuongDay(entities, s.st ?? []);
+
   // Nhãn nằm đè lên ký hiệu thiết bị thì dời ra chỗ thoáng gần nhất.
   ketQuaDoiChu.set(code, doiChuKhoiThietBi(entities));
 
@@ -300,7 +305,52 @@ export function stationsOf(code: string): CadStation[] {
 /** Mã tờ sơ đồ tổng (tất cả các trạm trên một tờ khổ A0). */
 export const MA_TO_TONG = 'TONG';
 
+/** Tên lớp đường dây theo cấp điện áp: "Đường dây 22kV". */
+export const lopDuongDay = (kv: VoltageKv): string => `Đường dây ${styleOf(kv).name}`;
+/** Các lớp đường dây trên tờ tổng (cấp cao xuống thấp). */
+export const LOP_DUONG_DAY = allStyles().map((st) => lopDuongDay(st.kv));
+
+/** Nguồn nét (lớp CAD) luôn thuộc đường dây dù nằm trong ô trạm (cáp nối ngăn lộ đi ra). */
+const NGUON_DUONG_DAY = new Set(['Lưới trung áp', 'Kết lưới 110kV']);
+/** Trạm ngoài tỉnh do công cụ vẽ thêm: là trạm, không phải đường dây. */
+const NGUON_TRAM = new Set(['Trạm ngoài tỉnh']);
+
+/**
+ * Chuyển các đối tượng nằm ngoài ô trạm sang lớp "Đường dây xxkV":
+ *  - nét, thiết bị, chữ của lưới trung áp và kết lưới 110kV (kể cả đoạn cáp nằm trong ô trạm);
+ *  - các đối tượng khác thuộc lớp cấp điện áp nằm hẳn ngoài mọi ô trạm.
+ * Chữ lớp "Ghi chú" chỉ chuyển khi là chữ của lưới trung áp / kết lưới.
+ */
+function tachLopDuongDay(entities: Record<Id, Entity>, st: unknown[][]): void {
+  const hop = st.filter((r) => r.length >= 8).map((r) => [r[4], r[5], r[6], r[7]] as number[]);
+  const trong = (x: number, y: number): boolean =>
+    hop.some((b) => x >= b[0] - 0.01 && x <= b[2] + 0.01 && y >= b[1] - 0.01 && y <= b[3] + 0.01);
+  const lopCap = new Set(allStyles().map((x) => x.layer));
+  const doi = (e: Entity, ps: { x: number; y: number }[]): boolean => {
+    const sl = 'srcLayer' in e ? e.srcLayer : undefined;
+    if (sl && NGUON_TRAM.has(sl)) return false;
+    if (sl && NGUON_DUONG_DAY.has(sl)) return true;
+    if (!lopCap.has(e.layer)) return false;
+    return ps.length > 0 && !ps.every((p) => trong(p.x, p.y));
+  };
+  for (const e of Object.values(entities)) {
+    if (e.kind === 'branch') {
+      const ps = e.nodes.map((id) => entities[id]).filter((n): n is Extract<Entity, { kind: 'node' }> => n?.kind === 'node').map((n) => n.p);
+      if (!doi(e, ps)) continue;
+      e.layer = lopDuongDay(e.kv);
+      for (const id of e.nodes) {
+        const n = entities[id];
+        if (n) n.layer = e.layer;
+      }
+    } else if (e.kind === 'device' || e.kind === 'text') {
+      if (doi(e, [e.p])) e.layer = lopDuongDay(e.kv ?? 22);
+    } else if (e.kind === 'circle') {
+      if (doi(e, [e.c])) e.layer = lopDuongDay(e.kv);
+    }
+  }
+}
+
 /** Các lớp (layer) mà dữ liệu CAD kèm theo sử dụng — để tạo sẵn trong bản vẽ. */
 export function cadLayerNames(): string[] {
-  return [...data.layers];
+  return [...data.layers, ...LOP_DUONG_DAY];
 }
