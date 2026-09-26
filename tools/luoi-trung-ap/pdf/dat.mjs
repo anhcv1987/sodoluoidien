@@ -548,8 +548,8 @@ export default [
     goc: 'tu_dong',
     ti_le: 1.2,
     noi: {
-      'ĐZ 472 E6.17': { tu: [1150.37, -3070], ra: 'xuong' },
-      'ĐZ 474 E6.17': { tu: [1613.82, -3070], ra: 'xuong' },
+      'ĐZ 472 E6.17': { tu: [1150.37, -3127.8], ra: 'xuong' },
+      'ĐZ 474 E6.17': { tu: [1613.82, -3127.8], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 472 E6.17': true, 'ĐZ 474 E6.17': true },
     noi_ban_ve: [
@@ -564,7 +564,7 @@ export default [
     goc: 'tu_dong',
     ti_le: 1.2,
     noi: {
-      'ĐZ 481 E6.17': { tu: [1404.99, -3070], ra: 'xuong' },
+      'ĐZ 481 E6.17': { tu: [1404.99, -3127.8], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 481 E6.17': true },
     noi_ban_ve: [

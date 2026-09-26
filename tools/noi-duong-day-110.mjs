@@ -626,6 +626,12 @@ const CAP_TA = [0.4, 6, 10, 22, 35];
 const oDaVe = new Uint8Array(NX * NY);
 const oTrungAp = new Uint8Array(NX * NY);
 const oSatTA = new Uint8Array(NX * NY);
+/**
+ * Ô chứa ĐỈNH (đầu nét, góc) của nét trung áp: đường dây 110kV đi qua đúng đỉnh đó thì
+ * mô hình đấu nối coi nét trung áp chạm vào đường dây (vd tuyến 110kV E6.14 chạy dọc qua
+ * đầu nét 35kV của chính trạm - điện 110kV lọt sang lưới trung áp) nên cấm hẳn.
+ */
+const oDinhTA = new Uint8Array(NX * NY);
 {
   const cham = (mang, x, y) => {
     const i = cot(x);
@@ -636,6 +642,7 @@ const oSatTA = new Uint8Array(NX * NY);
   for (const r of to.b) {
     if (r[3] === SRC || r[3] === SRC_TN) continue; // phần do chính script này vẽ
     const mang = CAP_TA.includes(r[1]) ? oTrungAp : oDaVe;
+    if (CAP_TA.includes(r[1])) for (let i = 4; i + 1 < r.length; i += 2) cham(oDinhTA, r[i], r[i + 1]);
     for (let i = 4; i + 3 < r.length; i += 2) {
       const [x0, y0, x1, y1] = [r[i], r[i + 1], r[i + 2], r[i + 3]];
       const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / (O / 2)));
@@ -784,6 +791,8 @@ function timDuong(A, B, tru, dA, dB) {
         if (sau < -10) p += PHAT_SAU_NGAN_LO;
       }
     }
+    // đỉnh nét trung áp: cấm (trừ sát hai đầu ngăn lộ)
+    if (oDinhTA[k] && Math.abs(i - si) + Math.abs(j - sj) > 2 && Math.abs(i - ti) + Math.abs(j - tj) > 2) return -1;
     if (oTrungAp[k]) p += PHAT_TA_TRONG;
     else if (oDaVe[k] || oSatTA[k]) p += PHAT_DE;
     // Dải để dành cho lưới trung áp ngay dưới trạm: đi qua được nhưng phạt nặng.
