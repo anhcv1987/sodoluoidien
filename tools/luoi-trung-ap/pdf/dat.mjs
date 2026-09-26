@@ -22,7 +22,6 @@ export default [
     cap_noi: { 'ĐZ 473 E6.4': true, 'ĐZ 471 E6.4': true, 'ĐZ 481 E6.4': true },
     chu: [
       { p: [795, 295.9], t: '→ LT 473 E6.3' },
-      { p: [637.6, 423.3], t: '→ LT 471 E6.19' },
       { p: [745, 131], t: '→ TĐ Hồ Núi Cốc (A6.10)' },
     ],
   },
@@ -217,9 +216,6 @@ export default [
       'ĐZ 377 E6.2': { tu: [-1093.68, 329.13], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 376 E6.2': true, 'ĐZ 377 E6.2': true },
-    chu: [
-      { p: [790, 250], t: '↑ LT 375 E6.19' },
-    ],
   },
   {
     json: '04.json',
@@ -254,7 +250,7 @@ export default [
     goc: 'tu_dong',
     ti_le: 1.2,
     noi: {
-      'ĐZ 473 E6.3': { tu: [-3971.84, -3145.26], ra: 'xuong' },
+      'ĐZ 473 E6.3': { tu: [-3971.84, -3145.26], ra: 'xuong', tu_do: 6 },
     },
     cap_noi: { 'ĐZ 473 E6.3': true },
     noi_ban_ve: [
@@ -300,10 +296,6 @@ export default [
       'ĐZ 380 E6.3': { tu: [-3565.11, -2708.36], ra: 'len' },
     },
     cap_noi: { 'ĐZ 376 E6.3': true, 'ĐZ 380 E6.3': true },
-    chu: [
-      { p: [680, 168], t: '→ LT 377 E6.19' },
-      { p: [735, 368], t: '↓ LT 372 E6.7' },
-    ],
     noi_ban_ve: [
       // DCL 380E6.3-7/23 (thường cắt) LT 374 E6.3 - phía 374 vẽ ở bản vẽ 10
       { tu: ['11.json', [144.2, 440.85]], den: ['10.json', [144.65, 239.02]], tu_dong: true },
@@ -592,7 +584,6 @@ export default [
     cap_noi: { 'ĐZ 372 E6.6': true, 'ĐZ 373 E6.6': true },
     chu: [
       { p: [790, 330], t: '↓ ĐZ 373 E26.1 (PC Bắc Kạn)' },
-      { p: [312, 425], t: '↓ 371 E6.22 (MC 371E6.22/100)' },
     ],
   },
   {
@@ -610,6 +601,100 @@ export default [
       { tu: ['30.json', [341.85, 290.59]], den: ['08.json', [480.53, 386.41]], tu_dong: true },
       // LBS 08/474E6.2 MV 471E6.6 (thường cắt) - phía 474 E6.2 cột 71
       { tu: ['30.json', [540.0, 319.87]], den: ['08.json', [597.59, 195.7]], tu_dong: true },
+    ],
+  },
+  {
+    json: '57.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 375 E6.19': { tu: [-2331.01, 3842.45], ra: 'phai' },
+    },
+    cap_noi: { 'ĐZ 375 E6.19': true },
+    noi_ban_ve: [
+      // MC 377E6.2/101A LT 375 E6.19 (thường cắt) vẽ ở bản vẽ 2
+      { tu: ['57.json', [635.3, 318.91]], den: ['02.json', [762.92, 274.5]], tu_dong: true },
+    ],
+  },
+  {
+    json: '58.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 377 E6.19': { tu: [-2331.01, 3896.4], ra: 'phai' },
+    },
+    cap_noi: { 'ĐZ 377 E6.19': true },
+    noi_ban_ve: [
+      // MC 376E6.3/55 LT 377 E6.19 (thường cắt) vẽ ở bản vẽ 11
+      { tu: ['58.json', [161.75, 115.03]], den: ['11.json', [668.5, 172.58]], tu_dong: true },
+    ],
+  },
+  {
+    json: '59.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 471 E6.19': { tu: [-2786.42, 3317.15], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 471 E6.19': true },
+    noi_ban_ve: [
+      // MC 473E6.4/20 LT 471 E6.19 (thường cắt) - đoạn 473 E6.4 tới LBS 473E6.4/47 vẽ ở bản vẽ 17
+      { tu: ['59.json', [573.0, 194.9]], den: ['17.json', [635.67, 421.96]], tu_dong: true },
+    ],
+  },
+  {
+    json: '60.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 473 E6.19': { tu: [-2834, 3317.15], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 473 E6.19': true },
+    noi_ban_ve: [
+      // DCL 471E6.19-7/29 LT 473 E6.19 (thường cắt) vẽ ở bản vẽ 59
+      { tu: ['60.json', [309.38, 307.3]], den: ['59.json', [315.35, 364.49]], tu_dong: true },
+    ],
+  },
+  {
+    json: '61.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 475 E6.19': { tu: [-2891.45, 3317.15], ra: 'xuong' },
+      'ĐZ 477 E6.19': { tu: [-2956.28, 3317.15], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 475 E6.19': true, 'ĐZ 477 E6.19': true },
+  },
+  {
+    json: '66.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 371 E6.22': { tu: [-1266.24, 4724.08], ra: 'xuong' },
+      'ĐZ 373 E6.22': { tu: [-1215.59, 4724.08], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 371 E6.22': true, 'ĐZ 373 E6.22': true },
+    chu: [{ p: [742, 272], t: 'DCL 373E6.22-7/01A LT 371 E6.22 (thường cắt)' }],
+    noi_ban_ve: [
+      // MC 371E6.6/125 LT 371 E6.22 (thường cắt) vẽ ở bản vẽ 28
+      { tu: ['66.json', [705.98, 81.01]], den: ['28.json', [252.5, 211.03]], tu_dong: true },
+      // LBS 371E6.22/58 (thường cắt) - đoạn cột 59 - MC 371E6.22/100 do 373 E6.6 cấp (bản vẽ 29)
+      { tu: ['66.json', [495.5, 252.2]], den: ['29.json', [310.79, 413.29]], tu_dong: true },
+    ],
+  },
+  {
+    json: '67.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 471 E6.22': { tu: [-1644.8, 4556.93], ra: 'xuong' },
+      'ĐZ 473 E6.22': { tu: [-1598.26, 4556.93], ra: 'xuong' },
+      'ĐZ 472 E6.22': { tu: [-1556.16, 4556.93], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 471 E6.22': true, 'ĐZ 473 E6.22': true, 'ĐZ 472 E6.22': true },
+    noi_ban_ve: [
+      // MC 472E6.22/143 LT 475 E6.19 (thường cắt) vẽ ở bản vẽ 61
+      { tu: ['67.json', [767.21, 483.19]], den: ['61.json', [806.2, 201.58]], tu_dong: true },
     ],
   },
 ];

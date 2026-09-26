@@ -1048,7 +1048,7 @@ NM NĐ An Khánh (A6.15, `tools/noi-duong-day-110.mjs`) chuyển sang phía tây
 Thứ tự chạy lại: `node tools/doi-cho-tram.mjs` → `node tools/ve-luoi-trung-ap.mjs` → `node
 tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trung-ap.mjs` → `npx vite build`.
 
-### 7.4. Các cụm tiếp theo (35kV E6.2 / E6.5 / TCCN, E6.3, E6.21, E6.7)
+### 7.4. Các cụm tiếp theo (E6.2 / E6.5 / TCCN, E6.3, E6.21, E6.7, E6.24, TCVB, E6.8, E6.17, E6.6, E6.19, E6.22)
 
 | Bản vẽ | Lộ | Thường cắt / liên thông |
 |---|---|---|
@@ -1066,11 +1066,34 @@ tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trun
 | 32 | 371 E6.7, 371 E6.24 | DCL 371E6.7-7/06 (nối 372 ở bản vẽ 33), LBS 371E6.7/26 |
 | 33 | 372, 373 E6.7; 373 E6.17 | LBS 373E6.7/34, MC 373E6.17/27; MC 372E6.7/08 (vẽ ở bản vẽ 11) |
 | 34 | 471 E6.7 | MC 471E6.7/1A, DCL 471E6.7-7/02, 7/04, 7/14 |
+| 35 | 476 E6.7; 473 E6.7 (đoạn cột 01 - 49); 474 E6.17 (đoạn cột 50 - 16); 477 E6.13; 450 E6.14 | MC 476E6.7/30, MC 476E6.7/16, MC 477E6.13/03, DCL 450E6.14-7/15; MC 1A, DCL 7/14, 7/02 (471 E6.7) nối sang bản vẽ 34 |
+| 36 | 473, 475 E6.7; 475, 477 E6.24 | DCL 473E6.7-7/25, MC 473E6.7/41B, DCL 475E6.7-7/7A, DPT 473E6.7-7/59-2; MC 476E6.7/11 nối sang bản vẽ 35 |
+| 37 | 472, 474 E6.7 (Thép Đại Việt) | DCL 473E6.7-7/25 (vẽ ở bản vẽ 36) |
+| 70 | 373 E6.24 | LBS 371E6.24/1A (nối 371 E6.24 ở bản vẽ 32) |
+| 9 | 373 E6.3 (sau cột 15), 372 TCVB, thanh cái trạm cắt Vòng Bi | MC 373E6.3/74; MC 373E6.17/27 (ngăn 374 TCVB) nối sang bản vẽ 33 |
+| 3 | 373, 374 E6.8 (XM La Hiên) | DCL 374-7B |
+| 38 | 371 E6.8 (trước MC 1A Tràng Xá) | DCL 371E6.8-7/02, MC 300/259 (PC Lạng Sơn); LBS 371E6.8/111 nối sang bản vẽ 5 |
+| 40 | 372, 377 E6.8 | MC 372E6.8/01; MC 373TCCN/65 (bản vẽ 4), DCL 371E6.8-7/02 (bản vẽ 38), DCL 377E6.8-7/13 (bản vẽ 41) |
+| 41 | 375 E6.8 | LBS 375E6.8/04, DCL 377E6.8-7/13; nối 371 E6.8 tại cột 188, 202A |
+| 44 | 371 E6.17 | LBS 371E6.17/23 (LT 377 E6.17, nối bản vẽ 5) |
+| 47 | 472, 474 E6.17 | LBS 472E6.17/19, 51A, 03, MC 472E6.17/16, 181, MC 474E6.17/152, 233; cột 50 - MC 476E6.7/16 ở bản vẽ 35 |
+| 48 | 481 E6.17 | MC 481E6.17/125 (vẽ ở bản vẽ 25) |
+| 28 | 371 E6.6 | MC 371E6.6/125 (LT 371 E6.22), MC 371E6.6/158 (vẽ ở bản vẽ 2) |
+| 29 | 372, 373 E6.6 | MC 104 E26.1 (PC Bắc Kạn); 373 E6.6 tới MC 371E6.22/100 |
+| 30 | 471 E6.6 | MC 471E6.6/01, LBS 08/474E6.2, DCL 474E6.2-7/02 (bản vẽ 8) |
+| 57 | 375 E6.19 | MC 377E6.2/101A (vẽ ở bản vẽ 2) |
+| 58 | 377 E6.19 | MC 376E6.3/55 (vẽ ở bản vẽ 11) |
+| 59, 60 | 471, 473 E6.19 | MC 473E6.4/20 (nối bản vẽ 17), DCL 471E6.19-7/29 |
+| 61 | 475, 477 E6.19 | LBS 475E6.19/94, 26, MC 472E6.22/143 |
+| 66 | 371, 373 E6.22 | LBS 371E6.22/58, DCL 373E6.22-7/01A; MC 371E6.6/125 (bản vẽ 28) |
+| 67 | 471, 473, 472 E6.22 | LBS 471E6.22/60B, 473E6.22/01, 472E6.22/18; MC 472E6.22/143 (bản vẽ 61) |
 
-Chưa vẽ / còn thiếu: bản vẽ 3 (373, 374 E6.8 - XM La Hiên), 15 (7 lộ E6.3 + liên thông E6.17,
-E6.21 - rất dày, trùng phần 474 với bản vẽ 13), đoạn trục 471 E6.7 sau RMU 68 - 69 tới LBS 84 (bản vẽ 34
-dò chưa thông), các lộ khách hàng hình tia không có liên thông (62, 63, 64A, E6.18, E6.23...), cụm
-E6.8, E6.17 / E6.13, E6.6, E6.19, E6.22, TCVB, Bắc Kạn.
+Không vẽ (lộ hình tia, không có liên thông, hoặc trùng bản vẽ khác): 0 (tổng hợp TCVB), 31, 39, 45,
+46, 56, 71, 72 và các lộ khách hàng (62, 63, 64A, E6.18, E6.23...).
+
+Chưa vẽ / còn thiếu: bản vẽ 15 (7 lộ E6.3 + liên thông E6.17, E6.21 - rất dày), 49 (451, 453 E6.17
+LT 485, 486 E6.13 - mạng cáp RMU khu công nghiệp), đoạn trục 471 E6.7 sau RMU 68 - 69 tới LBS 84,
+cụm Bắc Kạn (16 bản vẽ E26.x).
 
 Công cụ dò bổ sung: ký hiệu vẽ nét mảnh (gạch dao, khung MC) cũng nhận thiết bị; `tu_chan: "manh"`
 tìm ký hiệu nét mảnh cho chữ "(Thường cắt)"; hai lộ cùng bản vẽ không có điểm thường cắt ở giữa thì
