@@ -187,9 +187,6 @@ export default [
       'ĐZ 474 E6.2': { tu: [-698.29, 499.54], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 474 E6.2': true },
-    chu: [
-      { p: [484, 424], t: '↓ LT 471 E6.6', canh: 'trai' },
-    ],
     noi_ban_ve: [
       { tu: ['08.json', [86.69, 143.2]], den: ['22.json', [699.58, 173.82]], tu_dong: true },
     ],
@@ -221,7 +218,6 @@ export default [
     },
     cap_noi: { 'ĐZ 376 E6.2': true, 'ĐZ 377 E6.2': true },
     chu: [
-      { p: [470, 262], t: '← LT 371 E6.6', canh: 'phai' },
       { p: [790, 250], t: '↑ LT 375 E6.19' },
     ],
   },
@@ -570,6 +566,50 @@ export default [
     noi_ban_ve: [
       // MC 481E6.17/125 LT 473 E6.5 vẽ ở bản vẽ 25
       { tu: ['48.json', [406.04, 366.79]], den: ['25.json', [621.71, 214.18]], tu_dong: true },
+    ],
+  },
+  {
+    json: '28.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 371 E6.6': { tu: [382.87, 3923.97], ra: 'phai' },
+    },
+    cap_noi: { 'ĐZ 371 E6.6': true },
+    noi_ban_ve: [
+      // MC 371E6.6/158 LT 376 E6.2 (thường cắt) vẽ ở bản vẽ 2
+      { tu: ['28.json', [751.79, 431.47]], den: ['02.json', [544.44, 260.83]], tu_dong: true },
+    ],
+  },
+  {
+    json: '29.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 372 E6.6': { tu: [382.87, 3961.65], ra: 'phai' },
+      'ĐZ 373 E6.6': { tu: [382.65, 4250.14], ra: 'phai' },
+    },
+    cap_noi: { 'ĐZ 372 E6.6': true, 'ĐZ 373 E6.6': true },
+    chu: [
+      { p: [790, 330], t: '↓ ĐZ 373 E26.1 (PC Bắc Kạn)' },
+      { p: [312, 425], t: '↓ 371 E6.22 (MC 371E6.22/100)' },
+    ],
+  },
+  {
+    json: '30.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 471 E6.6': { tu: [0.8, 3773.6], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 471 E6.6': true },
+    noi_ban_ve: [
+      // DCL 474E6.2-7/02 NR Toàn Thắng (thường cắt) vẽ ở bản vẽ 8
+      { tu: ['30.json', [482.18, 320.38]], den: ['08.json', [480.46, 421.55]], tu_dong: true },
+      // MC 471E6.6/01 NR Đồng Hút (thường cắt) - phía 474 E6.2 cột 16 Liên Hồng
+      { tu: ['30.json', [339.02, 279.03]], den: ['08.json', [480.53, 386.41]], tu_dong: true },
+      // LBS 08/474E6.2 MV 471E6.6 (thường cắt) - phía 474 E6.2 cột 71
+      { tu: ['30.json', [540.0, 319.87]], den: ['08.json', [597.59, 195.7]], tu_dong: true },
     ],
   },
 ];
