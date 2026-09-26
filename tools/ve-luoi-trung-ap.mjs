@@ -1033,7 +1033,7 @@ function vePdf(dat) {
       const p = diem[m], q = diem[m + 1];
       // khung tìm đường quanh hai đầu; không thông thì nới rộng khung (cáp dài vòng qua các bản vẽ)
       let r = null;
-      for (const [le, gioiHan] of [[c.noi.le ?? 500, 4e6], [2000, 1.5e7]]) {
+      for (const [le, gioiHan] of [[c.noi.le ?? 500, 4e6], [2000, 1.5e7], [5000, 5e7]]) {
         const hop = [Math.min(p[0], q[0]) - le, Math.min(p[1], q[1]) - le, Math.max(p[0], q[0]) + le, Math.max(p[1], q[1]) + le];
         const L = luoiChiem(s, data, hop, { vungPhat: HOP_BAN_VE.filter((v) => v !== hopNay), vungCam: CUA_RA.filter((v) => v.cua !== c.noi) });
         r = timDuong(L, p, q, { ra: m === 0 ? c.noi.ra : null, vao: m === diem.length - 2 ? c.noi.vao : null, tuDoDau: m === 0 ? c.noi.tu_do ?? 2 : 2, gioiHan });

@@ -431,6 +431,7 @@ export function timDuong(L, a, b, { ra = null, vao = null, gioiHan = 4e6, tuDoDa
     const catTaiDay = (cell(i, j) & 3) !== 0 && !tuDo(i, j);
     for (let h2 = 0; h2 < 4; h2++) {
       if ((h ^ h2) === 1 && (h >> 1) === (h2 >> 1)) continue; // quay đầu
+      if (hRa != null && h2 !== h && i === si && j === sj) continue; // ra khỏi đầu ngăn lộ theo đúng hướng ra, không rẽ ngay tại ô đầu
       if (h2 !== h && catTaiDay) continue; // không rẽ tại chỗ cắt / chỗ đè
       if (h2 !== h && !tuDo(i, j) && gocSatCho(i, j, h, h2)) continue; // góc sát chỗ cắt (vòng nhảy chạm góc)
       const [di, dj] = HUONG[h2];

@@ -118,11 +118,6 @@ export default [
       'ĐZ 473 E6.5': { tu: [-1256.9, -1336.06], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 473 E6.5': true },
-    chu: [
-      { p: [527, 93], t: '↑ LT 477 E6.21' },
-      { p: [421, 47.1], t: '474 E6.17 ←', canh: 'phai' },
-      { p: [618, 219], t: '→ ĐZ 481 E6.17' },
-    ],
   },
   {
     json: '26.json',
@@ -381,7 +376,7 @@ export default [
     noi: {
       'ĐZ 372 E6.7': { tu: [-1728.1, -6279.44], ra: 'xuong' },
       'ĐZ 373 E6.7': { tu: [-2072.77, -6344.31], ra: 'xuong' },
-      'ĐZ 373 E6.17': { tu: [2085.96, -2801.32], ra: 'xuong', tu_do: 8 },
+      'ĐZ 373 E6.17': { tu: [2085.96, -2801.32], ra: 'xuong', tu_do: 12 },
     },
     cap_noi: { 'ĐZ 372 E6.7': true, 'ĐZ 373 E6.7': true },
     chu: [
@@ -533,6 +528,48 @@ export default [
       { tu: ['40.json', [336.08, 96.37]], den: ['04.json', [777.17, 480.64]], tu_dong: true },
       // DCL 377E6.8-7/13 LT 375 E6.8 (thường cắt) vẽ ở bản vẽ 41
       { tu: ['40.json', [204.35, 388.75]], den: ['41.json', [84.5, 458.65]], tu_dong: true },
+    ],
+  },
+  {
+    json: '44.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 371 E6.17': { tu: [2112.19, -2884.26], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 371 E6.17': true },
+    noi_ban_ve: [
+      // LBS 371E6.17/23 LT 377 E6.17 (thường cắt) - cột 38A ĐZ 377 E6.17 (trước TG Phú Bình) vẽ ở bản vẽ 5
+      { tu: ['44.json', [515.5, 329.64]], den: ['05.json', [96.89, 348.82]], tu_dong: true },
+    ],
+  },
+  {
+    json: '47.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 472 E6.17': { tu: [1150.37, -3070], ra: 'xuong' },
+      'ĐZ 474 E6.17': { tu: [1613.82, -3070], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 472 E6.17': true, 'ĐZ 474 E6.17': true },
+    noi_ban_ve: [
+      // MC 474E6.17/233 (thường cắt, phía nguồn 481 E6.17) - đoạn cột 12 - MC 474E6.17/37 vẽ ở bản vẽ 25
+      { tu: ['47.json', [276.52, 150.13]], den: ['25.json', [567.92, 46.78]], tu_dong: true },
+      // cột 50 - MC 476E6.7/16 LT 474 E6.17 (thường cắt) vẽ ở bản vẽ 35
+      { tu: ['47.json', [165.56, 334.78]], den: ['35.json', [745.1, 196.87]], tu_dong: true },
+    ],
+  },
+  {
+    json: '48.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 481 E6.17': { tu: [1404.99, -3070], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 481 E6.17': true },
+    noi_ban_ve: [
+      // MC 481E6.17/125 LT 473 E6.5 vẽ ở bản vẽ 25
+      { tu: ['48.json', [406.04, 366.79]], den: ['25.json', [621.71, 214.18]], tu_dong: true },
     ],
   },
 ];
