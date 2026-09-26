@@ -1048,6 +1048,36 @@ NM NĐ An Khánh (A6.15, `tools/noi-duong-day-110.mjs`) chuyển sang phía tây
 Thứ tự chạy lại: `node tools/doi-cho-tram.mjs` → `node tools/ve-luoi-trung-ap.mjs` → `node
 tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trung-ap.mjs` → `npx vite build`.
 
+### 7.4. Các cụm tiếp theo (35kV E6.2 / E6.5 / TCCN, E6.3, E6.21, E6.7)
+
+| Bản vẽ | Lộ | Thường cắt / liên thông |
+|---|---|---|
+| 1 | 372, 373 E6.2; 371, 372, 373, 375 E6.5 (35kV) | LBS 373E6.2/30A - DCL 7/27, LBS 373E6.2/4A, DCL 371E6.5-7/07; 372 E6.2, 371 E6.5 tới TBA Gang Thép (TISCO); đầu dây xuống 375 E6.3 |
+| 2 | 376, 377 E6.2 | DCL 377E6.2-7/86-1, MC 377E6.2/101A (LT 375 E6.19), MC 371E6.6/158 (LT 371 E6.6) |
+| 4 | 381, 380 E6.2 qua trạm cắt Cao Ngạn; 373, 374 TCCN | DCL 312-1 TCCN, MC 373TCCN/65 (LT 372 E6.8) |
+| 5 | 371, 376 TCCN (nối thanh cái TCCN ở bản vẽ 4), 377 E6.17 qua TG Phú Bình, 387 E6.9 | LBS 371E6.8/111, MC 371TCCN/126, LBS 371TCCN/20, DCL 376TCCN-7/171 |
+| 10 | 373, 374, 375 E6.3; 375 E6.17 | DCL 374E6.3-7/19, 7/20, 7/48; đoạn MC 375E6.3/43 - E6.5 nối sang bản vẽ 1 |
+| 11 | 376, 380 E6.3; đầu 372 E6.7 | DCL 376E6.3-7/31-2, MC 380E6.3/46, MC 376E6.3/55 (LT 377 E6.19), DCL 380E6.3-7/23 (nối 374 ở bản vẽ 10) |
+| 12 | 473 E6.3 | MC 473E6.4/64 (vẽ ở bản vẽ 17) |
+| 13 | 456, 475, 472 E6.3; 475 E6.21 (cấp 474 E6.3) | DCL 475E6.3-7/21, LBS 471E6.7/84, MC 474E6.3/56, DCL 474E6.3-7/21, DCL 472E6.3-7/06, 7/17A, DCL 474E6.3-7/17 |
+| 14 | 471, 478, 479 E6.3 | lộ khách hàng, không có điểm liên thông |
+| 64 | 478 E6.21, 454 E6.3 | ngăn 478-7/01-04 tủ RMU 01-478 E6.21 |
+| 65 | 477 E6.21 | LBS 476E6.3/02; MC 477E6.21/02 (vẽ ở bản vẽ 25) |
+| 32 | 371 E6.7, 371 E6.24 | DCL 371E6.7-7/06 (nối 372 ở bản vẽ 33), LBS 371E6.7/26 |
+| 33 | 372, 373 E6.7; 373 E6.17 | LBS 373E6.7/34, MC 373E6.17/27; MC 372E6.7/08 (vẽ ở bản vẽ 11) |
+| 34 | 471 E6.7 | MC 471E6.7/1A, DCL 471E6.7-7/02, 7/04, 7/14 |
+
+Chưa vẽ / còn thiếu: bản vẽ 3 (373, 374 E6.8 - XM La Hiên), 15 (7 lộ E6.3 + liên thông E6.17,
+E6.21 - rất dày, trùng phần 474 với bản vẽ 13), đoạn trục 471 E6.7 sau RMU 68 - 69 tới LBS 84 (bản vẽ 34
+dò chưa thông), các lộ khách hàng hình tia không có liên thông (62, 63, 64A, E6.18, E6.23...), cụm
+E6.8, E6.17 / E6.13, E6.6, E6.19, E6.22, TCVB, Bắc Kạn.
+
+Công cụ dò bổ sung: ký hiệu vẽ nét mảnh (gạch dao, khung MC) cũng nhận thiết bị; `tu_chan: "manh"`
+tìm ký hiệu nét mảnh cho chữ "(Thường cắt)"; hai lộ cùng bản vẽ không có điểm thường cắt ở giữa thì
+lộ sau dừng ở cây lộ trước (không vẽ chồng); `noi.tu_do` nới vùng tự do ở đầu cáp ngăn lộ khi ngay
+dưới đầu ra có chữ ghi hướng đi. Quy hoạch chỗ đặt chỉ dò trong cửa sổ ±3000 quanh các neo, 9 thứ tự
+(35 s cho 30 bản vẽ).
+
 ## 8. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)
 
 1. Trong CAD (AutoCAD / GstarCAD / VinaCAD…) mở bản vẽ lộ trung áp, dùng **SAVEAS →

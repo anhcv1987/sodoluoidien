@@ -110,7 +110,8 @@ export function timCho(s, data, w, h, gan, { le = 30, cam = [], vung = null, boQ
  * thiện vài vòng: gỡ từng bản vẽ ra, tìm chỗ trống có chi phí nhỏ nhất khi đã biết chỗ các bản
  * vẽ khác. Trả về Map id -> tâm [x, y].
  */
-export function quyHoachCho(s, data, ds, { le = 40, boQua = new Set(), vong = 4, soThu = 12 } = {}) {
+const CUA_SO = 3000; // nửa cửa sổ dò quanh các neo khi quy hoạch chỗ đặt
+export function quyHoachCho(s, data, ds, { le = 40, boQua = new Set(), vong = 4, soThu = 6 } = {}) {
   const s0 = s;
   s = { ...s0, b: s0.b.filter((r) => !boQua.has(r[3])), t: s0.t.filter((r) => !boQua.has(r[7])), d: s0.d.filter((r) => !boQua.has(r[8])) };
   let [X0, Y0, X1, Y1] = [Infinity, Infinity, -Infinity, -Infinity];
@@ -175,8 +176,18 @@ export function quyHoachCho(s, data, ds, { le = 40, boQua = new Set(), vong = 4,
     const ch = Math.ceil((b.h + 2 * le) / O_THO);
     let tot = null, bd = Infinity;
     const khac = [...hop.entries()].filter(([id]) => id !== b.id).map(([, h]) => h);
-    for (let j = 0; j + ch <= ny; j++) {
-      for (let i = 0; i + cw <= nx; i++) {
+    // chỉ dò trong cửa sổ quanh các neo (ngăn lộ nguồn, bản vẽ liên thông đã đặt) - nhanh hơn nhiều
+    const neo = b.noi.map((n) => n.A ?? (tam.get(n.ref) ? [tam.get(n.ref)[0] + n.oRef[0], tam.get(n.ref)[1] + n.oRef[1]] : null)).filter(Boolean);
+    let [wi0, wj0, wi1, wj1] = [0, 0, nx - cw, ny - ch];
+    if (neo.length) {
+      const xs = neo.map((p) => p[0]), ys = neo.map((p) => p[1]);
+      wi0 = Math.max(0, Math.floor((Math.min(...xs) - CUA_SO - X0) / O_THO));
+      wi1 = Math.min(nx - cw, Math.ceil((Math.max(...xs) + CUA_SO - X0) / O_THO));
+      wj0 = Math.max(0, Math.floor((Math.min(...ys) - CUA_SO - Y0) / O_THO));
+      wj1 = Math.min(ny - ch, Math.ceil((Math.max(...ys) + CUA_SO - Y0) / O_THO));
+    }
+    for (let j = wj0; j <= wj1; j++) {
+      for (let i = wi0; i <= wi1; i++) {
         const x0 = X0 + i * O_THO, y0 = Y0 + j * O_THO, x1 = x0 + cw * O_THO, y1 = y0 + ch * O_THO;
         const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
         const c = chiPhi(b, cx, cy);
@@ -185,6 +196,22 @@ export function quyHoachCho(s, data, ds, { le = 40, boQua = new Set(), vong = 4,
         if (khac.some((h) => x0 < h[2] && x1 > h[0] && y0 < h[3] && y1 > h[1])) continue;
         bd = c;
         tot = [cx, cy, x0, y0, x1, y1];
+      }
+    }
+    if (!tot && (wi0 > 0 || wj0 > 0 || wi1 < nx - cw || wj1 < ny - ch)) {
+      // cửa sổ đã kín chỗ: dò cả tờ
+      [wi0, wj0, wi1, wj1] = [0, 0, nx - cw, ny - ch];
+      for (let j = wj0; j <= wj1; j++) {
+        for (let i = wi0; i <= wi1; i++) {
+          const x0 = X0 + i * O_THO, y0 = Y0 + j * O_THO, x1 = x0 + cw * O_THO, y1 = y0 + ch * O_THO;
+          const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+          const c = chiPhi(b, cx, cy);
+          if (c >= bd) continue;
+          if (tong(i, j, i + cw, j + ch) !== 0) continue;
+          if (khac.some((h) => x0 < h[2] && x1 > h[0] && y0 < h[3] && y1 > h[1])) continue;
+          bd = c;
+          tot = [cx, cy, x0, y0, x1, y1];
+        }
       }
     }
     if (!tot) throw new Error(`Không tìm được chỗ cho bản vẽ ${b.id}`);
@@ -294,7 +321,7 @@ export function luoiChiem(s, data, hop, { vungPhat = [], vungCam = [] } = {}) {
  * Đường gấp khúc vuông góc từ a tới b. `ra`: hướng đi ra ở a ('xuong','len','trai','phai'),
  * `vao`: hướng đi vào b (hướng di chuyển ở bước cuối). Trả về danh sách điểm (gồm a, b) hoặc null.
  */
-export function timDuong(L, a, b, { ra = null, vao = null, gioiHan = 4e6 } = {}) {
+export function timDuong(L, a, b, { ra = null, vao = null, gioiHan = 4e6, tuDoDau = 2 } = {}) {
   const { g, nx, ny, X0, Y0, oCua } = L;
   const [si, sj] = oCua(...a);
   const [ti, tj] = oCua(...b);
@@ -306,7 +333,8 @@ export function timDuong(L, a, b, { ra = null, vao = null, gioiHan = 4e6 } = {})
   ];
   const tenH = { phai: 0, trai: 1, len: 2, xuong: 3 };
   const gan = (i, j, i2, j2, r) => Math.abs(i - i2) <= r && Math.abs(j - j2) <= r;
-  const tuDo = (i, j) => gan(i, j, si, sj, 2) || gan(i, j, ti, tj, 2);
+  // vùng tự do quanh hai đầu (ô); đầu 'a' có thể nới rộng khi ngay trước đầu ra ngăn lộ có chữ ghi hướng đi
+  const tuDo = (i, j) => gan(i, j, si, sj, tuDoDau) || gan(i, j, ti, tj, 2);
   const cell = (i, j) => (i < 0 || j < 0 || i >= nx || j >= ny ? 255 : g[j * nx + i]);
   // chi phí vào ô (i,j) khi đi theo hướng h; Infinity = cấm
   const phi = (i, j, h) => {

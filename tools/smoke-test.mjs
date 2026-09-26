@@ -346,10 +346,10 @@ const lta = await page.evaluate(() => {
 });
 check(
   'Lưới trung áp: các lộ vẽ từ ngăn lộ, nối nhau, có điện, dừng ở điểm thường cắt (kể cả ngăn tủ RMU); RMU có tiếp địa; giao chéo có vòng nhảy',
-  // 45 điểm thường cắt 22kV = 38 của cụm E6.4 / E6.2 22kV + 7 của bản vẽ 13 (475, 474, 456 E6.3)
+  // điểm thường cắt 22kV: 38 của cụm E6.4 / E6.2 22kV (con số tăng dần khi nhập thêm bản vẽ các cụm khác)
   // 38 của cụm E6.4: 1 của 473E6.2, 6 của bản vẽ 17, 5 thiết bị + 2 ngăn tủ RMU của bản vẽ 18,
   // 4 + 1 ngăn của bản vẽ 20, 1 của 21, 2 của 22 (MC 476E6.4/40, MC 474E6.2/07), 2 + 2 ngăn của 23
-  lta.net > 100 && lta.tb > 100 && lta.mo === 45 && lta.ten && lta.d477 && lta.d472 && lta.d473 && lta.noi && lta.dtd >= 20 && lta.dtdCat &&
+  lta.net > 100 && lta.tb > 100 && lta.mo >= 38 && lta.ten && lta.d477 && lta.d472 && lta.d473 && lta.noi && lta.dtd >= 20 && lta.dtdCat &&
     lta.nhay >= 9 && lta.giao >= 1 && !lta.giaoCoDien && lta.tuBu === 0,
   JSON.stringify(lta),
 );

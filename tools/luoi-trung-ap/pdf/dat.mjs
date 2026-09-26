@@ -338,4 +338,76 @@ export default [
       { p: [805, 342], t: '↑ LT 471 E6.7' },
     ],
   },
+  {
+    json: '65.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 477 E6.21': { tu: [-2269.78, -2342.85], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 477 E6.21': true },
+    chu: [
+      { p: [760, 350], t: '↑ Đi 476 E6.3' },
+      { p: [790, 440], t: '↑ Nguồn 473 E6.17' },
+    ],
+    noi_ban_ve: [
+      // MC 477E6.21/02 (thường cắt) LT 473 E6.5 vẽ ở bản vẽ 25
+      { tu: ['65.json', [214.82, 404.86]], den: ['25.json', [522.78, 94.0]], tu_dong: true },
+    ],
+  },
+  {
+    json: '64.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 478 E6.21': { tu: [-2546.97, -2356.67], ra: 'xuong' },
+      'ĐZ 454 E6.3': { tu: [-3273.68, -3070.71], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 478 E6.21': true, 'ĐZ 454 E6.3': true },
+  },
+  {
+    json: '32.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 371 E6.7': { tu: [-2041.71, -6344.82], ra: 'xuong' },
+      'ĐZ 371 E6.24': { tu: [-3416.15, -6811.27], ra: 'trai' },
+    },
+    cap_noi: { 'ĐZ 371 E6.7': true, 'ĐZ 371 E6.24': true },
+    noi_ban_ve: [
+      // DCL 371E6.7-7/06 (thường cắt) LT 372 E6.7 - lộ 372 vẽ ở bản vẽ 33
+      { tu: ['32.json', [197.93, 368.0]], den: ['33.json', [111.71, 229.93]], tu_dong: true },
+    ],
+  },
+  {
+    json: '33.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 372 E6.7': { tu: [-1728.1, -6279.44], ra: 'xuong' },
+      'ĐZ 373 E6.7': { tu: [-2072.77, -6344.31], ra: 'xuong' },
+      'ĐZ 373 E6.17': { tu: [2085.96, -2801.32], ra: 'xuong', tu_do: 8 },
+    },
+    cap_noi: { 'ĐZ 372 E6.7': true, 'ĐZ 373 E6.7': true },
+    chu: [
+      { p: [760, 300], t: 'TRẠM CẮT VÒNG BI (TCVB) - LT 371 TCVB' },
+    ],
+    noi_ban_ve: [
+      // MC 372E6.7/08 LT 380 E6.3 vẽ ở bản vẽ 11
+      { tu: ['33.json', [310.4, 131.74]], den: ['11.json', [728.51, 343.0]], tu_dong: true },
+    ],
+  },
+  {
+    json: '34.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 471 E6.7': { tu: [-2655.03, -6230.96], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 471 E6.7': true },
+    chu: [
+      { p: [372, 575], t: '← MC 471E6.7/1A NR Tiên Phong (LT 476 E6.7)', canh: 'phai' },
+      { p: [460, 575], t: '→ LT 477 E6.13' },
+    ],
+  },
 ];

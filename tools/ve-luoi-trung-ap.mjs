@@ -1034,7 +1034,7 @@ function vePdf(dat) {
       const le = c.noi.le ?? 500;
       const hop = [Math.min(p[0], q[0]) - le, Math.min(p[1], q[1]) - le, Math.max(p[0], q[0]) + le, Math.max(p[1], q[1]) + le];
       const L = luoiChiem(s, data, hop, { vungPhat: HOP_BAN_VE.filter((v) => v !== hopNay), vungCam: CUA_RA.filter((v) => v.cua !== c.noi) });
-      const r = timDuong(L, p, q, { ra: m === 0 ? c.noi.ra : null, vao: m === diem.length - 2 ? c.noi.vao : null });
+      const r = timDuong(L, p, q, { ra: m === 0 ? c.noi.ra : null, vao: m === diem.length - 2 ? c.noi.vao : null, tuDoDau: m === 0 ? c.noi.tu_do ?? 2 : 2 });
       if (!r) { console.log(`  ! ${c.ten}: không tìm được đường ${JSON.stringify(p)} -> ${JSON.stringify(q)}`); duong = null; break; }
       duong.push(...r.slice(1));
     }
@@ -1071,7 +1071,9 @@ if (existsSync(datPdf)) {
       if (l.qua) l.qua = l.qua.map(D);
     }
   }
+  const t0 = Date.now();
   tinhTamTuDong(ds);
+  console.log(`  (quy hoạch chỗ đặt: ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   // dây liên thông khai tay (có 'qua') vẽ ngay sau bản vẽ của nó để các cáp tìm đường tự động
   // vẽ sau tránh được; dây tìm đường tự động vẽ cuối cùng
   const tuDong = [];
@@ -1081,8 +1083,12 @@ if (existsSync(datPdf)) {
     choTay = veNoiGiuaBanVe([...choTay, ...(d.noi_ban_ve ?? []).filter((l) => !l.tu_dong)], { hoan: true });
     tuDong.push(...(d.noi_ban_ve ?? []).filter((l) => l.tu_dong));
   }
+  const t1 = Date.now();
   for (const f of CAP_HOAN) f();
+  console.log(`  (cáp ngăn lộ: ${((Date.now() - t1) / 1000).toFixed(0)} s)`);
+  const t2 = Date.now();
   veNoiGiuaBanVe([...choTay, ...tuDong]);
+  console.log(`  (dây liên thông: ${((Date.now() - t2) / 1000).toFixed(0)} s)`);
   // vị trí các bản vẽ (để kiểm thử tra toạ độ theo điểm trên bản vẽ PDF)
   writeFileSync(
     resolve('tools/luoi-trung-ap/pdf/vi-tri.json'),
