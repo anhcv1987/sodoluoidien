@@ -259,9 +259,9 @@ const lta = await page.evaluate(() => {
 });
 check(
   'Lưới trung áp: các lộ vẽ từ ngăn lộ, nối nhau, có điện, dừng ở điểm thường cắt (kể cả ngăn tủ RMU); RMU có tiếp địa; giao chéo có vòng nhảy',
-  // 25 điểm thường cắt: 1 của 473E6.2, 6 của bản vẽ 17, 5 thiết bị + 2 ngăn tủ RMU của bản vẽ 18,
-  // 4 + 1 ngăn của bản vẽ 20, 1 của 21, 1 của 22, 2 + 2 ngăn của 23
-  lta.net > 100 && lta.tb > 100 && lta.mo === 25 && lta.ten && lta.d477 && lta.d472 && lta.d473 && lta.noi && lta.dtd >= 20 && lta.dtdCat &&
+  // 26 điểm thường cắt: 1 của 473E6.2, 6 của bản vẽ 17, 5 thiết bị + 2 ngăn tủ RMU của bản vẽ 18,
+  // 4 + 1 ngăn của bản vẽ 20, 1 của 21, 2 của 22 (MC 476E6.4/40, MC 474E6.2/07), 2 + 2 ngăn của 23
+  lta.net > 100 && lta.tb > 100 && lta.mo === 26 && lta.ten && lta.d477 && lta.d472 && lta.d473 && lta.noi && lta.dtd >= 20 && lta.dtdCat &&
     lta.nhay >= 9 && lta.giao >= 1 && !lta.giaoCoDien && lta.tuBu === 0,
   JSON.stringify(lta),
 );
@@ -563,6 +563,48 @@ const cumE64 = await page.evaluate(() => {
   return kq;
 });
 check('Cụm E6.4: cắt MC đầu lộ 472/474/475/476/477/478/480 thì chỉ lộ đó mất điện', cumE64.truoc && !cumE64.loi.length, JSON.stringify(cumE64));
+// Liên thông ĐZ 475 E6.2 (bản vẽ 22): cắt MC đầu lộ 475 E6.2 thì mất điện; đóng một trong các
+// điểm thường cắt MC 472E6.4/73 (471 E6.2), LBS 476E6.4/39 (473 E6.2), MC 476E6.4/40 (476 E6.4)
+// thì có điện trở lại; đóng MC 478E6.4/61 thì đoạn cột 61A-79 nhận điện từ 480 E6.4
+const lt475E62 = await page.evaluate(() => {
+  const a = window.sodo;
+  const coDien = (x, y) =>
+    a.congSuat.duLieu().chuoi.some((c) => {
+      for (let k = 2; k < c.pts.length; k += 2) {
+        const [ax, ay, bx, by] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+        const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+        if (!L) continue;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L));
+        if (Math.hypot(ax + t * dx - x, ay + t * dy - y) < 0.5) return true;
+      }
+      return false;
+    });
+  const gan = (block, x, y) =>
+    a.store.entities.filter((e) => e.kind === 'device' && e.block === block).sort((p, q) => Math.hypot(p.p.x - x, p.p.y - y) - Math.hypot(q.p.x - x, q.p.y - y))[0];
+  const dau = [-982.77, -2351.5];
+  const mc = gan('MCHB', -1476.25, 554.31);
+  const kq = { truoc: coDien(...dau) };
+  a.ed.doiTrangThai([mc.id], 'mo');
+  kq.cat = !coDien(...dau);
+  kq.dong = [gan('REC', -1048, 139), gan('LBS', -1007.13, 128), gan('REC', -1096, -2100)].map((d) => {
+    a.ed.doiTrangThai([d.id], 'dong');
+    const co = coDien(...dau);
+    a.store.undo();
+    return co;
+  });
+  a.store.undo();
+  const mc61 = gan('REC', -840, -3159);
+  kq.doan61A = [coDien(-650, -3158.69)];
+  a.ed.doiTrangThai([mc61.id], 'dong');
+  kq.doan61A.push(coDien(-650, -3158.69));
+  a.store.undo();
+  return kq;
+});
+check(
+  'Liên thông 475 E6.2 qua MC 472E6.4/73, LBS 476E6.4/39, MC 476E6.4/40; đoạn 61A-79 qua MC 478E6.4/61',
+  lt475E62.truoc && lt475E62.cat && lt475E62.dong.every(Boolean) && !lt475E62.doan61A[0] && lt475E62.doan61A[1],
+  JSON.stringify(lt475E62),
+);
 // E6.4: cáp tổng MBA T2 vẽ nhảy qua C42 (nửa vòng tròn) xuống MC 432 - chỗ nhảy không
 // phải đấu nối. Cắt 432 + 412 -> C42 mất điện, C41 vẫn có (T1 qua 431); cắt 431 + 412
 // -> C41 mất điện; chỉ cắt 432 -> C42 nhận điện từ C41 qua 412

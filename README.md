@@ -897,8 +897,13 @@ vòng nhảy rộng bao cả bó. Điểm thường cắt:
 
 Chỗ liên thông giữa hai bản vẽ (mỗi bản vẽ chỉ vẽ một phía) nối bằng dây thật (`noi_ban_ve`
 trong dat.mjs) để thao tác đóng/cắt tính đúng chiều công suất: 474 ↔ 472 (RMU 02-472, DCL
-7/36), 475 ↔ 478 (DCL 478E6.4-7/01), 475 ↔ 480 (RMU 02-480). ĐZ 475 E6.2 (cũng có trong bản
-vẽ 22) để làm cùng cụm E6.2.
+7/36), 475 ↔ 478 (DCL 478E6.4-7/01), 475 ↔ 480 (RMU 02-480), 475 E6.2 ↔ 471 E6.2 (MC
+472E6.4/73, bản vẽ 18) và ↔ 473 E6.2 (LBS 476E6.4/39, nhánh cột 65).
+
+ĐZ 475 E6.2 (bản vẽ 22) nối từ ngăn lộ C43 E6.2: cáp đi dưới trạm E6.2 (y = 290), vòng phải
+bản vẽ 18 (x = -560), xuống hành lang x = -258 (trái thanh cái NĐ An Khánh). Đoạn cột 61A - 79
+sau MC 478E6.4/61 (bản vẽ 23) vẽ như lộ "ĐZ 475 E6.5", đầu lộ ở đầu dây ĐZ 475 E6.5 - nối khi
+vẽ cụm E6.5. Trạng thái đóng/cắt các điểm liên thông theo bản vẽ, sẽ hiệu chỉnh theo thực tế sau.
 
 Công cụ dò đã bổ sung: ghép cạnh khung tủ vẽ thành nhiều đoạn; dây nhảy qua (cung
 nhỏ) không coi là nối; `bo_noi` (hộp bỏ nối chỗ bản vẽ đè nét); tủ RMU ghi mọi ngăn có
