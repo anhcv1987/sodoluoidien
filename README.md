@@ -1063,9 +1063,11 @@ tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trun
 | 14 | 471, 478, 479 E6.3 | lộ khách hàng, không có điểm liên thông |
 | 64 | 478 E6.21, 454 E6.3 | ngăn 478-7/01-04 tủ RMU 01-478 E6.21 |
 | 65 | 477 E6.21 | LBS 476E6.3/02; MC 477E6.21/02 (vẽ ở bản vẽ 25) |
+| 15 | 476, 477, 480, 450 E6.3; 473 E6.17 (đoạn cột 15A - 17) | DCL 476E6.3-7/13A, 7/15A, ngăn 480-7/01-03, tháo lèo cột 06, 13A; LBS 476E6.3/02 (vẽ ở bản vẽ 65) |
+| 49 | 485, 486 E6.13; 451, 453, 475, 477 E6.17 (tới RMU 01); trục 471, 473 E6.17 tới cột 13 | DCL 31-1/485E6.13, 31-1/486E6.13 (LT 473, 471 E6.17), ngăn 485-7/05, 486-7/04; DCL 471E6.17-7/26 (bản vẽ 13), 473E6.17-7/26 (bản vẽ 65) |
 | 32 | 371 E6.7, 371 E6.24 | DCL 371E6.7-7/06 (nối 372 ở bản vẽ 33), LBS 371E6.7/26 |
 | 33 | 372, 373 E6.7; 373 E6.17 | LBS 373E6.7/34, MC 373E6.17/27; MC 372E6.7/08 (vẽ ở bản vẽ 11) |
-| 34 | 471 E6.7 | MC 471E6.7/1A, DCL 471E6.7-7/02, 7/04, 7/14 |
+| 34 | 471 E6.7 | MC 471E6.7/1A, DCL 471E6.7-7/02, 7/04, 7/14; trục qua RMU 68, 69 tới LBS 471E6.7/84 (bản vẽ 13) |
 | 35 | 476 E6.7; 473 E6.7 (đoạn cột 01 - 49); 474 E6.17 (đoạn cột 50 - 16); 477 E6.13; 450 E6.14 | MC 476E6.7/30, MC 476E6.7/16, MC 477E6.13/03, DCL 450E6.14-7/15; MC 1A, DCL 7/14, 7/02 (471 E6.7) nối sang bản vẽ 34 |
 | 36 | 473, 475 E6.7; 475, 477 E6.24 | DCL 473E6.7-7/25, MC 473E6.7/41B, DCL 475E6.7-7/7A, DPT 473E6.7-7/59-2; MC 476E6.7/11 nối sang bản vẽ 35 |
 | 37 | 472, 474 E6.7 (Thép Đại Việt) | DCL 473E6.7-7/25 (vẽ ở bản vẽ 36) |
@@ -1096,19 +1098,16 @@ Không vẽ (lộ hình tia, không có liên thông, hoặc trùng bản vẽ k
 | BK 11 - 13 | 371, 373, 375 E26.3 | MC 371E26.3/20, MC 375E26.3/85, MC 376E26.1/285 (nối tắt) |
 | BK 14 - 16 | 471, 472, 473, 474, 476 E26.1 (mạng cáp tủ RMU) | ngăn tủ RMU thường cắt (RMU 05, 06, 08 - 471; RMU 04, 11 - 472; RMU 03, 16, 23, 26 - 474; RMU 04 - 476), DPT 473E26.1-7/57, MC 472E26.1/59, MC 474E26.1/18 |
 
-Không vẽ (lộ hình tia, không có liên thông, hoặc trùng bản vẽ khác): 0 (tổng hợp TCVB), 31, 39, 45,
-46, 56, 71, 72 và các lộ khách hàng (62, 63, 64A, E6.18, E6.23...).
-
-Chưa vẽ / còn thiếu: bản vẽ 15 (7 lộ E6.3 + liên thông E6.17, E6.21 - rất dày), 49 (451, 453 E6.17
-LT 485, 486 E6.13 - mạng cáp RMU khu công nghiệp), đoạn trục 471 E6.7 sau RMU 68 - 69 tới LBS 84.
-Mạng cáp RMU Bắc Kạn (BK 14 - 16) mới dò trục và các tủ trên đường liên thông; dây nối giữa bản vẽ
-472 / 474 (RMU 20, 24 - 472, MC 474/16) chưa nối.
+Mạng cáp RMU Bắc Kạn (BK 14 - 16) mới dò trục và các tủ trên đường liên thông (các nhánh tủ hình tia
+không vẽ). Liên thông 472 - 474 E26.1: RMU 20-472 (ngăn 472-7/02 thường cắt) sang RMU 37-474 và
+RMU 24-472 sang MC 474/16 (thường cắt) tủ RMU 16-474.
 
 Công cụ dò bổ sung: ký hiệu vẽ nét mảnh (gạch dao, khung MC) cũng nhận thiết bị; `tu_chan: "manh"`
 tìm ký hiệu nét mảnh cho chữ "(Thường cắt)"; hai lộ cùng bản vẽ không có điểm thường cắt ở giữa thì
 lộ sau dừng ở cây lộ trước (không vẽ chồng); `noi.tu_do` nới vùng tự do ở đầu cáp ngăn lộ khi ngay
 dưới đầu ra có chữ ghi hướng đi. Công cụ dò: `tb_vi_tri` khai vị trí thiết bị khi ký hiệu không nhận ra được, `ngan_mo` nhận dạng
-"tên tủ|tên ngăn" cho ngăn tủ RMU thường cắt. Quy hoạch chỗ đặt chỉ dò trong cửa sổ ±3000 quanh các neo, 9 thứ tự
+"tên tủ|tên ngăn" cho ngăn tủ RMU thường cắt. Hai tủ RMU đặt sát nhau (chung cạnh trên) được tách ở cạnh dọc chung; dây nối giữa bản vẽ
+(`noi_ban_ve`) không tìm được đường thì nới rộng vùng tìm (500 → 2000 → 5000). Quy hoạch chỗ đặt chỉ dò trong cửa sổ ±3000 quanh các neo, 9 thứ tự
 (35 s cho 30 bản vẽ).
 
 ## 8. Đưa sơ đồ lưới trung áp từ CAD vào (giai đoạn 3)

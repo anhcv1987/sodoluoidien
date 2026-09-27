@@ -312,9 +312,6 @@ export default [
       'ĐZ 475 E6.21': { tu: [-2201.08, -2342.85], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 456 E6.3': true, 'ĐZ 475 E6.3': true, 'ĐZ 472 E6.3': true, 'ĐZ 475 E6.21': true },
-    chu: [
-      { p: [805, 342], t: '↑ LT 471 E6.7' },
-    ],
   },
   {
     json: '65.json',
@@ -326,7 +323,6 @@ export default [
     cap_noi: { 'ĐZ 477 E6.21': true },
     chu: [
       { p: [760, 350], t: '↑ Đi 476 E6.3' },
-      { p: [790, 440], t: '↑ Nguồn 473 E6.17' },
     ],
     noi_ban_ve: [
       // MC 477E6.21/02 (thường cắt) LT 473 E6.5 vẽ ở bản vẽ 25
@@ -383,6 +379,10 @@ export default [
       'ĐZ 471 E6.7': { tu: [-2655.03, -6230.96], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 471 E6.7': true },
+    noi_ban_ve: [
+      // cột 83 - LBS 471E6.7/84 (LT 475 E6.3, thường cắt) vẽ ở bản vẽ 13
+      { tu: ['34.json', [825.26, 267.37]], den: ['13.json', [800.54, 351.22]], tu_dong: true },
+    ],
   },
   {
     json: '35.json',
@@ -878,6 +878,10 @@ export default [
     noi_ban_ve: [
       { tu: ['bk15.json', [144.44, 282.25]], den: ['bk14.json', [186.47, 271.82]], tu_dong: true },
       { tu: ['bk15.json', [588.71, 242.56]], den: ['bk14.json', [626.84, 96.5]], tu_dong: true },
+      // RMU 20-472 (ngăn 472-7/02 thường cắt) - ngăn 472-7/01 cáp sang RMU 37-474 (bản vẽ 16)
+      { tu: ['bk15.json', [169.19, 305.68]], den: ['bk16.json', [127.91, 113.83]], tu_dong: true },
+      // RMU 24-472 ngăn 472-7/02 - MC 474/16 (thường cắt) tủ RMU 16-474 (bản vẽ 16)
+      { tu: ['bk15.json', [255.23, 470.77]], den: ['bk16.json', [618.62, 335.5]], tu_dong: true },
     ],
   },
   {
@@ -889,5 +893,47 @@ export default [
       'ĐZ 476 E26.1': { tu: [685.71, 6179.67], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 474 E26.1': true, 'ĐZ 476 E26.1': true },
+  },
+  {
+    json: '15.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 476 E6.3': { tu: [-3332.45, -3070.71], ra: 'xuong' },
+      'ĐZ 450 E6.3': { tu: [-3396.13, -3070.71], ra: 'xuong' },
+      'ĐZ 477 E6.3': { tu: [-3790.66, -3145.26], ra: 'xuong' },
+      'ĐZ 480 E6.3': { tu: [-3654.34, -3145.26], ra: 'xuong' },
+    },
+    cap_noi: { 'ĐZ 476 E6.3': true, 'ĐZ 450 E6.3': true, 'ĐZ 477 E6.3': true, 'ĐZ 480 E6.3': true },
+    chu: [{ p: [236, 222], t: 'Tháo lèo cột 06' }, { p: [362, 222], t: 'Tháo lèo cột 13A' }],
+    noi_ban_ve: [
+      // cột 17 - LBS 476E6.3/02 Vĩnh An (thường cắt) / DCL 473E6.17-7/26: phía 473 E6.17 vẽ ở bản vẽ 65
+      { tu: ['15.json', [483.38, 228.37]], den: ['65.json', [744.74, 366.25]], vao: 'len', tu_dong: true },
+    ],
+  },
+  {
+    // 451 + 453 E6.17 LT 485 + 486 E6.13 (kèm 475, 477 E6.17 tới RMU 01 và trục 471, 473 E6.17 tới cột 13)
+    json: '49.json',
+    goc: 'tu_dong',
+    ti_le: 1.2,
+    noi: {
+      'ĐZ 485 E6.13': { tu: [375.28, -5449.4], ra: 'xuong' },
+      'ĐZ 486 E6.13': { tu: [527.15, -5448.82], ra: 'xuong' },
+      'ĐZ 471 E6.17': { tu: [1112.57, -3127.8], ra: 'xuong' },
+      'ĐZ 473 E6.17': { tu: [1530.56, -3127.8], ra: 'xuong' },
+      'ĐZ 477 E6.17': { tu: [1244.58, -3127.8], ra: 'xuong' },
+      'ĐZ 475 E6.17': { tu: [1812.77, -3127.8], ra: 'xuong' },
+      'ĐZ 451 E6.17': { tu: [2037.94, -3127.8], ra: 'xuong' },
+      'ĐZ 453 E6.17': { tu: [2076.07, -3127.8], ra: 'xuong' },
+    },
+    cap_noi: {
+      'ĐZ 485 E6.13': true, 'ĐZ 486 E6.13': true, 'ĐZ 471 E6.17': true, 'ĐZ 473 E6.17': true,
+      'ĐZ 477 E6.17': true, 'ĐZ 475 E6.17': true, 'ĐZ 451 E6.17': true, 'ĐZ 453 E6.17': true,
+    },
+    noi_ban_ve: [
+      // cột 13: DCL 471E6.17-7/26 (LT 472 E6.3) vẽ ở bản vẽ 13, DCL 473E6.17-7/26 (LT 476 E6.3) vẽ ở bản vẽ 65
+      { tu: ['49.json', [419.99, 107.86]], den: ['13.json', [323.93, 263.5]], tu_dong: true },
+      { tu: ['49.json', [405.02, 121.21]], den: ['65.json', [786.47, 432.94]], tu_dong: true },
+    ],
   },
 ];

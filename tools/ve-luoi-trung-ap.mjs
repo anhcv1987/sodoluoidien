@@ -545,9 +545,14 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
       const diem = [a, ...(l.qua ?? []), b1];
       let duong = [a];
       for (let m = 0; m + 1 < diem.length && duong; m++) {
-        const p = diem[m], q = diem[m + 1], le = l.le ?? 500;
-        const hop = [Math.min(p[0], q[0]) - le, Math.min(p[1], q[1]) - le, Math.max(p[0], q[0]) + le, Math.max(p[1], q[1]) + le];
-        const r = timDuong(luoiChiem(s, data, hop, { vungPhat: HOP_BAN_VE }), p, q, { ra: m === 0 ? l.ra : null, vao: m === diem.length - 2 ? l.vao : null });
+        const p = diem[m], q = diem[m + 1];
+        let r = null;
+        // không tìm được thì nới rộng vùng tìm (dây dài vòng qua bản vẽ/trạm khác)
+        for (const [le, gioiHan] of [[l.le ?? 500, 4e6], [2000, 1.5e7], [5000, 5e7]]) {
+          const hop = [Math.min(p[0], q[0]) - le, Math.min(p[1], q[1]) - le, Math.max(p[0], q[0]) + le, Math.max(p[1], q[1]) + le];
+          r = timDuong(luoiChiem(s, data, hop, { vungPhat: HOP_BAN_VE }), p, q, { ra: m === 0 ? l.ra : null, vao: m === diem.length - 2 ? l.vao : null, gioiHan });
+          if (r) break;
+        }
         if (!r) { console.log(`  ! nối giữa bản vẽ: không tìm được đường ${JSON.stringify(p)} -> ${JSON.stringify(q)}`); duong = null; break; }
         duong.push(...r.slice(1));
       }

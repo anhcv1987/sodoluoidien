@@ -117,6 +117,17 @@ def khung_tu(e):
     tren = [g for g in ghep if g[0] < cx < g[1] and g[1] - g[0] > (e['x1'] - e['x0'])]
     if not tren: return None
     x0, x1, y0 = max(tren, key=lambda g: g[2])
+    # hai tủ đặt sát nhau (chung cạnh trên): cắt ở cạnh dọc chung - nét dọc từ cạnh trên xuống, gần giữa hai tên tủ
+    for f in tex:
+        if f is e or abs(f['y'] - e['y']) > 3 or not (x0 < f['x'] < x1): continue
+        if not (f['t'].upper().startswith('TỦ RMU') or re.match(r'^RMU\s?\d+\s*-', f['t'])): continue
+        a, b = sorted((cx, f['x']))
+        doc = [g[0] for g in seg_mo if abs(g[0] - g[2]) < 0.3 and a < g[0] < b
+               and min(g[1], g[3]) < y0 + 1 and max(g[1], g[3]) > y0 + 5]
+        if not doc: continue
+        xc = min(doc, key=lambda x: abs(x - (a + b) / 2))
+        if f['x'] > cx: x1 = xc
+        else: x0 = xc
     # cạnh bên: nối các đoạn dọc liền nhau từ cạnh trên xuống
     y1 = None
     for xc in (x0, x1):
