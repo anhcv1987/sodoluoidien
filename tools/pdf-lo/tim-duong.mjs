@@ -12,9 +12,12 @@
 const O_THO = 20; // ô lưới tìm chỗ
 const O = 4; // ô lưới tìm đường
 // phạt khi tìm đường: cắt ngang một nét (sẽ vẽ vòng nhảy); đi song song cách nét khác 2 ô / 3 ô
-// (8 / 12 đơn vị - không cấm nhưng đẩy các tuyến giãn ra cho thoáng)
-const PHAT_CAT_NET = Number(process.env.PHAT_CAT_NET ?? 80);
+// (8 / 12 đơn vị - không cấm nhưng đẩy các tuyến giãn ra cho thoáng); mỗi lần rẽ (gấp khúc - rẽ ở ô
+// sát đỉnh nét khác phạt gấp 4). Chọn theo thử toàn lưới: cắt 80 / rẽ 15 (cũ) -> 40 / 25 tổng dài tuyến
+// tự động giảm ~1%, số lần rẽ giảm ~7%, số chỗ cắt nét tăng ~10% (xem README)
+export const PHAT_CAT_NET = Number(process.env.PHAT_CAT_NET ?? 40);
 const PHAT_SAT = [Number(process.env.PHAT_SAT2 ?? 2), Number(process.env.PHAT_SAT3 ?? 1)];
+export const PHAT_RE = Number(process.env.PHAT_RE ?? 25);
 
 /** Hộp bao gần đúng của một dòng chữ [layer,kv,x,y,h,rot,align,src,text]. */
 export function hopChu(r, aligns) {
@@ -499,7 +502,7 @@ export function timDuong(L, a, b, { ra = null, vao = null, gioiHan = 4e6, tuDoDa
       const j2 = j + dj;
       const p = phi(i2, j2, h2);
       if (p === Infinity) continue;
-      const nd = d + p + (h2 !== h ? (cell(i, j) & 32 && !tuDo(i, j) ? 60 : 15) : 0);
+      const nd = d + p + (h2 !== h ? (cell(i, j) & 32 && !tuDo(i, j) ? 4 * PHAT_RE : PHAT_RE) : 0);
       const s2 = ((j2 * nx + i2) << 2) | h2;
       if (nd < dist[s2]) {
         dist[s2] = nd;

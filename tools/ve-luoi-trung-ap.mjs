@@ -28,7 +28,7 @@ execFileSync('npx', ['esbuild', 'src/symbols/blocks.ts', '--bundle', '--format=e
   stdio: 'inherit',
 });
 const { getBlock } = await import(pathToFileURL(bundle).href);
-const { timCho, luoiChiem, timDuong, quyHoachCho } = await import(pathToFileURL(resolve('tools/pdf-lo/tim-duong.mjs')).href);
+const { timCho, luoiChiem, timDuong, quyHoachCho, PHAT_RE, PHAT_CAT_NET } = await import(pathToFileURL(resolve('tools/pdf-lo/tim-duong.mjs')).href);
 const { doiDiem } = await import(pathToFileURL(resolve('tools/vi-tri-tram.mjs')).href);
 rmSync(tmp, { recursive: true, force: true });
 
@@ -544,23 +544,28 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
       const LUI = { len: [0, -16], xuong: [0, 16], phai: [-16, 0], trai: [16, 0] }[l.vao];
       const b1 = LUI ? [b[0] + LUI[0], b[1] + LUI[1]] : b;
       const diem = [a, ...(l.qua ?? []), b1];
-      let duong = [a];
-      for (let m = 0; m + 1 < diem.length && duong; m++) {
-        const p = diem[m], q = diem[m + 1];
-        let r = null;
-        // không tìm được thì nới rộng vùng tìm (dây dài vòng qua bản vẽ/trạm khác)
-        for (const [le, gioiHan] of [[l.le ?? 500, 4e6], [2000, 1.5e7], [5000, 5e7]]) {
-          const hop = [Math.min(p[0], q[0]) - le, Math.min(p[1], q[1]) - le, Math.max(p[0], q[0]) + le, Math.max(p[1], q[1]) + le];
-          r = timDuong(luoiChiem(s, data, hop, { vungPhat: HOP_BAN_VE }), p, q, { ra: m === 0 ? l.ra : null, vao: m === diem.length - 2 ? l.vao : null, gioiHan });
-          if (r) break;
+      const tinh = (bao = true) => {
+        let duong = [a];
+        for (let m = 0; m + 1 < diem.length && duong; m++) {
+          const p = diem[m], q = diem[m + 1];
+          let r = null;
+          // không tìm được thì nới rộng vùng tìm (dây dài vòng qua bản vẽ/trạm khác)
+          for (const [le, gioiHan] of [[l.le ?? 500, 4e6], [2000, 1.5e7], [5000, 5e7]]) {
+            const hop = [Math.min(p[0], q[0]) - le, Math.min(p[1], q[1]) - le, Math.max(p[0], q[0]) + le, Math.max(p[1], q[1]) + le];
+            r = timDuong(luoiChiem(s, data, hop, { vungPhat: HOP_BAN_VE }), p, q, { ra: m === 0 ? l.ra : null, vao: m === diem.length - 2 ? l.vao : null, gioiHan });
+            if (r) break;
+          }
+          if (!r) { if (bao) console.log(`  ! nối giữa bản vẽ: không tìm được đường ${JSON.stringify(p)} -> ${JSON.stringify(q)}`); duong = null; break; }
+          duong.push(...r.slice(1));
         }
-        if (!r) { console.log(`  ! nối giữa bản vẽ: không tìm được đường ${JSON.stringify(p)} -> ${JSON.stringify(q)}`); duong = null; break; }
-        duong.push(...r.slice(1));
-      }
-      if (duong && LUI) duong.push(b);
+        if (duong && LUI) duong.push(b);
+        return duong;
+      };
+      const duong = tinh();
       if (duong) {
         net(duong, !!l.cap);
         const ten = (d) => (typeof d[0] === 'string' ? d[0] : 'trạm');
+        TUYEN_TU_DONG.push({ ten: `liên thông ${ten(l.tu)} - ${ten(l.den)}`, tinh, row: s.b.at(-1), duong });
         console.log(`  liên thông ${ten(l.tu)} - ${ten(l.den)}: ${duong.length - 1} đoạn, dài ${duong.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - duong[i][0], q[1] - duong[i][1]), 0).toFixed(0)}, thẳng ${(Math.abs(duong.at(-1)[0] - duong[0][0]) + Math.abs(duong.at(-1)[1] - duong[0][1])).toFixed(0)}`);
       }
       continue;
@@ -1758,6 +1763,7 @@ function vePdf(dat) {
     const a = c.noi.tu;
     const qua = c.noi.qua ?? [];
     const diem = [a, ...qua, c.dauLo];
+    const tinh = (bao = true) => {
     let duong = [a];
     for (let m = 0; m + 1 < diem.length; m++) {
       const p = diem[m], q = diem[m + 1];
@@ -1783,18 +1789,22 @@ function vePdf(dat) {
               const q1 = [q[0] - h3[0] * lui, q[1] - h3[1] * lui];
               const r2 = timDuong(L, p, q1, { ra: m === 0 ? c.noi.ra : null, vao, tuDoDau: m === 0 ? c.noi.tu_do ?? 2 : 2, gioiHan });
               // không nhận nếu cắt thêm nét (đường dây 110kV không có ký hiệu nhảy ở chỗ cắt mới)
-              if (r2 && soCat([...r2, q]) <= soCat(r)) { r = [...r2, q]; console.log(`  cáp ${c.ten}: tránh kẹp tóc ở đầu lộ [${q.map(Math.round)}] (lùi ${lui})`); break; }
+              if (r2 && soCat([...r2, q]) <= soCat(r)) { r = [...r2, q]; if (bao) console.log(`  cáp ${c.ten}: tránh kẹp tóc ở đầu lộ [${q.map(Math.round)}] (lùi ${lui})`); break; }
             }
           }
         }
         if (r) break;
       }
-      if (!r) { console.log(`  ! ${c.ten}: không tìm được đường ${JSON.stringify(p)} -> ${JSON.stringify(q)}`); duong = null; break; }
+      if (!r) { if (bao) console.log(`  ! ${c.ten}: không tìm được đường ${JSON.stringify(p)} -> ${JSON.stringify(q)}`); duong = null; break; }
       duong.push(...r.slice(1));
     }
+    return duong;
+    };
+    const duong = tinh();
     if (!duong) continue;
     kv = c.kv; lop = c.lop;
     net(duong, c.cap);
+    TUYEN_TU_DONG.push({ ten: `cáp ${c.ten}`, tinh, row: s.b.at(-1), duong });
     const mh = (d) => Math.abs(d.at(-1)[0] - d[0][0]) + Math.abs(d.at(-1)[1] - d[0][1]);
     console.log(`  cáp ${c.ten}: ${duong.length - 1} đoạn, dài ${duong.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - duong[i][0], q[1] - duong[i][1]), 0).toFixed(0)}, thẳng ${mh(duong).toFixed(0)}`);
   } });
@@ -1803,6 +1813,57 @@ function vePdf(dat) {
 }
 
 const CAP_HOAN = []; // cáp ngăn lộ - đầu lộ, vẽ sau khi đặt xong mọi bản vẽ
+/** Các tuyến tìm đường tự động (cáp ngăn lộ, dây liên thông): { ten, tinh(), row, duong } - để tìm lại. */
+const TUYEN_TU_DONG = [];
+/**
+ * Tìm lại tuyến (gỡ ra - tìm lại): các tuyến tự động tìm lần lượt nên tuyến tìm trước không biết tuyến
+ * sau, tuyến sau phải vòng tránh tuyến trước. Sau khi vẽ xong, lần lượt gỡ từng tuyến ra và tìm lại
+ * trên tờ đã có đủ các tuyến khác; nhận đường mới khi chi phí nhỏ hơn: chi phí = chiều dài + PHAT_RE_DV
+ * mỗi lần rẽ + PHAT_CAT_DV mỗi chỗ cắt nét khác (cùng thang với phạt khi tìm đường, đổi ra đơn vị tờ).
+ * Tuyến tệ nhất (dài / khoảng cách thẳng) làm trước.
+ */
+const PHAT_RE_DV = 4 * PHAT_RE;
+const PHAT_CAT_DV = 4 * PHAT_CAT_NET;
+const daiTuyen = (d) => d.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - d[i][0], q[1] - d[i][1]), 0);
+const soRe = (d) => { let n = 0; for (let i = 1; i + 1 < d.length; i++) { const u = [d[i][0] - d[i - 1][0], d[i][1] - d[i - 1][1]], v = [d[i + 1][0] - d[i][0], d[i + 1][1] - d[i][1]]; if (Math.abs(u[0] * v[1] - u[1] * v[0]) > 1e-6) n++; } return n; };
+const chiPhiTuyen = (d) => daiTuyen(d) + PHAT_RE_DV * soRe(d) + PHAT_CAT_DV * soCat(d);
+function thongKeTuyen(nhan) {
+  for (const kvL of [22, 35, null]) {
+    const T = TUYEN_TU_DONG.filter((x) => kvL == null || x.row[1] === kvL);
+    console.log(`  tuyến tự động ${kvL ? `${kvL}kV` : 'tổng'} (${nhan}): ${T.length} tuyến, dài ${T.reduce((t, x) => t + daiTuyen(x.duong), 0).toFixed(0)}, ${T.reduce((t, x) => t + soRe(x.duong), 0)} lần rẽ, ${T.reduce((t, x) => t + soCat(x.duong), 0)} chỗ cắt nét`);
+  }
+}
+function toiUuTuyen(vong) {
+  thongKeTuyen('trước khi tìm lại');
+  let doi = 0, giam = 0;
+  for (let v = 0; v < vong; v++) {
+    const ds = [...TUYEN_TU_DONG].sort((A, B) => {
+      const k = (T) => daiTuyen(T.duong) / Math.max(1, Math.abs(T.duong.at(-1)[0] - T.duong[0][0]) + Math.abs(T.duong.at(-1)[1] - T.duong[0][1]));
+      return k(B) - k(A);
+    });
+    let doiVong = 0;
+    for (const T of ds) {
+      const i = s.b.indexOf(T.row);
+      if (i < 0) continue;
+      s.b.splice(i, 1);
+      const cu = chiPhiTuyen(T.duong);
+      const moi = T.tinh(false);
+      if (moi && chiPhiTuyen(moi) < cu - 1) {
+        giam += cu - chiPhiTuyen(moi);
+        T.row.length = 4;
+        T.row.push(...moi.flat().map((q) => +q.toFixed(3)));
+        T.duong = moi;
+        doiVong++;
+      }
+      s.b.splice(i, 0, T.row);
+    }
+    doi += doiVong;
+    if (!doiVong) break;
+  }
+  console.log(`  tìm lại tuyến: đổi ${doi} lượt, chi phí giảm ${giam.toFixed(0)}`);
+  thongKeTuyen('sau khi tìm lại');
+}
+
 /** Số chỗ đường gấp khúc cắt ngang nét đã vẽ trên tờ tổng (so hai phương án đường cáp). */
 function soCat(duong) {
   const X0 = Math.min(...duong.map((q) => q[0])), X1 = Math.max(...duong.map((q) => q[0]));
@@ -1877,6 +1938,9 @@ if (existsSync(datPdf)) {
   const t2 = Date.now();
   veNoiGiuaBanVe([...choTay, ...tuDong]);
   console.log(`  (dây liên thông: ${((Date.now() - t2) / 1000).toFixed(0)} s)`);
+  const t3 = Date.now();
+  if (!TAT.has('toiuu')) toiUuTuyen(Number(process.env.VONG_TUYEN ?? 2));
+  console.log(`  (tìm lại tuyến: ${((Date.now() - t3) / 1000).toFixed(0)} s)`);
   // vị trí các bản vẽ (để kiểm thử tra toạ độ theo điểm trên bản vẽ PDF)
   writeFileSync(
     resolve('tools/luoi-trung-ap/pdf/vi-tri.json'),

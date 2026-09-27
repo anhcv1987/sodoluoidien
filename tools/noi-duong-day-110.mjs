@@ -536,9 +536,18 @@ const DUONG_DAY = [
 
 const hopList = [...hop.entries()].map(([ma, b]) => ({ ma, ...b }));
 const LE = 60; // nới biên ô trạm khi kiểm tra va chạm
+// Chọn tham số theo thử toàn lưới (tổng dài / số lần rẽ): phạt rẽ 260 -> 500, chạy chung ô với tuyến
+// khác 220 -> 50, chạy chồng cùng chiều 400 -> 100, cho đi qua khe giữa hai trạm (phạt 30 mỗi ô): tổng
+// dài 219539 -> ~198000, hệ số đi vòng 1.67 -> 1.45 (177/178 E6.2 - E6.8 hết vòng quanh trạm E6.8)
+const KHE_TRAM = (process.env.KHE_TRAM ?? '1') !== '0';
+const KHE_TRAM_LE = Number(process.env.KHE_TRAM_LE ?? 15); // cách khung trạm tối thiểu khi đi qua khe
+const PHAT_KHE = Number(process.env.PHAT_KHE ?? 30) * (Number(process.env.O_110 ?? 60) / 60);
 const VUON = 110; // đoạn đi thẳng ra khỏi ngăn lộ
 const VUON_MIN = 30; // đoạn vươn ra ngắn nhất khi phía trước là vùng trung áp
-const O = 60; // cạnh ô lưới khi tìm đường
+// cạnh ô lưới khi tìm đường (O_110 - mặc định 60); các phạt tính theo ô nhân KO = O / 60 để phạt
+// theo chiều dài không đổi khi đổi cỡ ô
+const O = Number(process.env.O_110 ?? 60); // (thử 30 / 40: tuyến dài hơn, có tuyến không tìm được - giữ 60)
+const KO = O / 60;
 
 function huongRa(m) {
   const dx = m.p[0] - m.truoc[0];
@@ -557,7 +566,7 @@ function huongRa(m) {
  * ngắn mới còn đi trong lõi. Đặt PHAT_DOC_LOI=0 để trở lại cách đi dây theo hành lang cũ.
  */
 const VANH = Number(process.env.VANH ?? 1200);
-const PHAT_DOC_LOI = Number(process.env.PHAT_DOC_LOI ?? ((process.env.MOI ?? '1') !== '0' ? 0 : 1200));
+const PHAT_DOC_LOI = Number(process.env.PHAT_DOC_LOI ?? ((process.env.MOI ?? '1') !== '0' ? 0 : 1200)) * (Number(process.env.O_110 ?? 60) / 60);
 const BIEN_TD = Number(process.env.BIEN_TD ?? 2500);
 
 /* --- Lưới tìm đường --- */
@@ -604,7 +613,7 @@ const chiem = new Array(NX * NY).fill('');
  * bị phạt nặng nên sẽ tự vòng sang hai bên, chừa chỗ cho lưới trung áp.
  */
 const DAI_TA = 560; // bề sâu dải để dành (đơn vị bản vẽ)
-const PHAT_TA = 420; // phạt mỗi ô khi đi vào dải đó
+const PHAT_TA = 420 * KO; // phạt mỗi ô khi đi vào dải đó
 const daiTrungAp = new Array(NX * NY).fill('');
 for (const h of hopList) {
   if (ngoaiTinh.has(h.ma)) continue; // trạm ngoài tỉnh không vẽ lưới trung áp
@@ -733,8 +742,8 @@ const reTai = new Int16Array(NX * NY);
  * giao chéo (có ký hiệu nhảy dây), còn chạy cùng chiều trong cùng một ô là hai tuyến
  * đè lên nhau - phải tránh bằng mọi giá.
  */
-const chayNgang = new Uint8Array(NX * NY);
-const chayDoc = new Uint8Array(NX * NY);
+const chayNgang = new Int16Array(NX * NY);
+const chayDoc = new Int16Array(NX * NY);
 
 /**
  * Lõi tờ sơ đồ (ngoài vành VANH): sauLoi > 0. ngangLaRa: mép gần nhất là mép trái/phải,
@@ -825,18 +834,26 @@ function timDuong(A, B, tru, dA, dB) {
   if (si < 0 || si >= NX || sj < 0 || sj >= NY || ti < 0 || ti >= NX || tj < 0 || tj >= NY) return null;
   // Ô của trạm khác thì cấm hẳn; ô của CHÍNH hai trạm đầu cuối thì đi được nhưng
   // phạt nặng, để đường dây thoát ra khỏi trạm ngay chứ không cắt ngang trạm.
-  const PHAT_TRONG_TRAM = 900;
+  const PHAT_TRONG_TRAM = 900 * KO;
   /** Phạt khi đè lên hình vẽ sẵn có của bản CAD. */
-  const PHAT_DE = 1100;
+  const PHAT_DE = 1100 * KO;
   /** Phạt rất nặng khi đi vào phần TRUNG ÁP - chỗ để dành đấu lưới 35/22/6kV. */
-  const PHAT_TA_TRONG = 5200;
+  const PHAT_TA_TRONG = 5200 * KO;
   /** Phạt khi đi vào phần trạm nằm phía sau hàng đầu ngăn lộ (xem phatO). */
-  const PHAT_SAU_NGAN_LO = 9000;
+  const PHAT_SAU_NGAN_LO = 9000 * KO;
   const phatO = (i, j) => {
     const k = j * NX + i;
-    const c = chiem[k];
+    let c = chiem[k];
+    // phần nới biên (ngoài khung trạm): KHE_TRAM=1 thì coi như ô trống có phạt nhẹ - dây đi được qua khe
+    // hẹp giữa hai trạm sát nhau (trước đây cả vành nới biên tính là trong trạm: dây phải vòng ra ngoài)
+    let khe = 0;
+    if (c && KHE_TRAM) {
+      const b = hop.get(c);
+      const x = toaX(i), y = toaY(j), le = KHE_TRAM_LE;
+      if (x < b.x0 - le || x > b.x1 + le || y < b.y0 - le || y > b.y1 + le) { c = ''; khe = PHAT_KHE; }
+    }
     if (c && !maTru.includes(c)) return -1;
-    let p = c ? PHAT_TRONG_TRAM : 0;
+    let p = (c ? PHAT_TRONG_TRAM : 0) + khe;
     if (c) {
       // Ô nằm PHÍA SAU hàng đầu ngăn lộ (phía thanh cái) của chính trạm: đi vào đó
       // là cắt ngang qua các ngăn lộ khác. Phải chạy ngang PHÍA TRƯỚC hàng đầu
@@ -868,12 +885,12 @@ function timDuong(A, B, tru, dA, dB) {
   const DJ = [0, 0, 1, -1];
   const g = new Float64Array(N * 4).fill(Infinity);
   const truocO = new Int32Array(N * 4).fill(-1);
-  const PHAT_RE = 260;
-  const PHAT_DUC = 220;
+  const PHAT_RE = Number(process.env.PHAT_RE_110 ?? 500);
+  const PHAT_DUC = Number(process.env.PHAT_DUC ?? 50) * KO;
   /** Phạt thêm khi rẽ đúng ô mà tuyến khác đã rẽ - để không có hai góc trùng nhau. */
   const PHAT_RE_TRUNG = 1400;
   /** Phạt khi chạy cùng chiều trong ô mà tuyến khác đã chạy qua (hai tuyến đè nhau). */
-  const PHAT_CHONG = 400;
+  const PHAT_CHONG = Number(process.env.PHAT_CHONG ?? 100) * KO;
   const h = (i, j) => (Math.abs(i - ti) + Math.abs(j - tj)) * O;
   // hàng đợi ưu tiên (đống nhị phân)
   const bien = new Dong();
@@ -929,7 +946,7 @@ function timDuong(A, B, tru, dA, dB) {
         bien.push(c + h(i1, j1), k1);
       }
     }
-    if (++buoc > 3000000) return null;
+    if (++buoc > 3000000 / (KO * KO)) return null;
   }
   if (dich < 0) return null;
   const o = [];
@@ -939,12 +956,6 @@ function timDuong(A, B, tru, dA, dB) {
     if (truocO[k] < 0) break;
   }
   o.reverse();
-  for (const v of o) dongDuc[v[2]]++;
-  for (let i = 1; i < o.length; i++) {
-    const mang = o[i][1] === o[i - 1][1] ? chayNgang : chayDoc;
-    mang[o[i][2]] = 1;
-    mang[o[i - 1][2]] = 1;
-  }
   // bỏ điểm giữa của các đoạn thẳng hàng
   const pts = [];
   for (let i = 0; i < o.length; i++) {
@@ -956,9 +967,24 @@ function timDuong(A, B, tru, dA, dB) {
     const b = o[i + 1];
     if ((a[0] === o[i][0] && b[0] === o[i][0]) || (a[1] === o[i][1] && b[1] === o[i][1])) continue;
     pts.push([o[i][0], o[i][1]]);
-    reTai[o[i][2]]++; // ô này đã có một góc rẽ
   }
+  pts.o = o;
+  datDau(o, 1);
   return pts;
+}
+
+/** Ghi / gỡ dấu chiếm ô của một tuyến (đi qua, chạy ngang / dọc, rẽ) - để tìm lại tuyến. */
+function datDau(o, s) {
+  for (const v of o) dongDuc[v[2]] += s;
+  for (let i = 1; i < o.length; i++) {
+    const mang = o[i][1] === o[i - 1][1] ? chayNgang : chayDoc;
+    mang[o[i][2]] += s;
+    mang[o[i - 1][2]] += s;
+  }
+  for (let i = 1; i + 1 < o.length; i++) {
+    const [a, b] = [o[i - 1], o[i + 1]];
+    if (!((a[0] === o[i][0] && b[0] === o[i][0]) || (a[1] === o[i][1] && b[1] === o[i][1]))) reTai[o[i][2]] += s;
+  }
 }
 
 /**
@@ -1012,7 +1038,7 @@ function diDay(mA, mB, maTram) {
   const giua = timDuong(A, B, tru, dA, dB);
   if (!giua) return null;
   // nối đầu ngăn lộ -> điểm ra -> đường đi -> điểm ra -> đầu ngăn lộ
-  return { pts: [mA.p, A, ...giua, B, mB.p] };
+  return { pts: [mA.p, A, ...giua, B, mB.p], o: giua.o };
 }
 
 /* ------------------------------------------------------------------ */
@@ -1022,6 +1048,7 @@ function diDay(mA, mB, maTram) {
 const thieu = [];
 /** Các tuyến đã đi dây xong, chờ chèn ký hiệu nhảy dây rồi mới ghi. */
 const tuyen = [];
+const daDi = [];
 for (const [ka, kb, day, km] of DUONG_DAY) {
   const mA = dauLo.get(ka);
   const mB = dauLo.get(kb);
@@ -1035,6 +1062,51 @@ for (const [ka, kb, day, km] of DUONG_DAY) {
     thieu.push(`${ka} <-> ${kb}  (không tìm được đường đi)`);
     continue;
   }
+  daDi.push({ ka, kb, day, km, mA, mB, tru, d });
+}
+
+/* --- Tìm lại tuyến (gỡ ra - tìm lại) ---
+   Các tuyến tìm lần lượt: tuyến trước không biết tuyến sau, có khi chiếm mất khe hẹp giữa hai trạm
+   làm tuyến sau phải vòng (vd 177/178 E6.2 - E6.8). Gỡ từng tuyến ra (bỏ dấu chiếm ô) và tìm lại
+   trên lưới đã có các tuyến khác; nhận khi chi phí nhỏ hơn: chiều dài + PHAT_RE_110 mỗi lần rẽ +
+   PHAT_CAT_TA mỗi chỗ cắt nét trung áp + phạt chạy chồng tuyến khác. Tuyến đi vòng nhiều làm trước. */
+{
+  const PRE = Number(process.env.PHAT_RE_110 ?? 500);
+  const chiPhi = (t) => {
+    const P = t.d.pts, o = t.d.o;
+    let L = 0, re = 0;
+    for (let i = 1; i < P.length; i++) L += cach(P[i], P[i - 1]);
+    for (let i = 1; i + 1 < P.length; i++) {
+      const u = [P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]], v = [P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]];
+      if (Math.abs(u[0] * v[1] - u[1] * v[0]) > 1e-6) re++;
+    }
+    let cat = 0, chong = 0;
+    for (let i = 1; i < o.length; i++) {
+      const ngang = o[i][1] === o[i - 1][1];
+      if (MOI) cat += (ngang ? catNgang : catDoc)[o[i][2]];
+      if ((ngang ? chayNgang : chayDoc)[o[i][2]] > 0) chong++;
+    }
+    return L + PRE * re + PHAT_CAT_TA * cat + Number(process.env.PHAT_CHONG ?? 100) * KO * chong;
+  };
+  const vong = (t) => { const P = t.d.pts; let L = 0; for (let i = 1; i < P.length; i++) L += cach(P[i], P[i - 1]); return L / Math.max(1, Math.abs(P.at(-1)[0] - P[0][0]) + Math.abs(P.at(-1)[1] - P[0][1])); };
+  let doi = 0;
+  for (let lan = 0; lan < Number(process.env.VONG_110 ?? 2); lan++) {
+    let doiLan = 0;
+    for (const t of [...daDi].sort((a, b) => vong(b) - vong(a))) {
+      datDau(t.d.o, -1);
+      const cu = chiPhi(t);
+      const d2 = diDay(t.mA, t.mB, t.tru);
+      if (d2) datDau(d2.o, -1);
+      if (d2 && chiPhi({ d: d2 }) < cu - 1) { t.d = d2; doiLan++; }
+      datDau(t.d.o, 1);
+    }
+    doi += doiLan;
+    if (!doiLan) break;
+  }
+  if (doi) console.log(`Tìm lại tuyến: đổi ${doi} lượt.`);
+}
+
+for (const { day, km, d } of daDi) {
   // gộp các điểm trùng nhau
   const pts = [];
   for (const p of d.pts) {

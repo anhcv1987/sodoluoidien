@@ -564,7 +564,16 @@ còn vòng ra mép khổ giấy. Để hạn chế cắt qua lưới trung áp m
 So với cách cũ (`MOI=0`: vành `VANH` = 1.200 đơn vị quanh các trạm, chạy song song mép bị phạt
 `PHAT_DOC_LOI` = 1.200 mỗi ô - các trục 110kV chạy dọc mép giấy): tổng chiều dài 110kV giảm
 khoảng một nửa, hệ số đi vòng (chiều dài / khoảng cách hai đầu) từ 3,1 xuống ~1,7; đổi lại tuyến
-110kV cắt qua lưới trung áp nhiều hơn (cắt vuông góc, có nhảy dây). Sau khi chạy lại phải chạy
+110kV cắt qua lưới trung áp nhiều hơn (cắt vuông góc, có nhảy dây).
+
+Rút ngắn, bớt gấp khúc (`noi-duong-day-110.mjs`): 177/178 E6.2 - 171/172 E6.8 trước vòng quanh cả trạm
+E6.8 (dài 6.870 / 7.122, 34 đoạn) vì vành nới biên 60 quanh khung trạm tính là "trong trạm" (phạt 900 và
+9.000 mỗi ô phía sau hàng ngăn lộ) - khe 200 giữa E6.2 và E6.8 bị bịt; nay phần nới biên ngoài khung
+(cách khung > `KHE_TRAM_LE` = 15) coi như ô trống phạt `PHAT_KHE` = 30. Phạt rẽ `PHAT_RE_110` 260 -> 500,
+đi chung ô với tuyến khác `PHAT_DUC` 220 -> 50, chạy chồng cùng chiều `PHAT_CHONG` 400 -> 100 (đoạn chồng
+được tách làn sau); thêm bước tìm lại tuyến (`VONG_110` = 2). Tổng dài 219.539 -> 195.071, hệ số đi vòng
+TB 1,67 -> 1,43, số lần rẽ (bỏ cung nhảy dây) 586 -> 544, chỗ cắt lưới trung áp không có nhảy dây 5 ->
+1. Thử ô lưới 30 / 40 (`O_110`) cho tuyến dài hơn, có tuyến không tìm được - giữ 60. Sau khi chạy lại phải chạy
 `node tools/ve-luoi-trung-ap.mjs` để cáp lưới trung áp tìm đường tránh tuyến 110kV mới. Hàng đợi
 của A\* dùng đống nhị phân.
 
@@ -1059,8 +1068,19 @@ và dây liên thông giữa các bản vẽ ngắn nhất, ít giao chéo, các
   liên thông cùng trọng số `TS_NGAN` = 1) + phạt vật cản `PHAT_CAT` = 2 x quãng vòng ước tính (nửa cạnh
   ngắn) mỗi khi đường nối thẳng đi xuyên bản vẽ khác, khung trạm khác hoặc lõi chính bản vẽ đó. Mỗi
   bước chọn 400 vị trí trống có chiều dài nối nhỏ nhất rồi mới tính phạt vật cản.
-* Tìm đường cáp: cắt ngang nét khác phạt `PHAT_CAT_NET` = 80 (trước 40); đi song song cách nét khác
-  2 ô / 3 ô (8 / 12 đơn vị) phạt `PHAT_SAT2` = 2 / `PHAT_SAT3` = 1 mỗi ô - các tuyến giãn ra.
+* Tìm đường cáp: cắt ngang nét khác phạt `PHAT_CAT_NET` = 40, mỗi lần rẽ phạt `PHAT_RE` = 25 (rẽ ở ô
+  sát đỉnh nét khác gấp 4); đi song song cách nét khác 2 ô / 3 ô (8 / 12 đơn vị) phạt `PHAT_SAT2` = 2 /
+  `PHAT_SAT3` = 1 mỗi ô - các tuyến giãn ra.
+* Tìm lại tuyến (gỡ ra - tìm lại, `VONG_TUYEN` = 2 vòng, `TAT=toiuu` tắt): các tuyến tự động tìm lần lượt
+  nên tuyến trước không biết tuyến sau; vẽ xong thì gỡ từng tuyến (đi vòng nhiều trước) và tìm lại trên
+  tờ đã đủ các tuyến khác, nhận khi chi phí (dài + phạt rẽ + phạt cắt nét) nhỏ hơn. So với tham số cũ
+  (cắt 80 / rẽ 15, không tìm lại), cùng vị trí bản vẽ:
+
+  | Tuyến tự động (cáp ngăn lộ + liên thông) | Cũ: dài / rẽ / cắt nét | Mới: dài / rẽ / cắt nét |
+  |---|---|---|
+  | 22kV (114 tuyến) | 197.125 / 459 / 633 | 197.239 / 430 / 609 |
+  | 35kV (98 tuyến) | 181.687 / 402 / 485 | 176.532 / 358 / 474 |
+  | Tổng | 378.812 / 861 / 1.118 | 373.771 / 788 / 1.083 |
 * Các tham số đổi được bằng biến môi trường khi chạy `ve-luoi-trung-ap.mjs` (thêm `VONG`, `SO_THU`:
   số vòng cải thiện, số thứ tự ngẫu nhiên thử). Log ghi chiều dài từng cáp / dây liên thông (kèm
   khoảng cách thẳng giữa hai đầu) và tổng số vòng nhảy giao chéo.
