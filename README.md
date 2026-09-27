@@ -557,9 +557,9 @@ còn vòng ra mép khổ giấy. Để hạn chế cắt qua lưới trung áp m
 đường (ô 60 đơn vị) xét đúng đoạn đường lưới đi qua ô theo từng hướng:
 * cắt vuông góc qua nét trung áp: được phép (có ký hiệu nhảy dây), phạt `PHAT_CAT_TA` = 2.500
   mỗi lần cắt;
-* chạy dọc sát nét trung áp (< 6 đơn vị) hoặc đi qua sát đỉnh nét trung áp: cấm - dễ thành
-  đấu nối giả trong mô hình công suất;
-* góc rẽ của tuyến 110kV cách nét trung áp dưới 8 đơn vị: cấm.
+* chạy dọc sát nét trung áp (< `SAT_TA` = 4 đơn vị, trước 6) hoặc đi qua sát đỉnh nét trung áp: cấm -
+  dễ thành đấu nối giả trong mô hình công suất (sai số bắt điểm ~3);
+* góc rẽ của tuyến 110kV cách nét trung áp dưới `GOC_TA` = 5 đơn vị (trước 8): cấm.
 
 So với cách cũ (`MOI=0`: vành `VANH` = 1.200 đơn vị quanh các trạm, chạy song song mép bị phạt
 `PHAT_DOC_LOI` = 1.200 mỗi ô - các trục 110kV chạy dọc mép giấy): tổng chiều dài 110kV giảm
@@ -573,7 +573,11 @@ E6.8 (dài 6.870 / 7.122, 34 đoạn) vì vành nới biên 60 quanh khung trạ
 đi chung ô với tuyến khác `PHAT_DUC` 220 -> 50, chạy chồng cùng chiều `PHAT_CHONG` 400 -> 100 (đoạn chồng
 được tách làn sau); thêm bước tìm lại tuyến (`VONG_110` = 2). Tổng dài 219.539 -> 195.071, hệ số đi vòng
 TB 1,67 -> 1,43, số lần rẽ (bỏ cung nhảy dây) 586 -> 544, chỗ cắt lưới trung áp không có nhảy dây 5 ->
-1. Thử ô lưới 30 / 40 (`O_110`) cho tuyến dài hơn, có tuyến không tìm được - giữ 60. Sau khi chạy lại phải chạy
+1. Nới khoảng cách tới nét trung áp (`SAT_TA` 6 -> 4, `GOC_TA` 8 -> 5) mở các hành lang qua cụm lưới trung
+áp phía nam: các tuyến từ E6.16 (Phú Bình) sang E6.13 / E6.14 / E6.17 / E6.18 / E6.25 không còn vòng xuống
+mép dưới tờ (E6.16 - E6.18 17.018 -> 6.560, E6.14 - E6.16 13.630 -> 6.510) - tổng dài 110kV còn 169.642,
+hệ số đi vòng TB 1,30, số lần rẽ 494; không phải dời trạm 110kV. Các tuyến còn đi vòng (E6.5 - E6.23 1,83,
+E6.6 - E6.22 1,70, E6.2 - E6.8 1,65) do ngăn lộ hai đầu chĩa ngược nhau. Thử ô lưới 30 / 40 (`O_110`) cho tuyến dài hơn, có tuyến không tìm được - giữ 60. Sau khi chạy lại phải chạy
 `node tools/ve-luoi-trung-ap.mjs` để cáp lưới trung áp tìm đường tránh tuyến 110kV mới. Hàng đợi
 của A\* dùng đống nhị phân.
 

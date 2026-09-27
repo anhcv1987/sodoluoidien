@@ -688,8 +688,11 @@ const oDinhTA = new Uint8Array(NX * NY);
  */
 const MOI = (process.env.MOI ?? '1') !== '0';
 const PHAT_CAT_TA = Number(process.env.PHAT_CAT_TA ?? 2500);
-const SAT_TA = 6;
-const GOC_TA = 8;
+// khoảng cách tối thiểu tới nét trung áp khi chạy dọc / khi rẽ: 4 / 5 (trước 6 / 8) - vẫn lớn hơn sai số
+// bắt điểm của mô hình công suất (~3), dây 110kV không nối giữa đoạn; với 6 / 8 các hành lang giữa cụm
+// lưới trung áp phía nam bị bịt, các tuyến từ E6.16 phải vòng xuống mép dưới tờ
+const SAT_TA = Number(process.env.SAT_TA ?? 4);
+const GOC_TA = Number(process.env.GOC_TA ?? 5);
 const catNgang = new Uint16Array(NX * NY), catDoc = new Uint16Array(NX * NY);
 const camNgang = new Uint8Array(NX * NY), camDoc = new Uint8Array(NX * NY), camGoc = new Uint8Array(NX * NY);
 if (MOI) {
