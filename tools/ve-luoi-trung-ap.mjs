@@ -534,7 +534,7 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
       else console.log(`  ! nối giữa bản vẽ: thiếu ${JSON.stringify(l.tu)} / ${JSON.stringify(l.den)}`);
       continue;
     }
-    kv = l.kv ?? 22;
+    kv = l.kv ?? kvTaiDiem(l.tu) ?? kvTaiDiem(l.den) ?? 22;
     lop = data.layers.indexOf(`${kv}kV`);
     if (l.tu_dong) {
       // tìm đường tự động (ra: hướng đi ra ở đầu 'tu', vao: hướng đi vào đầu 'den'). Có 'vao' thì tìm
@@ -566,6 +566,16 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
 }
 
 const docBanVe = (json) => JSON.parse(readFileSync(resolve('tools/luoi-trung-ap/pdf', json), 'utf8'));
+/** Cấp điện áp của lộ trên bản vẽ đi qua điểm d = ['xx.json', [x, y]] (đỉnh chuỗi gần nhất); không rõ thì undefined. */
+function kvTaiDiem(d) {
+  if (typeof d?.[0] !== 'string') return undefined;
+  let tot = null, kc = 3;
+  for (const lo of docBanVe(d[0]).lo) for (const c of lo.chuoi) for (const [x, y] of c.pts) {
+    const k = Math.hypot(x - d[1][0], y - d[1][1]);
+    if (k < kc) { kc = k; tot = lo; }
+  }
+  return tot?.kv;
+}
 /** Hộp bao bản vẽ (điểm chuỗi, nhãn thiết bị, khung tủ) theo toạ độ PDF. */
 function hopBanVe(J) {
   const hopPdf = [Infinity, Infinity, -Infinity, -Infinity];
@@ -1001,7 +1011,7 @@ function vePdf(dat) {
   }
   // ranh giới quản lý
   for (const r of J.ranh ?? []) {
-    kv = 22;
+    kv = J.lo[r.ij?.[0]]?.kv ?? 22;
     const [x, y] = W(r.p);
     const nx = -r.h[1], ny = -r.h[0]; // pháp tuyến (đổi chiều trục y)
     const L = 10 * k;
