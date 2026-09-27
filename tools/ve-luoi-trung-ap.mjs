@@ -673,6 +673,114 @@ function tinhTamTuDong(ds) {
   }
 }
 
+/**
+ * Khúc lượn nhỏ trên chuỗi dò: đỉnh gấp b0 -> b1 (vuông góc tuyến, lệch e <= 4pt) -> b2 (song song,
+ * dài <= 25pt) -> b3 (quay về, lệch lại đúng e) với tuyến trước b0 / sau b3 cùng phương b1-b2.
+ * Kéo các đỉnh của khúc lượn về đường thẳng b0-b3 (giữ số đỉnh - chỉ số chân tủ RMU không đổi),
+ * rồi tính lại vị trí thiết bị trên chuỗi (chiếu điểm thiết bị lên tuyến mới).
+ */
+function boKhucLuon(c) {
+  const P = c.pts;
+  const phuong = (a, b) => (Math.abs(a[1] - b[1]) < 0.05 && Math.abs(a[0] - b[0]) > 0.05 ? 0 : Math.abs(a[0] - b[0]) < 0.05 && Math.abs(a[1] - b[1]) > 0.05 ? 1 : -1);
+  let sua = false;
+  const khuc = []; // các khúc lượn đã bỏ (hộp ký hiệu): thiết bị trong đó đặt vào giữa hộp
+  for (let lap = 0; lap < 6; lap++) {
+    // đỉnh gấp (bỏ đỉnh thẳng hàng, đỉnh trùng)
+    const G = [0];
+    for (let m = 1; m < P.length - 1; m++) {
+      const q = P[G.at(-1)];
+      if (Math.hypot(P[m][0] - q[0], P[m][1] - q[1]) < 0.05) continue;
+      const h1 = phuong(q, P[m]), h2 = phuong(P[m], P[m + 1]);
+      if (h1 < 0 || h1 !== h2) G.push(m);
+    }
+    G.push(P.length - 1);
+    let doi = false;
+    for (let g = 0; g + 3 < G.length; g++) {
+      const [i0, i1, i2, i3] = [G[g], G[g + 1], G[g + 2], G[g + 3]];
+      const [b0, b1, b2, b3] = [P[i0], P[i1], P[i2], P[i3]];
+      const hs = phuong(b1, b2);
+      if (hs < 0 || phuong(b0, b1) !== 1 - hs || phuong(b2, b3) !== 1 - hs) continue;
+      const tr = 1 - hs; // trục lệch (vuông góc tuyến)
+      const e1 = b1[tr] - b0[tr], e2 = b3[tr] - b2[tr];
+      if (Math.abs(e1) > 4 || Math.abs(e1 + e2) > 0.3 || Math.abs(b2[hs] - b1[hs]) > 25) continue;
+      // tuyến hai bên (nếu có) phải cùng phương với khúc song song
+      const truoc = g > 0 ? phuong(P[G[g - 1]], b0) : hs, sau = g + 4 < G.length ? phuong(b3, P[G[g + 4]]) : hs;
+      if (truoc !== hs && sau !== hs) continue;
+      for (let m = i0 + 1; m < i3; m++) P[m] = tr ? [P[m][0], b0[1]] : [b0[0], P[m][1]];
+      khuc.push({ tr, hs, muc: b0[tr], lo: Math.min(b1[hs], b2[hs]), hi: Math.max(b1[hs], b2[hs]) });
+      doi = sua = true;
+      break;
+    }
+    if (!doi) break;
+  }
+  if (!sua) return;
+  // tính lại vị trí thiết bị trên chuỗi: chiếu điểm thiết bị lên đường gấp khúc mới
+  for (const t of c.tb ?? []) {
+    for (const k of khuc) {
+      if (Math.abs(t.p[k.tr] - k.muc) <= 4.5 && t.p[k.hs] >= k.lo - 1 && t.p[k.hs] <= k.hi + 1) {
+        t.p = k.tr ? [(k.lo + k.hi) / 2, k.muc] : [k.muc, (k.lo + k.hi) / 2];
+        break;
+      }
+    }
+    let tot = null, acc = 0;
+    for (let m = 1; m < P.length; m++) {
+      const [a, b] = [P[m - 1], P[m]];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const u = L ? Math.max(0, Math.min(1, ((t.p[0] - a[0]) * (b[0] - a[0]) + (t.p[1] - a[1]) * (b[1] - a[1])) / (L * L))) : 0;
+      const q = [a[0] + u * (b[0] - a[0]), a[1] + u * (b[1] - a[1])];
+      const d = Math.hypot(q[0] - t.p[0], q[1] - t.p[1]);
+      // ưu tiên chỗ gần vị trí cũ trên chuỗi (chuỗi đi qua cùng chỗ hai lần)
+      const k = d + 0.01 * Math.abs(acc + u * L - t.s);
+      if (!tot || k < tot.k) tot = { k, q, s: acc + u * L };
+      acc += L;
+    }
+    if (tot) { t.p = tot.q.map((v) => +v.toFixed(2)); t.s = +tot.s.toFixed(2); }
+  }
+}
+
+/**
+ * Rút gọn bậc thang nhỏ trên chuỗi dò: A -> B (bậc ngắn <= 12pt) -> C (vuông góc) -> D (cùng hướng
+ * A -> B) thành A -> B' -> C -> D với B' = A + (C - B): rẽ một lần thay vì hai. Không làm khi trong
+ * quãng A..C có thiết bị hoặc chân tủ RMU.
+ */
+function gonBac(c, giu = new Set()) {
+  const P = c.pts;
+  const phuong = (a, b) => (Math.abs(a[1] - b[1]) < 0.05 && Math.abs(a[0] - b[0]) > 0.05 ? 0 : Math.abs(a[0] - b[0]) < 0.05 && Math.abs(a[1] - b[1]) > 0.05 ? 1 : -1);
+  const dau = (a, b, h) => Math.sign(b[h] - a[h]);
+  for (let lap = 0; lap < 10; lap++) {
+    const G = [0];
+    for (let m = 1; m < P.length - 1; m++) {
+      const q = P[G.at(-1)];
+      if (Math.hypot(P[m][0] - q[0], P[m][1] - q[1]) < 0.05) continue;
+      const h1 = phuong(q, P[m]), h2 = phuong(P[m], P[m + 1]);
+      if (h1 < 0 || h1 !== h2) G.push(m);
+    }
+    G.push(P.length - 1);
+    // chiều dài cộng dồn tới từng đỉnh (so với vị trí thiết bị)
+    const acc = [0];
+    for (let m = 1; m < P.length; m++) acc.push(acc[m - 1] + Math.hypot(P[m][0] - P[m - 1][0], P[m][1] - P[m - 1][1]));
+    let doi = false;
+    for (let g = 0; g + 3 < G.length; g++) {
+      const [iA, iB, iC, iD] = [G[g], G[g + 1], G[g + 2], G[g + 3]];
+      const [A, B, C, D] = [P[iA], P[iB], P[iC], P[iD]];
+      const h = phuong(A, B);
+      if (h < 0 || phuong(B, C) !== 1 - h || phuong(C, D) !== h || dau(A, B, h) !== dau(C, D, h)) continue;
+      if (Math.abs(B[h] - A[h]) > 12 || Math.abs(C[1 - h] - B[1 - h]) > 60) continue;
+      let cam = false;
+      for (let m = iA; m <= iC; m++) if (giu.has(m)) cam = true;
+      for (const t of c.tb ?? []) if (t.s >= acc[iA] - 1 && t.s <= acc[iC] + 1) cam = true;
+      if (cam) continue;
+      // đỉnh trên A->B dồn về A; đỉnh trên B->C dời theo (A - B)
+      for (let m = iA + 1; m < iB; m++) P[m] = [...A];
+      // (đỉnh C thành góc B' - chỗ cũ của C nằm trên đoạn B' -> D; tổng chiều dài không đổi)
+      for (let m = iB; m <= iC; m++) P[m] = h ? [P[m][0], A[1]] : [A[0], P[m][1]];
+      doi = true;
+      break;
+    }
+    if (!doi) break;
+  }
+}
+
 function vePdf(dat) {
   const J = docBanVe(dat.json);
   const k = dat.ti_le ?? 1;
@@ -719,6 +827,18 @@ function vePdf(dat) {
       chu(x, y, h, n.t, canh);
     }
   };
+  // Bỏ khúc lượn quanh ký hiệu: đường dò hay đi vòng theo cạnh hộp máy cắt / recloser (lệch ra
+  // 2-4pt, chạy song song rồi quay về đúng tuyến) - dây gãy khúc, máy cắt vẽ nghiêng.
+  {
+    // chỉ số đỉnh chân tủ RMU (không được dời)
+    const giu = new Map();
+    for (const r of J.rmu ?? []) for (const c of r.cua) {
+      const key = c.ij.join(',');
+      if (!giu.has(key)) giu.set(key, new Set());
+      for (const k of [c.k, c.kc, c.kc - 1, c.kc + 1]) giu.get(key).add(k);
+    }
+    J.lo.forEach((lo, i) => lo.chuoi.forEach((c, j) => { boKhucLuon(c); gonBac(c, giu.get(`${i},${j}`)); }));
+  }
   // Nắn thẳng: đường dò bắc qua tâm ký hiệu nên dây gần ngang / gần dọc hay lệch 1-2pt.
   // Mỗi quãng dài >= 8pt mà các đỉnh lệch nhau <= 2pt (độ dốc tổng <= 10%) được đặt đúng
   // ngang / dọc. Ghi theo toạ độ gốc của đỉnh để đỉnh chung giữa các chuỗi (điểm rẽ,
@@ -819,7 +939,8 @@ function vePdf(dat) {
       }
       // nét đứt (cáp): đoạn ngắn liền nhau; tách chuỗi thành các quãng cùng loại
       const cap = [];
-      for (let m = 1; m < P.length; m++) cap.push(acc[m] - acc[m - 1] < 1.8);
+      // (đoạn dài 0 - đỉnh trùng sau khi bỏ khúc lượn / bậc - không tính là nét đứt)
+      for (let m = 1; m < P.length; m++) cap.push(acc[m] - acc[m - 1] > 0.05 && acc[m] - acc[m - 1] < 1.8);
       // làm mịn: quãng cáp phải dài từ 6pt, khe giữa các nét đứt tính là cáp
       const laCap = (m) => {
         let a = m, b = m;
@@ -961,7 +1082,10 @@ function vePdf(dat) {
     kv = lo.kv ?? 22;
     lop = data.layers.indexOf(`${kv}kV`);
     const T = r.tieude;
-    const tenGan = (x) => (r.ngan.length ? r.ngan.reduce((a, b) => (Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a)) : null);
+    // tên ngăn: bỏ số thứ tự khoanh tròn (1, 2, 3...), ghi chú trong ngăn (-76, CC-..., 22KV, DP)
+    const that = r.ngan.filter((n) => !/^(-?\d{1,3}|CC-.*|\d+\s*KV|DP|D[ỰU] PH[ÒO]NG)$/i.test(String(n.t).trim()));
+    const dsTen = that.length ? that : r.ngan;
+    const tenGan = (x) => (dsTen.length ? dsTen.reduce((a, b) => (Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a)) : null);
     // chân các ngăn có dây nối ra (không trùng nhau), xếp trái -> phải
     const chan = [];
     for (const c of r.cua) {

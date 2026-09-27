@@ -1067,6 +1067,17 @@ và dây liên thông giữa các bản vẽ ngắn nhất, ít giao chéo, các
 | Cặp đoạn đi sát nhau (< 12 đơn vị, chồng > 40) | 310 (dài 55.024) | 160 (dài 10.362) | -81% chiều dài |
 | Dây liên thông dài > 3000 | 30 | 16 | |
 
+**Làm gọn nét dò khi vẽ** (áp cho mọi bản vẽ, không phải dò lại):
+* Bỏ khúc lượn quanh ký hiệu: đường dò đi vòng theo cạnh hộp máy cắt / recloser (lệch <= 4pt, dài
+  <= 25pt rồi quay về đúng tuyến) được kéo thẳng; thiết bị trong khúc lượn đặt vào giữa hộp ký hiệu
+  (trước đây dây gãy khúc, máy cắt vẽ nghiêng - vd MC 371E26.2/21, /15, MC 373E26.2/03).
+* Rút gọn bậc thang nhỏ: A -> B (bậc <= 12pt) -> C -> D cùng hướng thành rẽ một lần, khi quãng đó
+  không có thiết bị / chân tủ RMU (tổng chiều dài không đổi).
+* Tên ngăn tủ RMU bỏ số thứ tự khoanh tròn (1, 2, 3...) và ghi chú trong ngăn (-76, CC-TU, 22KV,
+  DP) khi tủ có tên ngăn thật (vd TỦ RMU 62-474 E6.4 hiện 474-7/62-02, 474-7/62-04).
+* Bản vẽ 20: RMU 66-474 E6.4 nay nằm trên tuyến (cắt đoạn cáp nối tắt 7/04 - 7/05 dưới đáy tủ mà
+  đường dò đi tắt qua); mũi tên "DP" ngăn 474-7/62-03 không còn nối nhầm vào cáp ngăn 7/62-02.
+
 Thứ tự chạy lại: `node tools/doi-cho-tram.mjs` → `node tools/ve-luoi-trung-ap.mjs` → `node
 tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trung-ap.mjs` → `npx vite build`.
 
