@@ -1142,6 +1142,14 @@ lại là cung vòng nhảy vẽ sẵn trong PDF), bậc lệch nhỏ 16 -> 9 (c
   Bản vẽ bk04 (ĐZ 373 E26.1 sau MC 40): nhánh vòng MC 373E26.1/AT2 (thường cắt) thiếu đoạn từ cột 139A qua
   DCL AT2-7, MC 373E26.1/47-2 (thường cắt) thiếu đoạn từ DPT 7/47-1 và vẽ nghiêng (đi theo gạch chéo ký
   hiệu) - nay đủ, thẳng (vùng chặn bao trọn ký hiệu, `dich` thêm phía bên kia thiết bị thường cắt).
+* LBS 474E6.4/04 Đầm Xanh (thường cắt, bản vẽ 20): trước chỉ ghi "→ LT 478 E6.4 (Đầm Xanh)". Đối chiếu
+  bản vẽ 20 và 6: phía bên kia LBS nối qua DCL 474E6.4-7/04-2, cáp Cu 3x240 xuống DCL 478E6.4-7/01 LT
+  474E6.4 ở cột 11 tuyến NR Điện Lực - BLX 99 (tên thiết bị cũ 478E6.4, nay nhận điện 472 E6.2: cột 34 ->
+  RMU 34 -> TỦ RMU 35-472E6.2 -> cột 19A). Thêm bản vẽ `06b.json` (dò từ bản vẽ 6, `cfg06b.json`): RMU 35,
+  DCL478E6.4-7/19A, tuyến 19A - 18 - 17A - 17 - 13 - 12 - 11 - 10 - 9 - 7 - 4 - 03 tới LBS 478E6.4/01 Công
+  ty Điện lực (thường cắt, sang RMU 14-478 E6.4), RMU 19.1 / 19.2-478 E6.4 NR Điện Lực; nối cáp với cột 34
+  (bản vẽ 20) và với LBS 474E6.4/04. Bản vẽ mới khai `gan` được đặt vào chỗ trống gần đó, các bản vẽ cũ
+  giữ nguyên chỗ.
 * `XEM_TB='tên thiết bị'` / `XEM_PDF='20.json:133,396' node tools/ve-luoi-trung-ap.mjs` in chuỗi quanh
   thiết bị / điểm PDF sau khi làm gọn; `TAT='khuc,bac,noi,baclech,goc,vg,tinhlai,doitb,tol,duong,laphang'` tắt
   từng bước làm gọn để khoanh vùng khi một bước làm đổi liên kết điện (so bằng smoke test / mô hình

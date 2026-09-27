@@ -49,11 +49,27 @@ export default [
       { p: [806, 196], t: '↓ LT 478 E6.4 (Lộ 478 E6.4 đến)' },
       { p: [414.5, 200], t: '→ LT 472 E6.2' },
       { p: [239, 173], t: '↑ RMU 34-472 E6.2 (ngăn 472-7/34-2 thường cắt)', canh: 'giua' },
-      { p: [449.5, 437.5], t: '→ LT 478 E6.4 (Đầm Xanh)' },
     ],
     noi_ban_ve: [
       { tu: ['20.json', [173.36, 119.41]], den: ['18.json', [474.25, 512.47]], tu_dong: true, cap: true },
       { tu: ['20.json', [293.18, 77.26]], den: ['18.json', [640.8, 408.26]], tu_dong: true },
+    ],
+  },
+  {
+    // bản vẽ 6 (ĐZ 472 E6.2 hoàn thiện hạ ngầm), phần NR Điện Lực - BLX 99 (tên thiết bị cũ 478E6.4, nay
+    // nhận điện 472 E6.2 qua RMU 34 -> RMU 35-472E6.2 -> cột 19A): nhánh cột 11 (DCL 478E6.4-7/01 LT
+    // 474E6.4, Cu 3x240) lên LBS 474E6.4/04 Đầm Xanh (thường cắt) vẽ ở bản vẽ 20; cuối tuyến LBS 478E6.4/01
+    // Công ty Điện lực (thường cắt) sang RMU 14-478 E6.4
+    json: '06b.json',
+    goc: 'tu_dong',
+    gan: [-230, -1560],
+    ti_le: 1.2,
+    chu: [
+      { p: [492, 414.5], t: '→ RMU 14-478 E6.4 (LT 478 E6.4)' },
+    ],
+    noi_ban_ve: [
+      { tu: ['20.json', [293.09, 190.99]], den: ['06b.json', [131.72, 405.07]], tu_dong: true, cap: true },
+      { tu: ['06b.json', [359.99, 381.67]], den: ['20.json', [447.64, 435.67]], tu_dong: true, cap: true },
     ],
   },
   {

@@ -1853,9 +1853,13 @@ if (existsSync(datPdf)) {
   const viTri = resolve('tools/luoi-trung-ap/pdf/vi-tri.json');
   const cu = !process.env.QUY_HOACH && existsSync(viTri) ? JSON.parse(readFileSync(viTri, 'utf8')) : {};
   const canDat = ds.filter((d) => d.goc === 'tu_dong');
-  if (canDat.length && canDat.every((d) => cu[d.json] && (cu[d.json].ti_le ?? 1) === (d.ti_le ?? 1))) {
-    for (const d of canDat) { d.goc = cu[d.json].goc; d.goc_pdf = cu[d.json].goc_pdf; }
-    console.log(`  giữ chỗ ${canDat.length} bản vẽ theo vi-tri.json (QUY_HOACH=1: quy hoạch lại)`);
+  // bản vẽ mới thêm (chưa có trong vi-tri.json) có khai 'gan' (tâm mong muốn): tìm chỗ trống gần đó,
+  // các bản vẽ cũ vẫn giữ chỗ
+  const daCo = (d) => cu[d.json] && (cu[d.json].ti_le ?? 1) === (d.ti_le ?? 1);
+  if (canDat.length && canDat.some(daCo) && canDat.every((d) => daCo(d) || d.gan)) {
+    for (const d of canDat.filter(daCo)) { d.goc = cu[d.json].goc; d.goc_pdf = cu[d.json].goc_pdf; }
+    const moi = canDat.filter((d) => !daCo(d)).map((d) => d.json);
+    console.log(`  giữ chỗ ${canDat.length - moi.length} bản vẽ theo vi-tri.json${moi.length ? `, đặt mới gần 'gan': ${moi.join(', ')}` : ''} (QUY_HOACH=1: quy hoạch lại)`);
   } else tinhTamTuDong(ds);
   console.log(`  (quy hoạch chỗ đặt: ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   // dây liên thông khai tay (có 'qua') vẽ ngay sau bản vẽ của nó để các cáp tìm đường tự động
