@@ -1093,7 +1093,15 @@ lại là cung vòng nhảy vẽ sẵn trong PDF), bậc lệch nhỏ 16 -> 9 (c
   đó; dây từ cực vào dây ở quãng khác đi chữ L. Chân ngăn tủ RMU, vạch ranh giới quản lý vuông góc.
 * Tìm đường cáp: sau khi tìm, bậc nhỏ (<= 2 ô) được gộp nếu đường mới vẫn hợp lệ (không đè / sát
   nét, không rẽ ở chỗ cắt, không cắt thêm nét).
-* `XEM_TB='tên thiết bị' node tools/ve-luoi-trung-ap.mjs` in chuỗi quanh thiết bị sau khi làm gọn.
+* Ràng buộc để làm gọn hình không đổi liên kết điện (smoke test phát hiện ở lần đầu): dời thiết bị
+  không lấn khoảng cắt thiết bị bên cạnh (DCL 476E6.4-7/40 từng lấn khe LBS 476E6.4/39 thường cắt -
+  nối tắt 473 E6.2 với 476 E6.4); dung sai nắn > 2pt chỉ khi quãng có thiết bị và đi xiên; gộp bậc chỉ
+  dời quãng ở đầu chuỗi hoặc khi khúc chuyển có thiết bị (cáp chữ U nối chân RMU 06 - 07 giữ nguyên);
+  gỡ khúc lượn chỉ quanh hộp ký hiệu; chân ngăn tủ RMU giữ nối thẳng (không rẽ ngang dưới đáy khung).
+* Đầu dây liên thông khai trong `dat.mjs` bám đỉnh chuỗi gần nhất (<= 2pt), không có thì bám đúng đầu
+  chuỗi gần nhất (<= 8pt) - lấy vị trí sau khi làm gọn (dây vào bản vẽ 23 từng hở khi đầu lộ bị dời).
+* `XEM_TB='tên thiết bị'` / `XEM_PDF='20.json:133,396' node tools/ve-luoi-trung-ap.mjs` in chuỗi quanh
+  thiết bị / điểm PDF sau khi làm gọn.
 
 Thứ tự chạy lại: `node tools/doi-cho-tram.mjs` → `node tools/ve-luoi-trung-ap.mjs` → `node
 tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trung-ap.mjs` → `npx vite build`.

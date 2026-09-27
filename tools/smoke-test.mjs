@@ -332,7 +332,8 @@ const lta = await page.evaluate(() => {
     dtd: dtd.length,
     dtdCat: dtd.every((e) => e.state === 'mo'),
     // 473 E6.2 (bản vẽ 7) nối vào đầu dây "473 E6.2 đến" của bản vẽ 18 (trên MC 472E6.4/61)
-    noi: ds.filter((e) => e.kind === 'branch' && e.nodes.some((id) => { const p = a.store.get(id)?.p; return p && Math.hypot(p.x - __P.noi[0], p.y - __P.noi[1]) < 1; })).length >= 2,
+    // (điểm nối có thể dời chút do nắn thẳng / gộp bậc khi vẽ - dung sai 2,5, dưới sai số bắt điểm 3)
+    noi: ds.filter((e) => e.kind === 'branch' && e.nodes.some((id) => { const p = a.store.get(id)?.p; return p && Math.hypot(p.x - __P.noi[0], p.y - __P.noi[1]) < 2.5; })).length >= 2,
     ten: moTen.every((t) => chu.some((c) => c.startsWith(t))),
     // trục 477 E6.4 (sau cột 48), trục 472 E6.4 (trước cột 48), 473 E6.2 trên trục
     d477: __cd(...__P.d477),
