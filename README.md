@@ -1088,7 +1088,10 @@ lại là cung vòng nhảy vẽ sẵn trong PDF), bậc lệch nhỏ 16 -> 9 (c
 * Gộp bậc lệch: hai quãng thẳng cùng phương lệch <= 6pt (tới 12pt nếu quãng dời không có thiết bị
   và đầu ngoài không phải điểm rẽ nhánh - vd cột 01 lộ 479 E6.3 có nhánh TBA khách hàng không vẽ)
   nối bằng khúc chuyển <= 30pt: dời quãng ngắn về thẳng hàng quãng dài.
-* Đoạn xiên còn lại (nhánh vẽ xiên trong PDF) đổi thành chữ L; đoạn chéo nhỏ ở góc rẽ nắn vuông.
+* Đoạn xiên có thiết bị hoặc nhánh xiên dài (>= 30pt) đổi thành chữ L (góc cách dây khác >= 8pt, cạnh
+  không đi sát < 3pt - góc chữ L rơi vào vòng nhảy vẽ sau từng nối tắt cáp RMU 02-480 E6.4 vào đường
+  dây bên dưới, C42 E6.4 nhận điện ngược); đoạn xiên ngắn chỉ để nối (chân cáp tủ RMU ...) giữ nguyên;
+  đoạn chéo nhỏ ở góc rẽ nắn vuông.
 * Thiết bị có khoảng cắt vắt qua góc rẽ dời vào trong quãng thẳng chứa nó; hướng ký hiệu theo quãng
   đó; dây từ cực vào dây ở quãng khác đi chữ L. Chân ngăn tủ RMU, vạch ranh giới quản lý vuông góc.
 * Tìm đường cáp: sau khi tìm, bậc nhỏ (<= 2 ô) được gộp nếu đường mới vẫn hợp lệ (không đè / sát
@@ -1101,7 +1104,9 @@ lại là cung vòng nhảy vẽ sẵn trong PDF), bậc lệch nhỏ 16 -> 9 (c
 * Đầu dây liên thông khai trong `dat.mjs` bám đỉnh chuỗi gần nhất (<= 2pt), không có thì bám đúng đầu
   chuỗi gần nhất (<= 8pt) - lấy vị trí sau khi làm gọn (dây vào bản vẽ 23 từng hở khi đầu lộ bị dời).
 * `XEM_TB='tên thiết bị'` / `XEM_PDF='20.json:133,396' node tools/ve-luoi-trung-ap.mjs` in chuỗi quanh
-  thiết bị / điểm PDF sau khi làm gọn.
+  thiết bị / điểm PDF sau khi làm gọn; `TAT='khuc,bac,noi,baclech,goc,vg,tinhlai,doitb,tol,duong'` tắt
+  từng bước làm gọn để khoanh vùng khi một bước làm đổi liên kết điện (so bằng smoke test / mô hình
+  dòng công suất).
 
 Thứ tự chạy lại: `node tools/doi-cho-tram.mjs` → `node tools/ve-luoi-trung-ap.mjs` → `node
 tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trung-ap.mjs` → `npx vite build`.

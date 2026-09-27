@@ -558,7 +558,7 @@ export function timDuong(L, a, b, { ra = null, vao = null, gioiHan = 4e6, tuDoDa
       }
       return c;
     };
-    for (let lap = 0; lap < 20; lap++) {
+    for (let lap = 0; lap < 20 && !(process.env.TAT ?? '').includes('duong'); lap++) {
       let doi = false;
       for (let k = 1; k + 2 < pts.length && !doi; k++) {
         const [A, B, C, D] = [pts[k - 1], pts[k], pts[k + 1], pts[k + 2]];
