@@ -11,6 +11,10 @@
 
 const O_THO = 20; // ô lưới tìm chỗ
 const O = 4; // ô lưới tìm đường
+// phạt khi tìm đường: cắt ngang một nét (sẽ vẽ vòng nhảy); đi song song cách nét khác 2 ô / 3 ô
+// (8 / 12 đơn vị - không cấm nhưng đẩy các tuyến giãn ra cho thoáng)
+const PHAT_CAT_NET = Number(process.env.PHAT_CAT_NET ?? 80);
+const PHAT_SAT = [Number(process.env.PHAT_SAT2 ?? 2), Number(process.env.PHAT_SAT3 ?? 1)];
 
 /** Hộp bao gần đúng của một dòng chữ [layer,kv,x,y,h,rot,align,src,text]. */
 export function hopChu(r, aligns) {
@@ -111,7 +115,18 @@ export function timCho(s, data, w, h, gan, { le = 30, cam = [], vung = null, boQ
  * vẽ khác. Trả về Map id -> tâm [x, y].
  */
 const CUA_SO = 3000; // nửa cửa sổ dò quanh các neo khi quy hoạch chỗ đặt
-export function quyHoachCho(s, data, ds, { le = 40, boQua = new Set(), vong = 4, soThu = 6 } = {}) {
+/** Đoạn thẳng (x1,y1)-(x2,y2) có đi vào trong hộp [x0,y0,x1,y1] không (Liang-Barsky). */
+function catHop(x1, y1, x2, y2, h) {
+  let t0 = 0, t1 = 1;
+  const dx = x2 - x1, dy = y2 - y1;
+  for (const [p, q] of [[-dx, x1 - h[0]], [dx, h[2] - x1], [-dy, y1 - h[1]], [dy, h[3] - y1]]) {
+    if (p === 0) { if (q < 0) return false; continue; }
+    const r = q / p;
+    if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; } else { if (r < t0) return false; if (r < t1) t1 = r; }
+  }
+  return t1 - t0 > 1e-6;
+}
+export function quyHoachCho(s, data, ds, { le = 40, boQua = new Set(), vong = 4, soThu = 6, phatCat = 0, topK = 400 } = {}) {
   const s0 = s;
   s = { ...s0, b: s0.b.filter((r) => !boQua.has(r[3])), t: s0.t.filter((r) => !boQua.has(r[7])), d: s0.d.filter((r) => !boQua.has(r[8])) };
   let [X0, Y0, X1, Y1] = [Infinity, Infinity, -Infinity, -Infinity];
@@ -171,6 +186,44 @@ export function quyHoachCho(s, data, ds, { le = 40, boQua = new Set(), vong = 4,
     }
     return c;
   };
+  // PHẠT VẬT CẢN: đường nối (thẳng từ điểm nối trên bản vẽ tới điểm bên kia) đi xuyên bản vẽ khác,
+  // khung trạm khác hoặc chính bản vẽ này thì cáp thật phải vòng (hoặc cắt ngang nhiều nét - vòng
+  // nhảy): cộng quãng vòng ước tính = nửa cạnh ngắn của hộp chắn
+  const TRAM = s.st.filter((r) => r.length >= 8).map((r) => [r[4], r[5], r[6], r[7]]);
+  const vong_ = (h) => 0.5 * Math.min(h[2] - h[0], h[3] - h[1]);
+  const phatVatCan = (b, cx, cy) => {
+    if (!phatCat) return 0;
+    let c = 0;
+    const minh = [cx - b.w / 2 + 40, cy - b.h / 2 + 40, cx + b.w / 2 - 40, cy + b.h / 2 - 40];
+    for (const n of b.noi) {
+      const px = cx + n.o[0], py = cy + n.o[1];
+      let A = n.A;
+      if (n.ref) {
+        const t = tam.get(n.ref);
+        if (!t) continue;
+        A = [t[0] + n.oRef[0], t[1] + n.oRef[1]];
+      }
+      let p = 0;
+      if (minh[2] > minh[0] && minh[3] > minh[1] && catHop(px, py, A[0], A[1], minh)) p += vong_(minh);
+      for (const [id, h] of hop) {
+        if (id === b.id) continue;
+        const hh = [h[0] + le, h[1] + le, h[2] - le, h[3] - le];
+        if (id === n.ref) {
+          // bản vẽ bên kia: chỉ tính khi đi xuyên qua lõi (điểm nối nằm sát mép hộp)
+          const lo = [hh[0] + 40, hh[1] + 40, hh[2] - 40, hh[3] - 40];
+          if (lo[2] > lo[0] && lo[3] > lo[1] && catHop(px, py, A[0], A[1], lo)) p += vong_(lo);
+          continue;
+        }
+        if (catHop(px, py, A[0], A[1], hh)) p += vong_(hh);
+      }
+      for (const h of TRAM) {
+        if (A[0] >= h[0] - 120 && A[0] <= h[2] + 120 && A[1] >= h[1] - 120 && A[1] <= h[3] + 120) continue;
+        if (catHop(px, py, A[0], A[1], h)) p += vong_(h);
+      }
+      c += p * phatCat * (n.w ?? 1);
+    }
+    return c;
+  };
   const datMot = (b) => {
     const cw = Math.ceil((b.w + 2 * le) / O_THO);
     const ch = Math.ceil((b.h + 2 * le) / O_THO);
@@ -186,33 +239,38 @@ export function quyHoachCho(s, data, ds, { le = 40, boQua = new Set(), vong = 4,
       wj0 = Math.max(0, Math.floor((Math.min(...ys) - CUA_SO - Y0) / O_THO));
       wj1 = Math.min(ny - ch, Math.ceil((Math.max(...ys) + CUA_SO - Y0) / O_THO));
     }
-    for (let j = wj0; j <= wj1; j++) {
-      for (let i = wi0; i <= wi1; i++) {
-        const x0 = X0 + i * O_THO, y0 = Y0 + j * O_THO, x1 = x0 + cw * O_THO, y1 = y0 + ch * O_THO;
-        const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-        const c = chiPhi(b, cx, cy);
-        if (c >= bd) continue;
-        if (tong(i, j, i + cw, j + ch) !== 0) continue;
-        if (khac.some((h) => x0 < h[2] && x1 > h[0] && y0 < h[3] && y1 > h[1])) continue;
-        bd = c;
-        tot = [cx, cy, x0, y0, x1, y1];
-      }
-    }
-    if (!tot && (wi0 > 0 || wj0 > 0 || wi1 < nx - cw || wj1 < ny - ch)) {
-      // cửa sổ đã kín chỗ: dò cả tờ
-      [wi0, wj0, wi1, wj1] = [0, 0, nx - cw, ny - ch];
+    // giữ K vị trí trống có chiều dài nối nhỏ nhất, sau đó mới tính phạt vật cản trên các vị trí đó
+    const K = phatCat ? topK : 1;
+    let ung = [], nguong = Infinity;
+    const quet = () => {
       for (let j = wj0; j <= wj1; j++) {
         for (let i = wi0; i <= wi1; i++) {
           const x0 = X0 + i * O_THO, y0 = Y0 + j * O_THO, x1 = x0 + cw * O_THO, y1 = y0 + ch * O_THO;
           const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
           const c = chiPhi(b, cx, cy);
-          if (c >= bd) continue;
+          if (c >= nguong) continue;
           if (tong(i, j, i + cw, j + ch) !== 0) continue;
           if (khac.some((h) => x0 < h[2] && x1 > h[0] && y0 < h[3] && y1 > h[1])) continue;
-          bd = c;
-          tot = [cx, cy, x0, y0, x1, y1];
+          ung.push([c, cx, cy, x0, y0, x1, y1]);
+          if (ung.length >= 2 * K) {
+            ung.sort((u, v) => u[0] - v[0]);
+            ung.length = K;
+            nguong = ung[K - 1][0];
+          }
         }
       }
+    };
+    quet();
+    if (!ung.length && (wi0 > 0 || wj0 > 0 || wi1 < nx - cw || wj1 < ny - ch)) {
+      // cửa sổ đã kín chỗ: dò cả tờ
+      [wi0, wj0, wi1, wj1] = [0, 0, nx - cw, ny - ch];
+      quet();
+    }
+    ung.sort((u, v) => u[0] - v[0]);
+    ung.length = Math.min(ung.length, K);
+    for (const u of ung) {
+      const c = u[0] + phatVatCan(b, u[1], u[2]);
+      if (c < bd) { bd = c; tot = u.slice(1); }
     }
     if (!tot) throw new Error(`Không tìm được chỗ cho bản vẽ ${b.id}`);
     tam.set(b.id, [tot[0], tot[1]]);
@@ -220,7 +278,7 @@ export function quyHoachCho(s, data, ds, { le = 40, boQua = new Set(), vong = 4,
     return bd;
   };
   /** Tổng chi phí khi mọi bản vẽ đã đặt (mỗi chỗ nối giữa hai bản vẽ tính hai lần như nhau). */
-  const tongChiPhi = () => ds.reduce((t, b) => t + chiPhi(b, ...tam.get(b.id)), 0);
+  const tongChiPhi = () => ds.reduce((t, b) => t + chiPhi(b, ...tam.get(b.id)) + phatVatCan(b, ...tam.get(b.id)), 0);
   const chay = (thuTu) => {
     tam.clear();
     hop.clear();
@@ -351,12 +409,14 @@ export function timDuong(L, a, b, { ra = null, vao = null, gioiHan = 4e6, tuDoDa
     }
     if (ngang) {
       if (v & 1) return Infinity; // đè nét ngang
-      if (v & 2) c += 40; // cắt nét dọc
+      if (v & 2) c += PHAT_CAT_NET; // cắt nét dọc
       if ((cell(i, j + 1) & 1 || cell(i, j - 1) & 1) && !(v & 2)) return Infinity; // sát nét ngang
+      if (!(v & 2)) for (let k = 2; k <= 3; k++) if (PHAT_SAT[k - 2] && (cell(i, j + k) & 1 || cell(i, j - k) & 1)) { c += PHAT_SAT[k - 2]; break; }
     } else {
       if (v & 2) return Infinity;
-      if (v & 1) c += 40;
+      if (v & 1) c += PHAT_CAT_NET;
       if ((cell(i + 1, j) & 2 || cell(i - 1, j) & 2) && !(v & 1)) return Infinity;
+      if (!(v & 1)) for (let k = 2; k <= 3; k++) if (PHAT_SAT[k - 2] && (cell(i + k, j) & 2 || cell(i - k, j) & 2)) { c += PHAT_SAT[k - 2]; break; }
     }
     return c;
   };

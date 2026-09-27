@@ -1041,9 +1041,31 @@ NM NĐ An Khánh (A6.15, `tools/noi-duong-day-110.mjs`) chuyển sang phía tây
   thiết bị, chữ được chọn và nét vượt ra ngoài hộp để soát.
 * Toạ độ đầu ngăn lộ trong `dat.mjs`, điểm kiểm tra trong smoke test / rà soát vẫn ghi theo bản CAD
   gốc, đổi sang vị trí mới bằng `doiDiem()` - không phải sửa tay khi dời trạm.
-* Khi quy hoạch chỗ đặt, mỗi bản vẽ chừa lề `LE_BAN_VE` = 150 (hai bản vẽ cách nhau ít nhất 300,
-  cách hình trạm 150) làm hành lang đi cáp. Dây liên thông khai `vao` thì tìm đường tới điểm lùi ra 16
+* Khi quy hoạch chỗ đặt, mỗi bản vẽ chừa lề `LE_BAN_VE` = 100 (hai bản vẽ cách nhau ít nhất 200,
+  cách hình trạm 100) làm hành lang đi cáp. Dây liên thông khai `vao` thì tìm đường tới điểm lùi ra 16
   đơn vị rồi đi thẳng vào đầu dây (chân ngăn 480-7/02-2 tủ RMU 02-480 sát trục 480: cáp đi từ dưới lên).
+
+**Tối ưu bố trí lưới trung áp** (giữ nguyên vị trí trạm 110kV). Mục tiêu: tổng chiều dài cáp ngăn lộ
+và dây liên thông giữa các bản vẽ ngắn nhất, ít giao chéo, các tuyến không đi sát nhau.
+
+* Quy hoạch chỗ đặt: chi phí một vị trí = tổng khoảng cách Manhattan các chỗ nối (cáp ngăn lộ và dây
+  liên thông cùng trọng số `TS_NGAN` = 1) + phạt vật cản `PHAT_CAT` = 2 x quãng vòng ước tính (nửa cạnh
+  ngắn) mỗi khi đường nối thẳng đi xuyên bản vẽ khác, khung trạm khác hoặc lõi chính bản vẽ đó. Mỗi
+  bước chọn 400 vị trí trống có chiều dài nối nhỏ nhất rồi mới tính phạt vật cản.
+* Tìm đường cáp: cắt ngang nét khác phạt `PHAT_CAT_NET` = 80 (trước 40); đi song song cách nét khác
+  2 ô / 3 ô (8 / 12 đơn vị) phạt `PHAT_SAT2` = 2 / `PHAT_SAT3` = 1 mỗi ô - các tuyến giãn ra.
+* Các tham số đổi được bằng biến môi trường khi chạy `ve-luoi-trung-ap.mjs` (thêm `VONG`, `SO_THU`:
+  số vòng cải thiện, số thứ tự ngẫu nhiên thử). Log ghi chiều dài từng cáp / dây liên thông (kèm
+  khoảng cách thẳng giữa hai đầu) và tổng số vòng nhảy giao chéo.
+
+| Chỉ tiêu (tờ TONG) | Trước | Sau | |
+|---|---:|---:|---:|
+| Tổng chiều dài cáp ngăn lộ (122 tuyến) | 197.368 | 196.910 | -0,2% |
+| Tổng chiều dài dây liên thông (88 dây) | 245.147 | 182.318 | -25,6% |
+| **Tổng chiều dài nối** | **442.515** | **379.228** | **-14,3%** |
+| Vòng nhảy giao chéo trên tuyến trung áp | 754 | 634 | -15,9% |
+| Cặp đoạn đi sát nhau (< 12 đơn vị, chồng > 40) | 310 (dài 55.024) | 160 (dài 10.362) | -81% chiều dài |
+| Dây liên thông dài > 3000 | 30 | 16 | |
 
 Thứ tự chạy lại: `node tools/doi-cho-tram.mjs` → `node tools/ve-luoi-trung-ap.mjs` → `node
 tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trung-ap.mjs` → `npx vite build`.

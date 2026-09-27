@@ -450,6 +450,7 @@ function veGiaoCheo() {
   // Tách tuyến tại từng chỗ nhảy: vòng nhảy thành một nét riêng, đánh dấu vào
   // s.nhay để khi đọc dữ liệu mang cờ khongNoiGiua (chỉ đấu ở hai đầu) - đỉnh vòng
   // nhảy nằm sát đường dây kia không bị coi là điểm đấu chữ T.
+  console.log(`Giao chéo: ${[...nhay.values()].reduce((t, ds) => t + ds.length, 0)} vòng nhảy trên ${nhay.size} tuyến trung áp.`);
   for (const [a, ds] of nhay) {
     const manh = [[]];
     const vong = [];
@@ -557,7 +558,11 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
         duong.push(...r.slice(1));
       }
       if (duong && LUI) duong.push(b);
-      if (duong) net(duong, !!l.cap);
+      if (duong) {
+        net(duong, !!l.cap);
+        const ten = (d) => (typeof d[0] === 'string' ? d[0] : 'trạm');
+        console.log(`  liên thông ${ten(l.tu)} - ${ten(l.den)}: ${duong.length - 1} đoạn, dài ${duong.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - duong[i][0], q[1] - duong[i][1]), 0).toFixed(0)}, thẳng ${(Math.abs(duong.at(-1)[0] - duong[0][0]) + Math.abs(duong.at(-1)[1] - duong[0][1])).toFixed(0)}`);
+      }
       continue;
     }
     net([a, ...(l.qua ?? []), b], !!l.cap);
@@ -594,9 +599,11 @@ function hopBanVe(J) {
 const BO_QUA_CHO = new Set(['Kết lưới 110kV'].map((t) => data.srcLayers.indexOf(t)).filter((i) => i >= 0));
 // lề quanh mỗi bản vẽ khi quy hoạch chỗ đặt: hai bản vẽ cách nhau ít nhất 2 lề, cách hình trạm 1 lề -
 // chừa hành lang cho cáp, sơ đồ không dày đặc (chỉnh bằng biến môi trường LE_BAN_VE)
-const LE_BAN_VE = Number(process.env.LE_BAN_VE ?? 150);
+const LE_BAN_VE = Number(process.env.LE_BAN_VE ?? 100);
 /** Tâm lý tưởng (toạ độ tờ tổng) của các bản vẽ đặt tự động. */
 const TAM_TU_DONG = new Map();
+// trọng số chỗ nối khi quy hoạch: cáp ngăn lộ (TS_NGAN) so với dây liên thông giữa hai bản vẽ (1)
+const TS_NGAN = Number(process.env.TS_NGAN ?? 1);
 
 /**
  * ĐẶT BẢN VẼ SAO CHO HAI TRẠM LIÊN KẾT THEO ĐƯỜNG NGẮN NHẤT.
@@ -631,7 +638,7 @@ function tinhTamTuDong(ds) {
       const n = d.noi?.[lo.ten];
       if (!n) continue;
       const A = Array.isArray(n) ? n[0] : n.tu;
-      noi.push({ o: lech(d.json, lo.chuoi[0]?.pts[0] ?? lo.nguon), A, tru: truCua(A), ra: Array.isArray(n) ? 'xuong' : n.ra ?? 'xuong', w: 2 });
+      noi.push({ o: lech(d.json, lo.chuoi[0]?.pts[0] ?? lo.nguon), A, tru: truCua(A), ra: Array.isArray(n) ? 'xuong' : n.ra ?? 'xuong', w: TS_NGAN });
     }
     for (const l of lien) {
       for (const [a, b] of [[l.tu, l.den], [l.den, l.tu]]) {
@@ -649,7 +656,11 @@ function tinhTamTuDong(ds) {
     }
     bai.push({ id: d.json, w: (t.h[2] - t.h[0]) * t.k, h: (t.h[3] - t.h[1]) * t.k, noi });
   }
-  const tam = quyHoachCho(s, data, bai, { le: LE_BAN_VE, boQua: BO_QUA_CHO });
+  const E = process.env;
+  const tam = quyHoachCho(s, data, bai, {
+    le: LE_BAN_VE, boQua: BO_QUA_CHO,
+    phatCat: Number(E.PHAT_CAT ?? 2), vong: Number(E.VONG ?? 4), soThu: Number(E.SO_THU ?? 6),
+  });
   for (const [json, c] of tam) TAM_TU_DONG.set(json, c);
   // đặt đúng chỗ đã quy hoạch (tâm -> góc trái trên của hộp bản vẽ)
   for (const d of ds) {
@@ -1060,7 +1071,8 @@ function vePdf(dat) {
     if (!duong) continue;
     kv = c.kv; lop = c.lop;
     net(duong, c.cap);
-    console.log(`  cáp ${c.ten}: ${duong.length - 1} đoạn, dài ${duong.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - duong[i][0], q[1] - duong[i][1]), 0).toFixed(0)}`);
+    const mh = (d) => Math.abs(d.at(-1)[0] - d[0][0]) + Math.abs(d.at(-1)[1] - d[0][1]);
+    console.log(`  cáp ${c.ten}: ${duong.length - 1} đoạn, dài ${duong.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - duong[i][0], q[1] - duong[i][1]), 0).toFixed(0)}, thẳng ${mh(duong).toFixed(0)}`);
   } });
   HOP_BAN_VE.push(hopNay);
   console.log(`  bản vẽ ${dat.json}: ${J.lo.map((l) => l.ten).join(', ')}`);
