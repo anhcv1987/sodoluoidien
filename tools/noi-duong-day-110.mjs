@@ -557,7 +557,7 @@ function huongRa(m) {
  * ngắn mới còn đi trong lõi. Đặt PHAT_DOC_LOI=0 để trở lại cách đi dây theo hành lang cũ.
  */
 const VANH = Number(process.env.VANH ?? 1200);
-const PHAT_DOC_LOI = Number(process.env.PHAT_DOC_LOI ?? 1200);
+const PHAT_DOC_LOI = Number(process.env.PHAT_DOC_LOI ?? ((process.env.MOI ?? '1') !== '0' ? 0 : 1200));
 const BIEN_TD = Number(process.env.BIEN_TD ?? 2500);
 
 /* --- Lưới tìm đường --- */
@@ -660,6 +660,64 @@ const oDinhTA = new Uint8Array(NX * NY);
           const i1 = i + di;
           const j1 = j + dj;
           if (i1 >= 0 && i1 < NX && j1 >= 0 && j1 < NY) oSatTA[j1 * NX + i1] = 1;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * ĐI THEO HƯỚNG ĐỊA LÝ, HẠN CHẾ CẮT LƯỚI TRUNG ÁP (MOI=1, mặc định).
+ *
+ * Mô hình cũ phạt / cấm cả ô 60 x 60 có nét hoặc đỉnh trung áp - giữa tờ ô nào cũng có nên
+ * đường dây phải vòng ra mép giấy. Mô hình mới xét đúng đoạn đường lưới đi qua ô (ngang: y =
+ * toaY(j), x trong ±O/2; dọc tương tự):
+ *   - cắt vuông góc qua nét trung áp: cho phép, phạt PHAT_CAT_TA mỗi lần cắt (có ký hiệu nhảy);
+ *   - chạy dọc sát nét trung áp (< SAT_TA) hoặc đi sát đỉnh nét trung áp: cấm (thành đấu nối giả);
+ *   - góc rẽ sát nét trung áp (< GOC_TA): cấm.
+ * Không còn vành mép giấy (PHAT_DOC_LOI = 0): tuyến đi theo hướng giữa hai trạm.
+ */
+const MOI = (process.env.MOI ?? '1') !== '0';
+const PHAT_CAT_TA = Number(process.env.PHAT_CAT_TA ?? 2500);
+const SAT_TA = 6;
+const GOC_TA = 8;
+const catNgang = new Uint16Array(NX * NY), catDoc = new Uint16Array(NX * NY);
+const camNgang = new Uint8Array(NX * NY), camDoc = new Uint8Array(NX * NY), camGoc = new Uint8Array(NX * NY);
+if (MOI) {
+  const kcDoan = (px, py, ax, ay, bx, by) => {
+    const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+    const u = L ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L)) : 0;
+    return Math.hypot(ax + u * dx - px, ay + u * dy - py);
+  };
+  // khoảng cách ngắn nhất giữa hai đoạn (đủ dùng cho đoạn đo ngang/dọc với đoạn bất kỳ)
+  const kc2 = (a, b) => Math.min(kcDoan(a[0], a[1], b[0], b[1], b[2], b[3]), kcDoan(a[2], a[3], b[0], b[1], b[2], b[3]), kcDoan(b[0], b[1], a[0], a[1], a[2], a[3]), kcDoan(b[2], b[3], a[0], a[1], a[2], a[3]));
+  const catNhau = (a, b) => {
+    const [x1, y1, x2, y2] = a, [x3, y3, x4, y4] = b;
+    const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+    if (Math.abs(den) < 1e-9) return null;
+    const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den, u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / den;
+    return t > 0 && t < 1 && u > 0 && u < 1 ? [x1 + t * (x2 - x1), y1 + t * (y2 - y1)] : null;
+  };
+  for (const r of to.b) {
+    if (r[3] === SRC || r[3] === SRC_TN || !CAP_TA.includes(r[1])) continue;
+    for (let q = 4; q + 3 < r.length; q += 2) {
+      const sg = [r[q], r[q + 1], r[q + 2], r[q + 3]];
+      const i0 = Math.max(0, cot(Math.min(sg[0], sg[2]) - O)), i1 = Math.min(NX - 1, cot(Math.max(sg[0], sg[2]) + O));
+      const j0 = Math.max(0, hang(Math.min(sg[1], sg[3]) - O)), j1 = Math.min(NY - 1, hang(Math.max(sg[1], sg[3]) + O));
+      for (let j = j0; j <= j1; j++) {
+        for (let i = i0; i <= i1; i++) {
+          const k = j * NX + i, X = toaX(i), Y = toaY(j);
+          if (kcDoan(X, Y, ...sg) < GOC_TA) camGoc[k] = 1;
+          for (const [ngang, pr] of [[true, [X - O / 2, Y, X + O / 2, Y]], [false, [X, Y - O / 2, X, Y + O / 2]]]) {
+            const kc = kc2(pr, sg);
+            if (kc >= SAT_TA) continue;
+            const g = catNhau(pr, sg);
+            // cắt ngang thật (không phải sát đầu nét trung áp, không chạy song song)
+            const ok = g && Math.hypot(g[0] - sg[0], g[1] - sg[1]) >= SAT_TA && Math.hypot(g[0] - sg[2], g[1] - sg[3]) >= SAT_TA
+              && (ngang ? Math.abs(sg[2] - sg[0]) < Math.abs(sg[3] - sg[1]) : Math.abs(sg[3] - sg[1]) < Math.abs(sg[2] - sg[0]));
+            if (ok) (ngang ? catNgang : catDoc)[k]++;
+            else (ngang ? camNgang : camDoc)[k] = 1;
+          }
         }
       }
     }
@@ -791,6 +849,11 @@ function timDuong(A, B, tru, dA, dB) {
         if (sau < -10) p += PHAT_SAU_NGAN_LO;
       }
     }
+    if (MOI) {
+      // (cắt / sát nét trung áp xét theo hướng đi - trong vòng lặp tìm đường)
+      if (oDaVe[k] && !oTrungAp[k]) p += PHAT_DE;
+      return p;
+    }
     // đỉnh nét trung áp: cấm (trừ sát hai đầu ngăn lộ)
     if (oDinhTA[k] && Math.abs(i - si) + Math.abs(j - sj) > 2 && Math.abs(i - ti) + Math.abs(j - tj) > 2) return -1;
     if (oTrungAp[k]) p += PHAT_TA_TRONG;
@@ -839,8 +902,15 @@ function timDuong(A, B, tru, dA, dB) {
       const i1 = i0 + DI[d];
       const j1 = j0 + DJ[d];
       if (i1 < 0 || i1 >= NX || j1 < 0 || j1 >= NY) continue;
-      const pt = phatO(i1, j1);
+      let pt = phatO(i1, j1);
       if (pt < 0) continue;
+      if (MOI) {
+        const k1o = j1 * NX + i1;
+        const gan = (i, j) => Math.abs(i - si) + Math.abs(j - sj) <= 2 || Math.abs(i - ti) + Math.abs(j - tj) <= 2;
+        if (!gan(i1, j1) && (d < 2 ? camNgang[k1o] : camDoc[k1o])) continue;
+        if (d !== d0 && camGoc[o] && !gan(i0, j0)) continue;
+        pt += (d < 2 ? catNgang[k1o] : catDoc[k1o]) * PHAT_CAT_TA;
+      }
       const k1 = (j1 * NX + i1) * 4 + d;
       // lõi tờ sơ đồ: chạy dọc song song với mép gần nhất thì bị phạt (xem VANH)
       const k1o = j1 * NX + i1;

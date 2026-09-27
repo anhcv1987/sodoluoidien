@@ -551,16 +551,22 @@ Xá E6.20); mã định dạng MTEXT còn sót (`qc;`, `tz;`...) được bỏ �
 nhãn nằm dưới cả dãy TU, chống sét vẽ bằng nét rời rất ngắn, nên chỉ nhận đầu mút của
 đoạn dây thật (dài từ 12 đơn vị) nằm bên phải điểm đầu nhãn.
 
-**Đường dây 110kV đi ra mép khổ giấy** (để phần giữa tờ dành cho lưới trung áp): quanh
-toàn bộ các trạm chừa một **vành** rộng `VANH` = 1.200 đơn vị. Trong phần lõi, đi theo
-hướng ra mép gần nhất (tờ khổ đứng: đi ngang ra mép trái/phải; trong dải 2.500 đơn vị sát
-mép trên/dưới thì đi dọc) là rẻ, còn chạy song song với mép thì bị phạt `PHAT_DOC_LOI` =
-1.200 mỗi ô (60 đơn vị). Kết quả: các trục 110kV chạy dọc hai mép trái/phải và mép dưới,
-trong lõi chỉ còn đoạn từ ngăn lộ đi thẳng ra. Chỉnh bằng biến môi trường, vd
-`PHAT_DOC_LOI=0 node tools/noi-duong-day-110.mjs` để trở lại cách đi theo hành lang giữa
-các trạm như trước. Sau khi chạy lại phải chạy `node tools/ve-luoi-trung-ap.mjs` để cáp
-lưới trung áp tìm đường tránh tuyến 110kV mới. Hàng đợi của A\* dùng đống nhị phân (tìm
-đường xa ra mép nhanh hơn nhiều so với sắp xếp mảng).
+**Đường dây 110kV đi theo hướng giữa hai trạm** (mặc định, `MOI=1`): căn cứ sơ đồ kết dây
+220-110kV, mỗi tuyến đi thẳng hướng từ trạm này sang trạm kia bằng các đoạn ngang - dọc, không
+còn vòng ra mép khổ giấy. Để hạn chế cắt qua lưới trung áp mà không phải đi vòng xa, lưới tìm
+đường (ô 60 đơn vị) xét đúng đoạn đường lưới đi qua ô theo từng hướng:
+* cắt vuông góc qua nét trung áp: được phép (có ký hiệu nhảy dây), phạt `PHAT_CAT_TA` = 2.500
+  mỗi lần cắt;
+* chạy dọc sát nét trung áp (< 6 đơn vị) hoặc đi qua sát đỉnh nét trung áp: cấm - dễ thành
+  đấu nối giả trong mô hình công suất;
+* góc rẽ của tuyến 110kV cách nét trung áp dưới 8 đơn vị: cấm.
+
+So với cách cũ (`MOI=0`: vành `VANH` = 1.200 đơn vị quanh các trạm, chạy song song mép bị phạt
+`PHAT_DOC_LOI` = 1.200 mỗi ô - các trục 110kV chạy dọc mép giấy): tổng chiều dài 110kV giảm
+khoảng một nửa, hệ số đi vòng (chiều dài / khoảng cách hai đầu) từ 3,1 xuống ~1,7; đổi lại tuyến
+110kV cắt qua lưới trung áp nhiều hơn (cắt vuông góc, có nhảy dây). Sau khi chạy lại phải chạy
+`node tools/ve-luoi-trung-ap.mjs` để cáp lưới trung áp tìm đường tránh tuyến 110kV mới. Hàng đợi
+của A\* dùng đống nhị phân.
 
 **Lớp đường dây** (tờ tổng): khi mở tờ, mọi nét, thiết bị, chữ nằm **ngoài ô các trạm** -
 kết lưới 110kV, lưới trung áp (kể cả đoạn cáp từ ngăn lộ đi ra) - được xếp vào lớp riêng
