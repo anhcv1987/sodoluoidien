@@ -147,8 +147,19 @@ export function cleanMText(s: string): string {
     .replace(/\\f[^;]*;/g, '')
     .replace(/\\[Ff][^;]*;/g, '')
     .replace(/[{}]/g, '')
+    // mã có tham số kéo dài tới dấu ';' (thụt dòng \pxqc; \pi1.0022;, giãn chữ \T1e+004;, căn lề
+    // \A1;, cao chữ \H2.5x;, màu \C1;, độ nghiêng \Q15;, bề rộng \W0.8;) - bỏ cả phần tham số
+    .replace(/\\[pACcHQTW][^;\\]*;/g, '')
     .replace(/\\P/g, ' ')
+    .replace(/\\~/g, ' ')
     .replace(/\\[A-Za-z][-0-9.x,]*;?/g, '')
+    // mã điều khiển của TEXT: %%U / %%O gạch dưới / gạch trên (bật tắt), %%C Ø, %%D độ, %%P ±, %%% %, %%nnn mã ký tự
+    .replace(/%%[uUoO]/g, '')
+    .replace(/%%[cC]/g, 'Ø')
+    .replace(/%%[dD]/g, '°')
+    .replace(/%%[pP]/g, '±')
+    .replace(/%%%/g, '%')
+    .replace(/%%(\d{3})/g, (_, n) => String.fromCharCode(Number(n)))
     .replace(/\s+/g, ' ')
     .trim();
 }

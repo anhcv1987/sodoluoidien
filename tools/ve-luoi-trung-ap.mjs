@@ -733,6 +733,116 @@ function boKhucLuon(c, giu = new Set()) {
   tinhLaiThietBi(c);
 }
 
+/**
+ * Là phẳng khúc vòng vô lý trên chuỗi dò (toạ độ PDF):
+ *  - chữ U: tuyến đang đi thẳng lệch ra e (<= 20pt), chạy song song <= 70pt rồi quay về đúng tuyến cũ
+ *    (bản vẽ gốc vẽ dây võng tránh chữ / nhánh TBA đã bỏ ...);
+ *  - răng cưa ký hiệu: đường dò đi theo nét ký hiệu thiết bị (gãy khúc lệch <= 6pt quanh tuyến trong
+ *    quãng <= 40pt, có thiết bị ở trong / sát quãng) - thiết bị đặt vào giữa quãng.
+ * Đỉnh trong khúc dời về tuyến thẳng (giữ số đỉnh), thiết bị chiếu lên tuyến; nhãn thiết bị / cột dời
+ * theo. Không làm khi khúc có chân tủ RMU, điểm rẽ nhánh (đầu chuỗi khác chạm khúc), ranh giới, hoặc
+ * tuyến thẳng mới đi sát (< 3pt) nét khác / đè chữ (hàm chan).
+ */
+function laPhangKhuc(c, giu = new Set(), chan = () => false) {
+  const P = c.pts;
+  const phuong = (a, b) => (Math.abs(a[1] - b[1]) < 0.05 && Math.abs(a[0] - b[0]) > 0.05 ? 0 : Math.abs(a[0] - b[0]) < 0.05 && Math.abs(a[1] - b[1]) > 0.05 ? 1 : -1);
+  let sua = 0;
+  // dời đỉnh m0..m1 về tuyến (trục tr = muc), thiết bị / nhãn trong hộp khúc dời theo
+  const lamPhang = (m0, m1, tr, muc, giua) => {
+    const hs = 1 - tr;
+    const xs = P.slice(m0, m1 + 1);
+    const hop = [Math.min(...xs.map((q) => q[0])) - 1.5, Math.min(...xs.map((q) => q[1])) - 1.5, Math.max(...xs.map((q) => q[0])) + 1.5, Math.max(...xs.map((q) => q[1])) + 1.5];
+    const chieu = Math.sign(P[m1][hs] - P[m0][hs]);
+    let dinh = P[m0][hs];
+    for (let m = m0 + 1; m < m1; m++) {
+      // giữ thứ tự dọc tuyến (đỉnh đi lùi trên nét ký hiệu dồn về đỉnh trước)
+      dinh = chieu > 0 ? Math.max(dinh, P[m][hs]) : Math.min(dinh, P[m][hs]);
+      dinh = chieu > 0 ? Math.min(dinh, P[m1][hs]) : Math.max(dinh, P[m1][hs]);
+      P[m] = tr ? [dinh, muc] : [muc, dinh];
+    }
+    const doiNhan = (n, dx, dy) => { if (n) { n.x0 += dx; n.x1 += dx; n.y0 += dy; n.y1 += dy; } };
+    for (const t of c.tb ?? []) {
+      if (t.p[0] < hop[0] || t.p[0] > hop[2] || t.p[1] < hop[1] || t.p[1] > hop[3]) continue;
+      const moi = tr ? [giua ?? t.p[0], muc] : [muc, giua ?? t.p[1]];
+      const dx = moi[0] - t.p[0], dy = moi[1] - t.p[1];
+      t.p = moi;
+      if (giua == null) for (const n of t.nhan ?? []) doiNhan(n, dx, dy);
+    }
+    for (const cc of c.cot ?? []) {
+      if (cc.p[0] < hop[0] || cc.p[0] > hop[2] || cc.p[1] < hop[1] || cc.p[1] > hop[3]) continue;
+      const moi = tr ? [cc.p[0], muc] : [muc, cc.p[1]];
+      doiNhan(cc.nhan, moi[0] - cc.p[0], moi[1] - cc.p[1]);
+      cc.p = moi;
+    }
+    sua++;
+  };
+  const coGiu = (m0, m1) => { for (let m = m0; m <= m1; m++) if (giu.has(m)) return true; return false; };
+  for (let lap = 0; lap < 12; lap++) {
+    const G = [0];
+    for (let m = 1; m < P.length - 1; m++) {
+      const q = P[G.at(-1)];
+      if (Math.hypot(P[m][0] - q[0], P[m][1] - q[1]) < 0.05) continue;
+      const h1 = phuong(q, P[m]), h2 = phuong(P[m], P[m + 1]);
+      if (h1 < 0 || h1 !== h2) G.push(m);
+    }
+    G.push(P.length - 1);
+    let doi = false;
+    // chữ U (đáy có thể còn gờ nhỏ - vòng nhảy vẽ sẵn ...): rời tuyến vuông góc, mọi đỉnh sau đó ở
+    // cùng một phía, lệch <= 20pt, tiến dọc tuyến; về lại đúng tuyến trong quãng <= 70pt rồi đi tiếp
+    for (let g = 1; g + 3 < G.length && !doi; g++) {
+      const [i0, i1] = [G[g], G[g + 1]];
+      const [A, b0, b1] = [P[G[g - 1]], P[i0], P[i1]];
+      const hs = phuong(A, b0);
+      if (hs < 0 || phuong(b0, b1) !== 1 - hs) continue;
+      const tr = 1 - hs, s = Math.sign(b0[hs] - A[hs]), e = b1[tr] - b0[tr];
+      if (Math.abs(e) < 0.3 || Math.abs(e) > 20) continue;
+      let i3 = -1;
+      for (let q = g + 2; q + 1 < G.length; q++) {
+        const m = G[q], p = P[m];
+        const lech = (p[tr] - b0[tr]) * Math.sign(e);
+        if ((p[hs] - b0[hs]) * s > 70 || (p[hs] - b0[hs]) * s < -0.3 || lech > 22 || lech < -0.3) break;
+        if (Math.abs(p[tr] - b0[tr]) < 0.3) {
+          const D = P[G[q + 1]];
+          if (phuong(p, D) === hs && Math.sign(D[hs] - p[hs]) === s && (p[hs] - b0[hs]) * s > 1) i3 = m;
+          break;
+        }
+      }
+      if (i3 < 0) continue;
+      // các đỉnh giữa không đi lùi quá 3pt
+      let lui = false;
+      for (let m = i0 + 1; m <= i3; m++) if ((P[m][hs] - P[m - 1][hs]) * s < -3) lui = true;
+      if (lui || coGiu(i0, i3) || chan(c, i0, i3, b0, P[i3])) continue;
+      lamPhang(i0, i3, tr, b0[tr]);
+      doi = true;
+    }
+    // răng cưa ký hiệu
+    for (let a = 1; a + 2 < P.length && !doi; a++) {
+      const h = phuong(P[a - 1], P[a]);
+      if (h < 0) continue;
+      const tr = 1 - h, muc = P[a][tr], s = Math.sign(P[a][h] - P[a - 1][h]);
+      let b = a + 1, lech = 0, re = 0;
+      let cuoi = -1;
+      while (b < P.length && Math.abs(P[b][tr] - muc) <= 6 && (P[b][h] - P[a][h]) * s <= 40 && (P[b][h] - P[b - 1][h]) * s > -3) {
+        lech = Math.max(lech, Math.abs(P[b][tr] - muc));
+        if (b + 1 < P.length && phuong(P[b - 1], P[b]) !== phuong(P[b], P[b + 1])) re++;
+        // điểm kết thúc: về lại đúng tuyến và đi tiếp thẳng theo tuyến
+        if (Math.abs(P[b][tr] - muc) < 0.5 && b + 1 < P.length && phuong(P[b], P[b + 1]) === h && Math.sign(P[b + 1][h] - P[b][h]) === s && lech > 0.8) cuoi = b;
+        b++;
+      }
+      if (cuoi < 0 || re < 3) continue;
+      const xs = P.slice(a, cuoi + 1);
+      const hop = [Math.min(...xs.map((q) => q[0])) - 2, Math.min(...xs.map((q) => q[1])) - 2, Math.max(...xs.map((q) => q[0])) + 2, Math.max(...xs.map((q) => q[1])) + 2];
+      if (!(c.tb ?? []).some((t) => t.p[0] >= hop[0] && t.p[0] <= hop[2] && t.p[1] >= hop[1] && t.p[1] <= hop[3])) continue;
+      if (coGiu(a, cuoi) || chan(c, a, cuoi, P[a], P[cuoi])) continue;
+      lamPhang(a, cuoi, tr, muc, (P[a][h] + P[cuoi][h]) / 2);
+      doi = true;
+    }
+    if (!doi) break;
+  }
+  if (sua) tinhLaiThietBi(c);
+  return sua;
+}
+
 /** Tính lại vị trí thiết bị trên chuỗi (đã sửa hình): chiếu điểm thiết bị lên đường gấp khúc. */
 function tinhLaiThietBi(c) {
   const P = c.pts;
@@ -1011,6 +1121,63 @@ function vePdf(dat) {
       for (const k of [c.k, c.kc, c.kc - 1, c.kc + 1]) giu.get(key).add(k);
     }
     J.lo.forEach((lo, i) => lo.chuoi.forEach((c, j) => { if (!TAT.has('khuc')) boKhucLuon(c, giu.get(`${i},${j}`)); if (!TAT.has('bac')) gonBac(c, giu.get(`${i},${j}`)); }));
+    // là phẳng khúc chữ U / răng cưa ký hiệu (xem laPhangKhuc): tuyến thẳng mới không được đi sát nét
+    // khác (< 3pt - trong sai số bắt điểm là thành đấu nối giả), đè chữ / khung tủ, qua điểm rẽ nhánh
+    if (!TAT.has('laphang')) {
+      const kc = (p, a, b) => {
+        const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy;
+        const u = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0;
+        return Math.hypot(a[0] + u * dx - p[0], a[1] + u * dy - p[1]);
+      };
+      const hopCat = (a, b, h, le = 0.3) => {
+        // đoạn thẳng trục a-b cắt hộp h (nới le)
+        const [x0, y0, x1, y1] = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+        return x1 >= h[0] - le && x0 <= h[2] + le && y1 >= h[1] - le && y0 <= h[3] + le;
+      };
+      const hopN = (n) => [Math.min(n.x0, n.x1), Math.min(n.y0, n.y1), Math.max(n.x0, n.x1), Math.max(n.y0, n.y1)];
+      const chan = (c, m0, m1, A, B) => {
+        const P = c.pts;
+        const xs = P.slice(m0, m1 + 1);
+        const hop = [Math.min(...xs.map((q) => q[0])) - 1.5, Math.min(...xs.map((q) => q[1])) - 1.5, Math.max(...xs.map((q) => q[0])) + 1.5, Math.max(...xs.map((q) => q[1])) + 1.5];
+        const trong = (q) => q[0] >= hop[0] && q[0] <= hop[2] && q[1] >= hop[1] && q[1] <= hop[3];
+        // điểm rẽ nhánh / đầu chuỗi khác chạm khúc
+        for (const lo of J.lo) for (const c2 of lo.chuoi) for (const q of [c2.pts[0], c2.pts.at(-1)]) {
+          if (Math.hypot(q[0] - A[0], q[1] - A[1]) < 0.5 || Math.hypot(q[0] - B[0], q[1] - B[1]) < 0.5) continue;
+          for (let m = m0; m < m1; m++) if (kc(q, P[m], P[m + 1]) < 1) return true;
+        }
+        for (const r of J.ranh ?? []) if (trong(r.p)) return true;
+        for (const g of dat.giao ?? []) if (trong(g.p)) return true;
+        // nét khác đi sát tuyến mới
+        const n = Math.max(1, Math.ceil(Math.hypot(B[0] - A[0], B[1] - A[1])));
+        for (const lo of J.lo) for (const c2 of lo.chuoi) {
+          const Q = c2.pts;
+          for (let m = 0; m + 1 < Q.length; m++) {
+            if (c2 === c && m >= m0 - 1 && m <= m1) continue;
+            for (let k = 0; k <= n; k++) {
+              const p = [A[0] + ((B[0] - A[0]) * k) / n, A[1] + ((B[1] - A[1]) * k) / n];
+              if (c2 === c && (Math.hypot(p[0] - A[0], p[1] - A[1]) < 3 || Math.hypot(p[0] - B[0], p[1] - B[1]) < 3)) continue;
+              if (kc(p, Q[m], Q[m + 1]) < 3) return true;
+            }
+          }
+        }
+        // chữ, khung tủ
+        const cuaKhuc = new Set((c.tb ?? []).filter((t) => trong(t.p)).flatMap((t) => t.nhan ?? []));
+        for (const lo of J.lo) for (const c2 of lo.chuoi) {
+          for (const t of c2.tb ?? []) for (const nn of t.nhan ?? []) if (!cuaKhuc.has(nn) && hopCat(A, B, hopN(nn))) return true;
+          for (const d of c2.day ?? []) if (d.nhan && hopCat(A, B, hopN(d.nhan))) return true;
+          for (const cc of c2.cot ?? []) if (cc.nhan && !trong(cc.p) && hopCat(A, B, hopN(cc.nhan))) return true;
+        }
+        for (const r of J.rmu ?? []) {
+          if (hopCat(A, B, r.khung, 0.5)) return true;
+          if (r.tieude && hopCat(A, B, hopN(r.tieude))) return true;
+        }
+        for (const r of J.ranh ?? []) for (const nn of r.nhan ?? []) if (hopCat(A, B, hopN(nn))) return true;
+        return false;
+      };
+      let dem = 0;
+      J.lo.forEach((lo, i) => lo.chuoi.forEach((c, j) => { dem += laPhangKhuc(c, giu.get(`${i},${j}`), chan); }));
+      if (dem) console.log(`  ${dat.json}: là phẳng ${dem} khúc vòng`);
+    }
   }
   // Nắn thẳng: đường dò bắc qua tâm ký hiệu nên dây gần ngang / gần dọc hay lệch 1-2pt.
   // Mỗi quãng dài >= 8pt mà các đỉnh lệch nhau <= 2pt (độ dốc tổng <= 10%) được đặt đúng
@@ -1227,7 +1394,18 @@ function vePdf(dat) {
     const dauLo = lo.chuoi[0] ? W(lo.chuoi[0].pts[0]) : VI_TRI_PDF.get(dat.json)(lo.nguon);
     if (Array.isArray(noi)) net([...noi.map((p) => p), dauLo], !!dat.cap_noi?.[lo.ten]);
     // { tu: đầu ra ngăn lộ, ra, vao, qua? }: tìm đường tự động sau khi vẽ xong bản vẽ
-    else if (noi) choNoi.push({ noi, dauLo, cap: !!dat.cap_noi?.[lo.ten], ten: lo.ten, kv, lop });
+    else if (noi) {
+      // hướng tuyến đi ra từ đầu lộ (tờ tổng, làm tròn về trục) - để tránh cáp nối quặt kẹp tóc
+      let huong = null;
+      const P0 = lo.chuoi[0]?.pts ?? [];
+      const b0 = P0.find((q) => Math.hypot(q[0] - P0[0][0], q[1] - P0[0][1]) > 6);
+      if (b0) {
+        const [x1, y1] = W(b0), L = Math.hypot(x1 - dauLo[0], y1 - dauLo[1]);
+        const h = [(x1 - dauLo[0]) / L, (y1 - dauLo[1]) / L];
+        huong = Math.abs(h[0]) > 0.9 ? [Math.sign(h[0]), 0] : Math.abs(h[1]) > 0.9 ? [0, Math.sign(h[1])] : null;
+      }
+      choNoi.push({ noi, dauLo, huong, cap: !!dat.cap_noi?.[lo.ten], ten: lo.ten, kv, lop });
+    }
     if (noi) CUA_RA.push(hopCuaRa(noi));
     lo.chuoi.forEach((c, j) => {
       const P = c.pts;
@@ -1572,6 +1750,26 @@ function vePdf(dat) {
         const hop = [Math.min(p[0], q[0]) - le, Math.min(p[1], q[1]) - le, Math.max(p[0], q[0]) + le, Math.max(p[1], q[1]) + le];
         const L = luoiChiem(s, data, hop, { vungPhat: HOP_BAN_VE.filter((v) => v !== hopNay), vungCam: CUA_RA.filter((v) => v.cua !== c.noi) });
         r = timDuong(L, p, q, { ra: m === 0 ? c.noi.ra : null, vao: m === diem.length - 2 ? c.noi.vao : null, tuDoDau: m === 0 ? c.noi.tu_do ?? 2 : 2, gioiHan });
+        // kẹp tóc ở đầu lộ: cáp chạy ngược chiều tuyến, song song sát đoạn đầu tuyến rồi rẽ ngắn
+        // (<= 25) vào đầu lộ (vd cáp 478 E6.21 vào đầu cáp AL/XLPE 1x400): tìm lại tới điểm lùi ra
+        // 60 / 40 đơn vị theo hướng rẽ cuối rồi đi thẳng vào - đoạn chạy ngược cách xa tuyến
+        const n = r?.length ?? 0;
+        if (r && m === diem.length - 2 && !c.noi.vao && c.huong && n >= 3) {
+          const [A, B, C] = [r[n - 3], r[n - 2], r[n - 1]];
+          const d2 = [B[0] - A[0], B[1] - A[1]], d3 = [C[0] - B[0], C[1] - B[1]];
+          const L2 = Math.hypot(...d2), L3 = Math.hypot(...d3);
+          const u = c.huong;
+          if (L3 > 0.5 && L3 <= 25 && L2 >= 10 && Math.abs(d3[0] * u[0] + d3[1] * u[1]) < 0.5 && (d2[0] * u[0] + d2[1] * u[1]) / L2 < -0.9) {
+            const h3 = [Math.round(d3[0] / L3), Math.round(d3[1] / L3)];
+            const vao = h3[0] > 0 ? 'phai' : h3[0] < 0 ? 'trai' : h3[1] > 0 ? 'len' : 'xuong';
+            for (const lui of [60, 40]) {
+              const q1 = [q[0] - h3[0] * lui, q[1] - h3[1] * lui];
+              const r2 = timDuong(L, p, q1, { ra: m === 0 ? c.noi.ra : null, vao, tuDoDau: m === 0 ? c.noi.tu_do ?? 2 : 2, gioiHan });
+              // không nhận nếu cắt thêm nét (đường dây 110kV không có ký hiệu nhảy ở chỗ cắt mới)
+              if (r2 && soCat([...r2, q]) <= soCat(r)) { r = [...r2, q]; console.log(`  cáp ${c.ten}: tránh kẹp tóc ở đầu lộ [${q.map(Math.round)}] (lùi ${lui})`); break; }
+            }
+          }
+        }
         if (r) break;
       }
       if (!r) { console.log(`  ! ${c.ten}: không tìm được đường ${JSON.stringify(p)} -> ${JSON.stringify(q)}`); duong = null; break; }
@@ -1588,6 +1786,26 @@ function vePdf(dat) {
 }
 
 const CAP_HOAN = []; // cáp ngăn lộ - đầu lộ, vẽ sau khi đặt xong mọi bản vẽ
+/** Số chỗ đường gấp khúc cắt ngang nét đã vẽ trên tờ tổng (so hai phương án đường cáp). */
+function soCat(duong) {
+  const X0 = Math.min(...duong.map((q) => q[0])), X1 = Math.max(...duong.map((q) => q[0]));
+  const Y0 = Math.min(...duong.map((q) => q[1])), Y1 = Math.max(...duong.map((q) => q[1]));
+  const cat = (a, b, c, d) => {
+    const den = (b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0]);
+    if (Math.abs(den) < 1e-9) return false;
+    const t = ((c[0] - a[0]) * (d[1] - c[1]) - (c[1] - a[1]) * (d[0] - c[0])) / den, u = ((c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0])) / den;
+    return t > 1e-3 && t < 1 - 1e-3 && u > 1e-3 && u < 1 - 1e-3;
+  };
+  let n = 0;
+  for (const r of s.b) {
+    for (let k = 4; k + 3 < r.length; k += 2) {
+      const c = [r[k], r[k + 1]], d = [r[k + 2], r[k + 3]];
+      if (Math.max(c[0], d[0]) < X0 || Math.min(c[0], d[0]) > X1 || Math.max(c[1], d[1]) < Y0 || Math.min(c[1], d[1]) > Y1) continue;
+      for (let m = 0; m + 1 < duong.length; m++) if (cat(duong[m], duong[m + 1], c, d)) n++;
+    }
+  }
+  return n;
+}
 // lối ra trước đầu các ngăn lộ (dài 24): cáp lộ khác không đi ngang qua - để trống cho cáp của ngăn đó
 const CUA_RA = [];
 const hopCuaRa = (noi) => {
@@ -1612,7 +1830,16 @@ if (existsSync(datPdf)) {
     }
   }
   const t0 = Date.now();
-  tinhTamTuDong(ds);
+  // Giữ chỗ các bản vẽ đã đặt ở lần vẽ trước (vi-tri.json): quy hoạch rất nhạy (một ô chữ đổi cũng
+  // xếp lại cả tờ) - sửa hình / sửa chữ không làm lưới trung áp nhảy chỗ. QUY_HOACH=1 (hoặc có bản vẽ
+  // mới chưa có chỗ) thì quy hoạch lại từ đầu; dời trạm 110kV xong thì nên chạy QUY_HOACH=1.
+  const viTri = resolve('tools/luoi-trung-ap/pdf/vi-tri.json');
+  const cu = !process.env.QUY_HOACH && existsSync(viTri) ? JSON.parse(readFileSync(viTri, 'utf8')) : {};
+  const canDat = ds.filter((d) => d.goc === 'tu_dong');
+  if (canDat.length && canDat.every((d) => cu[d.json] && (cu[d.json].ti_le ?? 1) === (d.ti_le ?? 1))) {
+    for (const d of canDat) { d.goc = cu[d.json].goc; d.goc_pdf = cu[d.json].goc_pdf; }
+    console.log(`  giữ chỗ ${canDat.length} bản vẽ theo vi-tri.json (QUY_HOACH=1: quy hoạch lại)`);
+  } else tinhTamTuDong(ds);
   console.log(`  (quy hoạch chỗ đặt: ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   // dây liên thông khai tay (có 'qua') vẽ ngay sau bản vẽ của nó để các cáp tìm đường tự động
   // vẽ sau tránh được; dây tìm đường tự động vẽ cuối cùng

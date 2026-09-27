@@ -996,8 +996,9 @@ cô lập) và smoke test (cắt MC 473 thì trục 473 mất điện, 471/481 v
 ### 7.2. Đặt bản vẽ theo đường liên kết ngắn nhất
 
 Mọi bản vẽ trong `tools/luoi-trung-ap/pdf/dat.mjs` khai `goc: 'tu_dong'`: vị trí **không ghi
-cố định** mà tính lại mỗi lần chạy bằng `quyHoachCho` (`tools/pdf-lo/tim-duong.mjs`) để hai
-trạm / hai bản vẽ liên kết với nhau theo đường ngắn nhất:
+cố định** trong `dat.mjs` mà tính bằng `quyHoachCho` (`tools/pdf-lo/tim-duong.mjs`) để hai
+trạm / hai bản vẽ liên kết với nhau theo đường ngắn nhất (kết quả ghi ở `vi-tri.json` và giữ cho các
+lần vẽ sau; `QUY_HOACH=1` để tính lại - xem mục làm gọn nét dò):
 
 * Mỗi bản vẽ có các "neo": đầu ra ngăn lộ nguồn (`noi.tu`, trọng số 2 - kèm phạt đi vòng qua
   mặt trạm) và dây liên thông với bản vẽ khác (`noi_ban_ve`, trọng số 1). Chi phí = tổng
@@ -1109,8 +1110,25 @@ lại là cung vòng nhảy vẽ sẵn trong PDF), bậc lệch nhỏ 16 -> 9 (c
   gỡ khúc lượn chỉ quanh hộp ký hiệu; chân ngăn tủ RMU giữ nối thẳng (không rẽ ngang dưới đáy khung).
 * Đầu dây liên thông khai trong `dat.mjs` bám đỉnh chuỗi gần nhất (<= 2pt), không có thì bám đúng đầu
   chuỗi gần nhất (<= 8pt) - lấy vị trí sau khi làm gọn (dây vào bản vẽ 23 từng hở khi đầu lộ bị dời).
+* Là phẳng khúc vòng vô lý (`laPhangKhuc`, sau gỡ khúc lượn / gộp bậc): chữ U - tuyến đang đi thẳng lệch
+  ra <= 20pt, chạy song song <= 70pt rồi quay về đúng tuyến cũ (vd dây võng giữa LBS 478E6.4/39A và DPT
+  478E6.4-7/52A) kéo về tuyến thẳng; răng cưa ký hiệu - đường dò đi theo nét ký hiệu thiết bị (gãy khúc
+  lệch <= 6pt trong quãng <= 40pt có thiết bị, vd DPT 471E26.1-02 TBA Huyền Tụng) kéo thẳng, thiết bị đặt
+  giữa quãng. Nhãn thiết bị / cột trong khúc dời theo. Không làm khi khúc có chân tủ RMU, điểm rẽ nhánh,
+  ranh giới, giao chéo khai báo, hoặc tuyến thẳng mới đi sát (< 3pt) nét khác / đè chữ / khung tủ.
+  `TAT=laphang` tắt bước này.
+* Cáp nối ngăn lộ vào đầu lộ không quặt kẹp tóc: đường tìm được chạy ngược chiều tuyến, song song sát
+  đoạn đầu tuyến rồi rẽ ngắn (<= 25) vào đầu lộ (vd cáp 478 E6.21 vào đầu cáp AL/XLPE 1x400) thì tìm lại
+  tới điểm lùi ra 60 / 40 đơn vị theo hướng rẽ cuối rồi đi thẳng vào.
+* Giữ chỗ bản vẽ: `ve-luoi-trung-ap.mjs` đặt các bản vẽ `goc: 'tu_dong'` đúng chỗ đã ghi ở
+  `tools/luoi-trung-ap/pdf/vi-tri.json` (lần vẽ trước) - quy hoạch rất nhạy (sửa vài chữ trong trạm cũng
+  xếp lại cả tờ, tổng dài có lần tăng 6%), sửa hình / sửa chữ không làm lưới nhảy chỗ. Có bản vẽ mới
+  chưa có chỗ, hoặc `QUY_HOACH=1`, thì quy hoạch lại từ đầu (nên chạy sau khi dời trạm 110kV).
+* Rà soát `ra-soat-hinh-trung-ap.mjs` nối các nét trung áp liền nhau thành tuyến (kể cả dây liên thông)
+  rồi đếm thêm: chữ U, kẹp tóc (rẽ ngắn <= 25 rồi quay ngược chạy song song), răng cưa (>= 3 lần rẽ gắt
+  bằng đoạn ngắn trong quãng <= 50; cung vòng nhảy không tính).
 * `XEM_TB='tên thiết bị'` / `XEM_PDF='20.json:133,396' node tools/ve-luoi-trung-ap.mjs` in chuỗi quanh
-  thiết bị / điểm PDF sau khi làm gọn; `TAT='khuc,bac,noi,baclech,goc,vg,tinhlai,doitb,tol,duong'` tắt
+  thiết bị / điểm PDF sau khi làm gọn; `TAT='khuc,bac,noi,baclech,goc,vg,tinhlai,doitb,tol,duong,laphang'` tắt
   từng bước làm gọn để khoanh vùng khi một bước làm đổi liên kết điện (so bằng smoke test / mô hình
   dòng công suất).
 
