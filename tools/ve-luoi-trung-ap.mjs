@@ -1651,6 +1651,18 @@ function vePdf(dat) {
       const q = J.lo[c.ij[0]].chuoi[c.ij[1]].pts[c.k];
       if (!chan.some((p) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.5)) chan.push(q);
     }
+    // chân cụt: đường dò chỉ đi vào ngăn rồi dừng (ngăn dự phòng / cáp đã tháo, không có cáp ra) -
+    // dây ngăn dừng ở đáy khung, không thò xuống dưới tủ thành đầu dây hở
+    const cut = new Set(chan.filter((q) => {
+      // đỉnh chân là đầu mút chuỗi (đường dò dừng ở đây) và không chuỗi nào khác đi qua / bắt đầu ở đây
+      let n = 0, dauMut = true;
+      for (const l of J.lo) for (const c of l.chuoi) c.pts.forEach((p, m) => {
+        if (Math.hypot(p[0] - q[0], p[1] - q[1]) >= 0.3) return;
+        n++;
+        if (m !== 0 && m !== c.pts.length - 1) dauMut = false;
+      });
+      return n === 1 && dauMut;
+    }));
     chan.sort((p, q) => p[0] - q[0]);
     // cột ngăn: theo x chân ngăn, giãn cho cách nhau >= 10pt
     const cot = chan.map((p) => p[0]);
@@ -1658,10 +1670,14 @@ function vePdf(dat) {
     // bề rộng chữ tiêu đề khi hiển thị (font trên tờ tổng rộng hơn font bản vẽ PDF ~0,5 em/ký tự)
     const rongTen = (T.t ?? r.ten).length * Math.max(T.h, 2.5) * 0.92 * 0.5;
     const trai = Math.min(cot[0] - 6, T.x0 - 2), phai = Math.max(cot.at(-1) + 6, T.x1 + 2, T.x0 + rongTen + 2);
-    const day = Math.max(...chan.map((p) => p[1]));
     const dinh = T.y0 - 1.5;
     const yTen = T.y1 + 1;           // hàng tên ngăn
     const yTc = T.y1 + 9;            // thanh cái trong tủ
+    // đáy khung cao hơn chân ngăn cao nhất 3pt: dây ngăn đi xuống qua đáy khung tới chân cáp, cáp nối
+    // chân chạy ngang BÊN DƯỚI khung (trước đây đáy khung kéo xuống tới chân thấp nhất - cáp chạy
+    // ngang trong khung sát đáy, lẫn với chữ -76, nhìn như chưa nối vào chân ngăn); khung cao tối
+    // thiểu 12pt dưới thanh cái cho dao cách ly và dao tiếp địa
+    const day = Math.max(Math.min(...chan.map((p) => p[1])) - 3, yTc + 12);
     trongRmu = true;
     // khung khép kín một nét: mô hình công suất nhận là khung tủ, bỏ khỏi lưới dây dẫn (cạnh
     // đáy đi qua chân các ngăn - nếu coi là dây thì nối tắt các ngăn, kể cả ngăn thường cắt)
@@ -1678,7 +1694,8 @@ function vePdf(dat) {
       // xuống đáy khung rồi quay ngược lên - đầu nhọn đó dễ chạm nhầm cáp chạy sát dưới tủ)
       // (giữ đúng cách nối: đường khác - rẽ ngang dưới đáy khung, đi thẳng từ dao lên chân cáp - có
       // thể cắt cáp ngăn bên cạnh hoặc vắt qua khe dao của ngăn thường cắt, nối tắt)
-      if (Math.abs(x0 - xc) < 0.5 && y0 > yd + nd && y0 < day) net([[xc, yd + nd], [x0, y0]].map(W), false);
+      if (cut.has(chan[m])) net([[xc, yd + nd], [xc, Math.max(day, yd + nd + 0.5)]].map(W), false);
+      else if (Math.abs(x0 - xc) < 0.5 && y0 > yd + nd) net([[xc, yd + nd], [x0, y0]].map(W), false);
       else net([[xc, yd + nd], [xc, day], [x0, y0]].map(W), false);
       const [dx, dy] = W([xc, yd]);
       thietBi('DCL', dx, dy, gocDat('DCL', 90), !!n?.mo, scTb('DCL'));

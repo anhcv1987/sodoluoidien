@@ -1127,6 +1127,21 @@ lại là cung vòng nhảy vẽ sẵn trong PDF), bậc lệch nhỏ 16 -> 9 (c
 * Rà soát `ra-soat-hinh-trung-ap.mjs` nối các nét trung áp liền nhau thành tuyến (kể cả dây liên thông)
   rồi đếm thêm: chữ U, kẹp tóc (rẽ ngắn <= 25 rồi quay ngược chạy song song), răng cưa (>= 3 lần rẽ gắt
   bằng đoạn ngắn trong quãng <= 50; cung vòng nhảy không tính).
+* Tủ RMU: đáy khung cao hơn chân ngăn cao nhất 3pt (khung cao tối thiểu 12pt dưới thanh cái) - dây ngăn
+  đi xuống qua đáy khung tới chân cáp, cáp nối chân chạy ngang BÊN DƯỚI khung. Trước đây đáy khung kéo
+  xuống tới chân thấp nhất: cáp chạy ngang trong khung sát đáy, lẫn chữ -76, nhìn như chưa nối vào chân
+  ngăn (vd RMU 68 / 69 - 474 E6.4). Chân cụt (đường dò chỉ vào ngăn rồi dừng - ngăn dự phòng / cáp đã
+  tháo) thì dây ngăn dừng ở đáy khung, không thò xuống thành đầu dây hở (vd ngăn 486-7/02 RMU 05-486E6.13).
+* Rà soát chỗ nối chưa hoàn thiện: `node tools/ra-soat-noi-trung-ap.mjs [-v] [--binh-thuong]` - (1) dây
+  trung áp không có công suất khi ĐÓNG HẾT thiết bị (không nối được tới nguồn nào): 0; (2) đầu dây hở
+  không chạm nét / thiết bị, không sát thiết bị thường cắt, không có chữ ghi hướng đi, tên TBA, tháo lèo:
+  còn 26 chỗ, đã soát với bản vẽ gốc - cuối nhánh tới TBA (sơ đồ không vẽ TBA), ngăn khách hàng.
+* Dò lại bản vẽ bk15 (ĐZ 472 E26.1): TỦ RMU 11 - 472E26.1 trước bị bỏ (đường dò đi tắt theo cáp ngăn
+  MC 472/11 đã tháo - dấu X - và qua chỗ giao chéo với cáp ngăn 472-7/01), để lại đoạn dây xiên cụt; nay
+  tuyến vào ngăn 472-7/03, ra ngăn 472-7/01 đúng bản vẽ (`bo_noi` / `noi_them` trong `cfgbk15.json`).
+  Bản vẽ bk04 (ĐZ 373 E26.1 sau MC 40): nhánh vòng MC 373E26.1/AT2 (thường cắt) thiếu đoạn từ cột 139A qua
+  DCL AT2-7, MC 373E26.1/47-2 (thường cắt) thiếu đoạn từ DPT 7/47-1 và vẽ nghiêng (đi theo gạch chéo ký
+  hiệu) - nay đủ, thẳng (vùng chặn bao trọn ký hiệu, `dich` thêm phía bên kia thiết bị thường cắt).
 * `XEM_TB='tên thiết bị'` / `XEM_PDF='20.json:133,396' node tools/ve-luoi-trung-ap.mjs` in chuỗi quanh
   thiết bị / điểm PDF sau khi làm gọn; `TAT='khuc,bac,noi,baclech,goc,vg,tinhlai,doitb,tol,duong,laphang'` tắt
   từng bước làm gọn để khoanh vùng khi một bước làm đổi liên kết điện (so bằng smoke test / mô hình
