@@ -527,6 +527,69 @@ export function timDuong(L, a, b, { ra = null, vao = null, gioiHan = 4e6, tuDoDa
   }
   gon.push(pts.at(-1));
   pts = gon;
+  // Gọn bậc nhỏ: A -> B, B -> C ngắn (<= 2 ô), C -> D cùng hướng A -> B: dời quãng A-B (hoặc C-D)
+  // cho thẳng hàng quãng kia - bỏ một cặp góc - nếu đường mới hợp lệ (cùng luật chiếm chỗ)
+  {
+    const oCuaP = ([x, y]) => [Math.floor((x - X0) / O), Math.floor((y - Y0) / O)];
+    const hDi = (p, q) => (Math.abs(q[1] - p[1]) < 1e-6 ? (q[0] > p[0] ? 0 : 1) : q[1] > p[1] ? 2 : 3);
+    const hopLe = (P) => {
+      for (let k = 0; k + 1 < P.length; k++) {
+        const [i0, j0] = oCuaP(P[k]), [i1, j1] = oCuaP(P[k + 1]);
+        const h = hDi(P[k], P[k + 1]);
+        const [di, dj] = HUONG[h];
+        const n = Math.abs(i1 - i0) + Math.abs(j1 - j0);
+        for (let m = 1; m <= n; m++) if (phi(i0 + di * m, j0 + dj * m, h) === Infinity) return false;
+        if (k > 0) {
+          // góc rẽ tại P[k]: không rẽ ở chỗ cắt / sát chỗ cắt
+          const hTruoc = hDi(P[k - 1], P[k]);
+          if (hTruoc !== h && !tuDo(i0, j0) && ((cell(i0, j0) & 3) !== 0 || gocSatCho(i0, j0, hTruoc, h))) return false;
+        }
+      }
+      return true;
+    };
+    const catNet = (P) => {
+      let c = 0;
+      for (let k = 0; k + 1 < P.length; k++) {
+        const [i0, j0] = oCuaP(P[k]), [i1, j1] = oCuaP(P[k + 1]);
+        const h = hDi(P[k], P[k + 1]);
+        const [di, dj] = HUONG[h];
+        const n = Math.abs(i1 - i0) + Math.abs(j1 - j0);
+        for (let m = 1; m <= n; m++) if (cell(i0 + di * m, j0 + dj * m) & (h < 2 ? 2 : 1)) c++;
+      }
+      return c;
+    };
+    for (let lap = 0; lap < 20; lap++) {
+      let doi = false;
+      for (let k = 1; k + 2 < pts.length && !doi; k++) {
+        const [A, B, C, D] = [pts[k - 1], pts[k], pts[k + 1], pts[k + 2]];
+        const h1 = hDi(A, B), h2 = hDi(B, C), h3 = hDi(C, D);
+        if (h1 !== h3 || (h1 >> 1) === (h2 >> 1)) continue;
+        if (Math.hypot(C[0] - B[0], C[1] - B[1]) > 2 * O + 1e-6) continue;
+        const dv = [C[0] - B[0], C[1] - B[1]];
+        const ung = [];
+        // dời quãng A-B theo dv (A phải là góc, không phải đầu đường)
+        if (k - 1 >= 1) ung.push([...pts.slice(0, k - 1), [A[0] + dv[0], A[1] + dv[1]], ...pts.slice(k + 1)]);
+        // dời quãng C-D ngược dv (D phải là góc)
+        if (k + 2 <= pts.length - 2) ung.push([...pts.slice(0, k + 1).slice(0, k), [D[0] - dv[0], D[1] - dv[1]], ...pts.slice(k + 3)]);
+        const cu = catNet(pts);
+        for (const P of ung) {
+          // bỏ đỉnh thẳng hàng / trùng
+          const Q = [P[0]];
+          for (let m = 1; m < P.length - 1; m++) {
+            const [p, q, r] = [Q.at(-1), P[m], P[m + 1]];
+            if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 1e-6) continue;
+            if (Math.abs((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])) > 1e-6) Q.push(q);
+          }
+          Q.push(P.at(-1));
+          if (Q.length >= pts.length || !hopLe(Q) || catNet(Q) > cu) continue;
+          pts = Q;
+          doi = true;
+          break;
+        }
+      }
+      if (!doi) break;
+    }
+  }
   // khớp đúng hai đầu: đoạn đầu / cuối lấy theo toạ độ a / b
   const khop = (arr, P, dau) => {
     const k = dau ? 0 : arr.length - 1;

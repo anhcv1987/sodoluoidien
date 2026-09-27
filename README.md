@@ -1078,6 +1078,23 @@ và dây liên thông giữa các bản vẽ ngắn nhất, ít giao chéo, các
 * Bản vẽ 20: RMU 66-474 E6.4 nay nằm trên tuyến (cắt đoạn cáp nối tắt 7/04 - 7/05 dưới đáy tủ mà
   đường dò đi tắt qua); mũi tên "DP" ngăn 474-7/62-03 không còn nối nhầm vào cáp ngăn 7/62-02.
 
+**Vuông góc hoá lưới trung áp** (mọi bản vẽ, khi vẽ - không phải dò lại). Rà soát bằng
+`node tools/ra-soat-hinh-trung-ap.mjs [-v]`: thiết bị vẽ nghiêng 67 -> 0, đoạn dây chéo 301 -> 8 (còn
+lại là cung vòng nhảy vẽ sẵn trong PDF), bậc lệch nhỏ 16 -> 9 (cáp phải lệch tránh vật cản).
+* Nối chuỗi thẳng hàng qua điểm nối (ghép cặp ở điểm rẽ nhánh, hướng lệch trục < 25 độ làm tròn về
+  trục) rồi mới nắn thẳng - hai chuỗi nối tiếp không bị nắn về hai toạ độ lệch nhau.
+* Nắn thẳng với dung sai tăng theo độ dài quãng (tối đa 6pt, dốc <= 30%): dây đi theo gạch chéo
+  dấu X của máy cắt thường cắt được nắn về tuyến; đoạn cụt ngắn xiên nắn theo đầu nối.
+* Gộp bậc lệch: hai quãng thẳng cùng phương lệch <= 6pt (tới 12pt nếu quãng dời không có thiết bị
+  và đầu ngoài không phải điểm rẽ nhánh - vd cột 01 lộ 479 E6.3 có nhánh TBA khách hàng không vẽ)
+  nối bằng khúc chuyển <= 30pt: dời quãng ngắn về thẳng hàng quãng dài.
+* Đoạn xiên còn lại (nhánh vẽ xiên trong PDF) đổi thành chữ L; đoạn chéo nhỏ ở góc rẽ nắn vuông.
+* Thiết bị có khoảng cắt vắt qua góc rẽ dời vào trong quãng thẳng chứa nó; hướng ký hiệu theo quãng
+  đó; dây từ cực vào dây ở quãng khác đi chữ L. Chân ngăn tủ RMU, vạch ranh giới quản lý vuông góc.
+* Tìm đường cáp: sau khi tìm, bậc nhỏ (<= 2 ô) được gộp nếu đường mới vẫn hợp lệ (không đè / sát
+  nét, không rẽ ở chỗ cắt, không cắt thêm nét).
+* `XEM_TB='tên thiết bị' node tools/ve-luoi-trung-ap.mjs` in chuỗi quanh thiết bị sau khi làm gọn.
+
 Thứ tự chạy lại: `node tools/doi-cho-tram.mjs` → `node tools/ve-luoi-trung-ap.mjs` → `node
 tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trung-ap.mjs` → `npx vite build`.
 
