@@ -16,7 +16,7 @@ import { exportDxf, exportSvg } from '../io/dxfExport';
 import { defaultImportOptions, importDxf, inspectDxf } from '../io/dxfImport';
 import { dungMangDien, type MangDien } from '../core/lienket';
 import { ChayCongSuat } from '../render/chayCongSuat';
-import type { TenTramLon } from '../render/renderer';
+import type { RenderOptions, TenTramLon } from '../render/renderer';
 import { vungNoiThong } from '../core/dongCongSuat';
 import { getBlock, TEN_TRANG_THAI } from '../symbols/blocks';
 import {
@@ -139,6 +139,12 @@ export class App {
       p: { x: st.x, y: st.y + (st.ngoaiTinh ? 0 : 8) },
       box: st.box ?? { minX: st.x - 100, minY: st.y - 100, maxX: st.x + 100, maxY: st.y + 100 },
     }));
+    try {
+      const co = Number(localStorage.getItem('sodoluoidien.coTenTram'));
+      if (co >= 10 && co <= 40) this.ed.renderer.opt.coTenTram = co;
+    } catch {
+      /* không đọc được: dùng mặc định */
+    }
     this.ed.renderer.nguonTenTram = () => (this.store.sheet.cadCode === MA_TO_TONG ? tenTram : null);
     const nhanTai = (ev: PointerEvent): TenTramLon | undefined => {
       const r = this.canvas.getBoundingClientRect();
@@ -206,6 +212,20 @@ export class App {
       },
       veLai: () => this.refreshProps(),
     };
+  }
+
+  /** Đổi cỡ chữ nhãn tên trạm lớn (khi thu nhỏ), nhớ lại cho lần mở sau. */
+  private coTenTram(buoc: number): void {
+    const o = this.ed.renderer.opt;
+    o.coTenTram = Math.max(10, Math.min(40, (o.coTenTram || 18) + buoc));
+    o.tenTramLon = true;
+    try {
+      localStorage.setItem('sodoluoidien.coTenTram', String(o.coTenTram));
+    } catch {
+      /* trình duyệt chặn lưu: chỉ giữ trong phiên */
+    }
+    this.ed.requestDraw();
+    toast(`Cỡ chữ tên trạm lớn: ${o.coTenTram}px (trạm 220kV ${o.coTenTram + 2}px)`);
   }
 
   /** Dữ liệu → Sổ dây dẫn. */
@@ -327,6 +347,8 @@ export class App {
         ['Bật/tắt nhãn mã dây', () => this.toggleOpt('showConductor')],
         ['Bật/tắt tên trạm', () => this.toggleOpt('showLabels')],
         ['Bật/tắt tên trạm lớn khi thu nhỏ (bấm để tới trạm)', () => this.toggleOpt('tenTramLon')],
+        ['Tên trạm lớn: chữ to hơn (Ctrl+])', () => this.coTenTram(+2)],
+        ['Tên trạm lớn: chữ nhỏ hơn (Ctrl+[)', () => this.coTenTram(-2)],
         ['Bật/tắt tên thiết bị', () => this.toggleOpt('showDeviceLabels')],
         ['—', () => undefined],
         ['Chế độ in (nền trắng)', () => this.toggleOpt('printMode')],
@@ -575,7 +597,7 @@ export class App {
     return b;
   }
 
-  private toggleOpt(k: keyof typeof this.ed.renderer.opt): void {
+  private toggleOpt(k: { [K in keyof RenderOptions]: RenderOptions[K] extends boolean ? K : never }[keyof RenderOptions]): void {
     this.ed.renderer.opt[k] = !this.ed.renderer.opt[k];
     this.refreshChrome();
   }
@@ -899,6 +921,12 @@ export class App {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       e.preventDefault();
       this.saveFile();
+      return;
+    }
+    // Ctrl+] / Ctrl+[: to / nhỏ chữ tên trạm lớn khi thu nhỏ
+    if ((e.ctrlKey || e.metaKey) && (e.key === ']' || e.key === '[')) {
+      e.preventDefault();
+      this.coTenTram(e.key === ']' ? 2 : -2);
       return;
     }
     // Trang bản đồ GIS: phím tắt vẽ không áp dụng (Leaflet tự xử lý phím mũi tên, +/-)
@@ -2012,6 +2040,7 @@ export class App {
         <li><b>S / L / B / D / T / G / M</b>: Chọn · Đường dây · Thanh cái · Thiết bị · Trạm · Ghi chú · Đo</li>
         <li><b>F3</b> bắt điểm · <b>F4</b> hiện điểm đấu nối · <b>F6</b> công suất chạy trên đường dây · <b>F11</b> trình chiếu (Esc thoát) · <b>F7</b> hiện lưới · <b>F8</b> ORTHO · <b>F9</b> bắt lưới</li>
          <li><b>Click thiết bị / đoạn dây</b>: tô sáng vùng nối thông qua các thiết bị đang đóng, dừng ở thiết bị đang cắt (vòng cam) và ở đầu máy cắt trong trạm (ô vuông trắng, không lan sang thanh cái) - xem đang cấp điện tới đâu; <b>Shift+M</b> bật / tắt xem cả chuỗi qua thanh cái và máy biến áp</li>
+         <li><b>Thu nhỏ sơ đồ tổng</b>: hiện tên trạm lớn, bấm vào tên để tới trạm; <b>Ctrl+]</b> / <b>Ctrl+[</b> chữ tên trạm to / nhỏ hơn</li>
         <li><b>R</b>: xoay 90° khi đang đặt thiết bị</li>
         <li><b>Enter</b> kết thúc tuyến · <b>Esc</b> huỷ lệnh · <b>Delete</b> xoá</li>
         <li><b>Ctrl+Z / Ctrl+Y</b> hoàn tác / làm lại · <b>Ctrl+A</b> chọn tất cả · <b>Ctrl+S</b> lưu</li>

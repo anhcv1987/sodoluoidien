@@ -29,6 +29,8 @@ export interface RenderOptions {
   showTerminals: boolean;
   /** Thu nho so do tong: hien ten tram co chu co dinh tren man hinh (bam de toi tram). */
   tenTramLon: boolean;
+  /** Cỡ chữ (px) nhãn tên trạm lớn - trạm 110kV; trạm 220kV lớn hơn 2px. */
+  coTenTram: number;
 }
 
 /** Một trạm để hiện tên lớn khi thu nhỏ (tờ sơ đồ tổng). */
@@ -52,6 +54,7 @@ export const defaultRenderOptions = (): RenderOptions => ({
   markDraft: true,
   showTerminals: false,
   tenTramLon: true,
+  coTenTram: 18,
 });
 
 export interface RenderState {
@@ -142,9 +145,8 @@ export class Renderer {
     this.oTenTram = [];
     const ds = this.opt.tenTramLon && !this.opt.printMode ? this.nguonTenTram?.() : null;
     if (!ds?.length || 16 * this.vp.scale >= 8) return;
-    const co = 13;
+    const co110 = Math.max(10, Math.min(40, this.opt.coTenTram || 18));
     ctx.save();
-    ctx.font = `600 ${co}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const daVe: { x0: number; y0: number; x1: number; y1: number }[] = [];
@@ -152,8 +154,10 @@ export class Renderer {
       const s = this.vp.toScreen(t.p);
       if (s.x < -200 || s.y < -50 || s.x > this.vp.width + 200 || s.y > this.vp.height + 50) continue;
       const nhan = `${t.ma} · ${t.ten}`;
-      const w = ctx.measureText(nhan).width + 14;
-      const h = co + 9;
+      const co = t.kv >= 220 ? co110 + 2 : co110;
+      ctx.font = `700 ${co}px ${FONT}`;
+      const w = ctx.measureText(nhan).width + co * 1.1;
+      const h = co * 1.6;
       // chồng nhãn đã vẽ thì thử dịch lên / xuống một, hai dòng; vẫn chồng thì bỏ
       let o = { x0: s.x - w / 2, y0: s.y - h / 2, x1: s.x + w / 2, y1: s.y + h / 2 };
       let dy = 0;
@@ -173,10 +177,10 @@ export class Renderer {
       ctx.globalAlpha = 0.88;
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.roundRect(o.x0, o.y0, w, h, 5);
+      ctx.roundRect(o.x0, o.y0, w, h, co * 0.35);
       ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = co >= 16 ? 2 : 1.5;
       ctx.strokeStyle = mau;
       ctx.stroke();
       ctx.fillStyle = '#f8fafc';
