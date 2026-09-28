@@ -365,6 +365,29 @@ for (const [ma, b] of hop) {
   }
 }
 
+// (d) Sửa tay đầu ngăn lộ bắt nhầm: lấy đầu mút tự do gần điểm khai nhất (toạ độ trên tờ).
+//     Trạm 110kV Nà Phặc: nhãn nơi đến ("174 E26.5 BẮC KẠN", "171 E16.2 CAO BẰNG") đặt trên nhánh
+//     TU 171 / TU 172 nên bước (a) bắt vào đầu nét ký hiệu dao của nhánh TU - đường dây phải vào
+//     ĐỈNH NGĂN LỘ (đầu trên nét dọc 171 / 172).
+const SUA_DAU_LO = {
+  'E26.3#171': [1742.82, 7327.02],
+  'E26.3#172': [2143.17, 7326.69],
+};
+for (const [khoaLo, [x, y]] of Object.entries(SUA_DAU_LO)) {
+  let m = null;
+  let bd = 3;
+  for (const q of dauMut) {
+    const d = cach(q.p, [x, y]);
+    if (d < bd) [bd, m] = [d, q];
+  }
+  if (!m) {
+    console.log(`  ! sửa đầu ngăn lộ ${khoaLo}: không có đầu mút tự do tại [${x}, ${y}]`);
+    continue;
+  }
+  for (const [k, v] of dauLo) if (v === dauLo.get(khoaLo) && k !== khoaLo && k.startsWith(khoaLo.split('#')[0] + '>')) dauLo.set(k, m);
+  dauLo.set(khoaLo, m);
+}
+
 /* ------------------------------------------------------------------ */
 /* 2b. Trạm 220kV ngoài tỉnh                                            */
 /* ------------------------------------------------------------------ */

@@ -325,7 +325,7 @@ export default [
       'ĐZ 456 E6.3': { tu: [-3248.78, -3070.71], ra: 'xuong' },
       'ĐZ 475 E6.3': { tu: [-3940.08, -3145.26], ra: 'xuong' },
       'ĐZ 472 E6.3': { tu: [-3550.08, -3145.26], ra: 'xuong' },
-      'ĐZ 475 E6.21': { tu: [-2201.08, -2342.85], ra: 'xuong' },
+      'ĐZ 475 E6.21': { tu: [-2158.61, -2409.6], ra: 'phai' }, // cuối nét ngăn lộ vẽ trong trạm (qua DCL 475E6.21-7/01A)
     },
     cap_noi: { 'ĐZ 456 E6.3': true, 'ĐZ 475 E6.3': true, 'ĐZ 472 E6.3': true, 'ĐZ 475 E6.21': true },
   },
@@ -334,7 +334,7 @@ export default [
     goc: 'tu_dong',
     ti_le: 1.2,
     noi: {
-      'ĐZ 477 E6.21': { tu: [-2269.78, -2342.85], ra: 'xuong' },
+      'ĐZ 477 E6.21': { tu: [-2319.77, -2449.31], ra: 'trai' }, // cuối nét ngăn lộ vẽ trong trạm
     },
     cap_noi: { 'ĐZ 477 E6.21': true },
     chu: [
@@ -581,7 +581,7 @@ export default [
     goc: 'tu_dong',
     ti_le: 1.2,
     noi: {
-      'ĐZ 371 E6.6': { tu: [382.87, 3923.97], ra: 'phai' },
+      'ĐZ 371 E6.6': { tu: [440.11, 3923.97], ra: 'phai' }, // cuối nét ngăn lộ (nhãn Phú Lương)
     },
     cap_noi: { 'ĐZ 371 E6.6': true },
     noi_ban_ve: [
@@ -594,8 +594,8 @@ export default [
     goc: 'tu_dong',
     ti_le: 1.2,
     noi: {
-      'ĐZ 372 E6.6': { tu: [382.87, 3961.65], ra: 'phai' },
-      'ĐZ 373 E6.6': { tu: [382.65, 4250.14], ra: 'phai' },
+      'ĐZ 372 E6.6': { tu: [440.11, 3961.65], ra: 'phai' }, // cuối nét ngăn lộ
+      'ĐZ 373 E6.6': { tu: [439.89, 4250.14], ra: 'phai' }, // cuối nét ngăn lộ (nhãn Sang Định Hóa)
     },
     cap_noi: { 'ĐZ 372 E6.6': true, 'ĐZ 373 E6.6': true },
   },
@@ -683,8 +683,10 @@ export default [
     goc: 'tu_dong',
     ti_le: 1.2,
     noi: {
-      'ĐZ 371 E6.22': { tu: [-1266.24, 4724.08], ra: 'xuong' },
-      'ĐZ 373 E6.22': { tu: [-1215.59, 4724.08], ra: 'xuong' },
+      // đầu xuất tuyến là CUỐI nét vẽ trong trạm: 371 qua cáp Cu 3x240, DCL 371E6.22-7/1A, 7/1B tới
+      // "đi lộ 373 E6.6 trục chính"; 373 tới "đi NR Lam Vỹ" (nhãn chắn phía ngoài: cáp đi xuống)
+      'ĐZ 371 E6.22': { tu: [-1359.8, 4620.61], ra: 'xuong' },
+      'ĐZ 373 E6.22': { tu: [-1150.94, 4642.51], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 371 E6.22': true, 'ĐZ 373 E6.22': true },
     noi_ban_ve: [
@@ -915,7 +917,7 @@ export default [
     goc: 'tu_dong',
     ti_le: 1.2,
     noi: {
-      'ĐZ 476 E6.3': { tu: [-3332.45, -3070.71], ra: 'xuong' },
+      'ĐZ 476 E6.3': { tu: [-3332.45, -3075.85], ra: 'xuong' },
       'ĐZ 450 E6.3': { tu: [-3396.13, -3070.71], ra: 'xuong' },
       'ĐZ 477 E6.3': { tu: [-3790.66, -3145.26], ra: 'xuong' },
       'ĐZ 480 E6.3': { tu: [-3654.34, -3145.26], ra: 'xuong' },
