@@ -848,6 +848,44 @@ check(
   `trước ${tachHaiDau.truoc}, cắt MC 175 E6.20 ${tachHaiDau.sau}, hoàn tác ${tachHaiDau.lai}`,
 );
 
+/* ---------------- Tên trạm lớn khi thu nhỏ, tên trạm đặt lại ---------------- */
+{
+  const ten = await page.evaluate(() => {
+    const a = window.sodo;
+    a.gotoStation('E6.8');
+    a.ed.zoomExtents();
+    a.ed.draw();
+    const t = a.store.entities.find((e) => e.kind === 'text' && e.text === 'TRẠM 110kV ĐỊNH HÓA (E6.22)');
+    const o = a.ed.renderer.oTenTram.find((x) => x.t.ma === 'E6.22');
+    const r = document.querySelector('canvas.canvas').getBoundingClientRect();
+    return { chu: !!t && t.align === 'center' && t.height === 16, so: a.ed.renderer.oTenTram.length, o: o && { x: r.left + (o.x0 + o.x1) / 2, y: r.top + (o.y0 + o.y1) / 2 } };
+  });
+  check('Tên trạm đặt lại: "TRẠM 110kV ĐỊNH HÓA (E6.22)" căn giữa, cao 16', ten.chu);
+  check('Thu nhỏ tờ tổng: hiện tên trạm lớn', ten.so >= 20 && !!ten.o, `${ten.so} nhãn`);
+  if (ten.o) await page.mouse.click(ten.o.x, ten.o.y);
+  const toi = await page.evaluate(() => {
+    const a = window.sodo;
+    const b = a.ed.vp;
+    return { cx: b.cx, cy: b.cy, scale: b.scale };
+  });
+  check('Bấm tên trạm lớn: phóng tới trạm E6.22', ten.o && toi.cx > -1950 && toi.cx < -1050 && toi.cy > 4450 && toi.cy < 5400, `tâm ${toi.cx.toFixed(0)}, ${toi.cy.toFixed(0)}`);
+}
+
+/* ---------------- Sổ dây dẫn: mã dây / cáp theo đoạn ---------------- */
+{
+  await page.evaluate(() => { const a = window.sodo; a.gotoStation('E6.8'); a.soDayDan(); });
+  await page.waitForTimeout(300);
+  const so = await page.$$eval('.dialog tbody tr', (r) => r.map((x) => x.innerText.replace(/\t/g, ' | ')));
+  const i = so.findIndex((t) => /AC-185/.test(t) && /17040/.test(t));
+  check('Sổ dây dẫn: đọc nhãn bản vẽ ra mã dây theo đoạn', so.length >= 400 && i >= 0, `${so.length} đoạn có mã`);
+  if (i >= 0) await page.evaluate((k) => document.querySelectorAll('.dialog tbody tr')[k].click(), i);
+  await page.evaluate(() => document.querySelector('.overlay')?.remove());
+  await page.waitForTimeout(300);
+  const phan = await page.evaluate(() => ({ t: document.querySelector('.day-dan')?.innerText ?? '', dd: window.sodo.ed.renderer.danhDauDoan?.length ?? 0 }));
+  check('Chọn đoạn: gợi ý AC-185 theo nhãn, Icp tham khảo 510 A, tô cam cả đoạn', /AC-185/.test(phan.t) && /510 A/.test(phan.t) && phan.dd > 0, phan.t.split('\n').find((x) => /Dòng cho phép/.test(x)) ?? '');
+  await page.evaluate(() => window.sodo.ed.clearSelection());
+}
+
 /* ---------------- Cong cu ve ---------------- */
 
 const before = await page.evaluate(() => window.sodo.store.entities.filter((e) => e.kind === 'branch').length);

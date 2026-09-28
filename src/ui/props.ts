@@ -23,7 +23,7 @@ const kvOptions = (): { value: string; label: string }[] =>
   allStyles().map((s) => ({ value: String(s.kv), label: s.name }));
 
 /** Ve bang thuoc tinh cho doi tuong dang chon. */
-export function buildProps(ed: Editor, sel: Entity[]): HTMLElement {
+export function buildProps(ed: Editor, sel: Entity[], opts: { anMaDay?: boolean } = {}): HTMLElement {
   const root = el('div', { class: 'props' });
   if (!sel.length) {
     root.append(
@@ -122,7 +122,8 @@ export function buildProps(ed: Editor, sel: Entity[]): HTMLElement {
         ),
       ),
     );
-    root.append(
+    // sơ đồ kết dây: mã dây nhập theo đoạn (sổ dây dẫn - src/ui/dayDanUi.ts)
+    if (!opts.anMaDay) root.append(
       labeled(
         'Mã hiệu dây / cáp',
         input(
@@ -136,7 +137,7 @@ export function buildProps(ed: Editor, sel: Entity[]): HTMLElement {
         ),
       ),
     );
-    root.append(
+    if (!opts.anMaDay) root.append(
       labeled(
         'Số mạch',
         input(String(e.conductor?.circuits ?? 1), (v) =>
@@ -148,7 +149,7 @@ export function buildProps(ed: Editor, sel: Entity[]): HTMLElement {
         ),
       ),
     );
-    root.append(
+    if (!opts.anMaDay) root.append(
       labeled(
         'Chiều dài (km)',
         input(String(e.lengthKm ?? Math.round(hinh * 1000) / 1000), (v) =>
@@ -157,7 +158,7 @@ export function buildProps(ed: Editor, sel: Entity[]): HTMLElement {
         ),
       ),
     );
-    root.append(
+    if (!opts.anMaDay) root.append(
       el('p', { class: 'muted small', text: `Chiều dài theo hình vẽ: ${hinh.toFixed(3)} km — số đỉnh: ${pts.length}` }),
     );
   }

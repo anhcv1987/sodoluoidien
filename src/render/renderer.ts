@@ -27,6 +27,19 @@ export interface RenderOptions {
    */
   /** Hien diem dau noi cua thiet bi: xanh = da noi vao day, do = chua noi. */
   showTerminals: boolean;
+  /** Thu nho so do tong: hien ten tram co chu co dinh tren man hinh (bam de toi tram). */
+  tenTramLon: boolean;
+}
+
+/** Một trạm để hiện tên lớn khi thu nhỏ (tờ sơ đồ tổng). */
+export interface TenTramLon {
+  ma: string;
+  ten: string;
+  /** Cấp điện áp cao nhất (màu viền). */
+  kv: VoltageKv;
+  /** Vị trí tên trạm trên bản vẽ và ô trạm. */
+  p: Pt;
+  box: Box;
 }
 
 export const defaultRenderOptions = (): RenderOptions => ({
@@ -38,6 +51,7 @@ export const defaultRenderOptions = (): RenderOptions => ({
   showPlaces: true,
   markDraft: true,
   showTerminals: false,
+  tenTramLon: true,
 });
 
 export interface RenderState {
@@ -113,6 +127,119 @@ export class Renderer {
    * giao diện tính (vungNoiThong) rồi gán vào.
    */
   toSang: { doan: number[]; kv: VoltageKv[]; catBien: { p: Pt }[]; mcBien?: { p: Pt }[] } | null = null;
+  /** Tên các trạm của tờ đang mở (chỉ tờ sơ đồ tổng) - hiện to khi thu nhỏ. */
+  nguonTenTram: (() => TenTramLon[] | null) | null = null;
+  /** Nhãn tên trạm lớn đã vẽ ở khung hình vừa rồi (toạ độ màn hình) - để bấm chọn. */
+  oTenTram: { x0: number; y0: number; x1: number; y1: number; t: TenTramLon }[] = [];
+
+  /**
+   * TÊN TRẠM LỚN KHI THU NHỎ: tên trạm trên bản vẽ cao 16 đơn vị, thu nhỏ cả tờ thì chỉ còn vài điểm
+   * ảnh, không đọc được. Khi tên trên bản vẽ nhỏ hơn 8 điểm ảnh thì vẽ thêm nhãn cỡ chữ cố định trên
+   * màn hình (mã trạm + tên, viền màu cấp điện áp cao nhất) ngay chỗ tên trạm; hai nhãn chồng nhau thì
+   * bỏ nhãn sau (trạm 220kV ưu tiên). Bấm vào nhãn để phóng tới trạm.
+   */
+  private drawTenTramLon(ctx: CanvasRenderingContext2D): void {
+    this.oTenTram = [];
+    const ds = this.opt.tenTramLon && !this.opt.printMode ? this.nguonTenTram?.() : null;
+    if (!ds?.length || 16 * this.vp.scale >= 8) return;
+    const co = 13;
+    ctx.save();
+    ctx.font = `600 ${co}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const daVe: { x0: number; y0: number; x1: number; y1: number }[] = [];
+    for (const t of [...ds].sort((a, b) => b.kv - a.kv)) {
+      const s = this.vp.toScreen(t.p);
+      if (s.x < -200 || s.y < -50 || s.x > this.vp.width + 200 || s.y > this.vp.height + 50) continue;
+      const nhan = `${t.ma} · ${t.ten}`;
+      const w = ctx.measureText(nhan).width + 14;
+      const h = co + 9;
+      // chồng nhãn đã vẽ thì thử dịch lên / xuống một, hai dòng; vẫn chồng thì bỏ
+      let o = { x0: s.x - w / 2, y0: s.y - h / 2, x1: s.x + w / 2, y1: s.y + h / 2 };
+      let dy = 0;
+      const chong = (q: typeof o): boolean => daVe.some((v) => q.x0 < v.x1 && q.x1 > v.x0 && q.y0 < v.y1 && q.y1 > v.y0);
+      for (const d of [0, -(h + 3), h + 3, -2 * (h + 3), 2 * (h + 3)]) {
+        const q = { x0: o.x0, y0: s.y - h / 2 + d, x1: o.x1, y1: s.y + h / 2 + d };
+        if (!chong(q)) {
+          o = q;
+          dy = d;
+          break;
+        }
+        dy = NaN;
+      }
+      if (Number.isNaN(dy)) continue;
+      daVe.push(o);
+      const mau = colorOf(t.kv, false);
+      ctx.globalAlpha = 0.88;
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.roundRect(o.x0, o.y0, w, h, 5);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = mau;
+      ctx.stroke();
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText(nhan, s.x, s.y + dy + 0.5);
+      this.oTenTram.push({ ...o, t });
+    }
+    ctx.restore();
+  }
+
+  /**
+   * Tên trạm trên sơ đồ tổng (lớp CAD gốc "Tên trạm" - tools/dat-ten-tram.mjs) đặt giữa phía trên sơ đồ
+   * trạm, đường dây 110kV vào ngăn lộ có khi chạy qua chữ: vẽ lại tên SAU CÙNG trên nền che cùng màu
+   * nền bản vẽ (đường dây chạy khuất sau tên, như trên sơ đồ in).
+   */
+  private drawTenTramNen(ctx: CanvasRenderingContext2D, ents: Entity[]): void {
+    for (const e of ents) {
+      if (e.kind !== 'text' || e.srcLayer !== 'Tên trạm') continue;
+      const h = e.height * this.vp.scale;
+      if (h < 4) continue;
+      const p = this.vp.toScreen(e.p);
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.font = `${h}px ${FONT}`;
+      const w = ctx.measureText(e.text).width;
+      const x0 = e.align === 'center' ? p.x - w / 2 : e.align === 'right' ? p.x - w : p.x;
+      const le = h * 0.35;
+      ctx.fillStyle = this.bg();
+      ctx.fillRect(x0 - le, p.y - h - le * 0.6, w + 2 * le, h + le * 1.2);
+      ctx.fillStyle = this.opt.printMode ? '#111827' : '#e5e9f0';
+      ctx.textAlign = e.align;
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(e.text, p.x, p.y);
+      ctx.restore();
+    }
+  }
+
+  /** Nhãn tên trạm lớn tại điểm màn hình (x, y), không có thì undefined. */
+  tenTramTai(x: number, y: number): TenTramLon | undefined {
+    return this.oTenTram.find((o) => x >= o.x0 && x <= o.x1 && y >= o.y0 && y <= o.y1)?.t;
+  }
+
+  /** Đoạn dây đang xem / nhập mã dây (x1,y1,x2,y2...): tô viền cam nét đứt. */
+  danhDauDoan: number[] | null = null;
+
+  private drawDanhDauDoan(ctx: CanvasRenderingContext2D): void {
+    const t = this.danhDauDoan;
+    if (!t?.length) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = this.opt.printMode ? '#c2410c' : '#fb923c';
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 5;
+    ctx.setLineDash([10, 6]);
+    ctx.beginPath();
+    for (let k = 0; k + 3 < t.length; k += 4) {
+      const a = this.vp.toScreen({ x: t[k], y: t[k + 1] });
+      const b = this.vp.toScreen({ x: t[k + 2], y: t[k + 3] });
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
 
   /**
    * Vẽ vùng nối thông: quầng sáng theo màu cấp điện áp + lõi sáng; thiết bị cắt ở biên: vòng cam;
@@ -238,10 +365,14 @@ export class Renderer {
       }
     }
 
+    this.drawTenTramNen(ctx, visible);
     this.drawToSang(ctx);
+    this.drawDanhDauDoan(ctx);
     if (this.opt.showTerminals) this.drawTerminals(ctx);
     if (this.opt.showConductor) this.drawConductorLabels(ctx, visible, view);
     if (this.opt.showLabels) this.drawSubstationLabels(ctx, visible, view);
+
+    this.drawTenTramLon(ctx);
 
     if (state.preview) this.drawPreview(ctx, state.preview);
     if (state.marquee) this.drawMarquee(ctx, state.marquee);

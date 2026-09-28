@@ -74,6 +74,9 @@ for (const k of ma) {
     [st[2], st[3]] = [X(st[2]), Y(st[3])];
     // ô trạm trong bản CAD vẽ rộng, chồng sang trạm bên cạnh: lấy đúng hộp chọn (phần có hình vẽ)
     [st[4], st[5], st[6], st[7]] = [chon0[0] + moi[0], chon0[1] + moi[1], chon0[2] + moi[0], chon0[3] + moi[1]];
+    // ô gốc (trước khi tools/dat-ten-tram.mjs nới bao tên trạm)
+    st[8] = st[8] ?? 0;
+    st[9] = [st[4], st[5], st[6], st[7]];
   }
   daDoi[k] = moi;
   console.log(`${k}: dời [${dx}, ${dy}] (tổng [${moi}]) - ${dem.b} nét, ${dem.d} thiết bị, ${dem.t} chữ, ${dem.c} vòng tròn${khac.length ? ' | tên trạm khác trong hộp: ' + khac.join(', ') : ''}`);

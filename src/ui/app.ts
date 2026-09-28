@@ -16,6 +16,7 @@ import { exportDxf, exportSvg } from '../io/dxfExport';
 import { defaultImportOptions, importDxf, inspectDxf } from '../io/dxfImport';
 import { dungMangDien, type MangDien } from '../core/lienket';
 import { ChayCongSuat } from '../render/chayCongSuat';
+import type { TenTramLon } from '../render/renderer';
 import { vungNoiThong } from '../core/dongCongSuat';
 import { getBlock, TEN_TRANG_THAI } from '../symbols/blocks';
 import {
@@ -36,6 +37,7 @@ import {
 import { declutterSubstations, resetSubstationsToGeo } from '../editor/declutter';
 import { buildPalette } from './palette';
 import { buildLayers, buildProps, conductorDatalist } from './props';
+import { hopThoaiSoDayDan, phanDayDan, type NguCanhDayDan } from './dayDanUi';
 import { button, checkbox, dialog, el, input, labeled, select, toast } from './dom';
 import { BanDoDiaLy } from './banDoDiaLy';
 import { MK_MAC_DINH, QuanLyTaiKhoan, TEN_VAI_TRO, type VaiTro } from '../core/taiKhoan';
@@ -122,6 +124,40 @@ export class App {
     this.congSuat = new ChayCongSuat(this.canvas, this.store, this.ed.vp, () => this.ed.renderer.opt.printMode);
     this.congSuat.onTinh = (d, ms) =>
       console.info(`Chiều công suất: ${d.soNguon} điểm nguồn, ${d.soDoan} đoạn, ${d.chuoi.length} chuỗi, ${d.diemDung.length} điểm dừng - ${ms.toFixed(0)} ms`);
+    // Tên trạm lớn khi thu nhỏ tờ sơ đồ tổng - bấm vào để tới trạm
+    const tenTram: TenTramLon[] = stationsOf(MA_TO_TONG).map((st) => ({
+      ma: st.code,
+      ten: st.title
+        .replace(/^(SƠ ĐỒ\s*)?TRẠM\s*/i, '')
+        .replace(/\s*\(?[EA]\d+\.\d+\)?\s*$/i, '')
+        .replace(/(\d{3})\s*KV/i, '$1kV')
+        .trim()
+        .toLocaleUpperCase('vi')
+        .replace(/(\d{3})KV/, '$1kV'),
+      kv: (/220\s*KV/i.test(st.title) ? 220 : 110) as VoltageKv,
+      // tên trạm căn giữa, (x, y) là chân chữ cao 16 - tâm nhãn ở giữa dòng chữ
+      p: { x: st.x, y: st.y + (st.ngoaiTinh ? 0 : 8) },
+      box: st.box ?? { minX: st.x - 100, minY: st.y - 100, maxX: st.x + 100, maxY: st.y + 100 },
+    }));
+    this.ed.renderer.nguonTenTram = () => (this.store.sheet.cadCode === MA_TO_TONG ? tenTram : null);
+    const nhanTai = (ev: PointerEvent): TenTramLon | undefined => {
+      const r = this.canvas.getBoundingClientRect();
+      return this.ed.renderer.tenTramTai(ev.clientX - r.left, ev.clientY - r.top);
+    };
+    this.canvas.addEventListener(
+      'pointerdown',
+      (ev) => {
+        const t = ev.button === 0 ? nhanTai(ev) : undefined;
+        if (!t) return;
+        ev.stopImmediatePropagation();
+        ev.preventDefault();
+        this.gotoStation(t.ma);
+      },
+      true,
+    );
+    this.canvas.addEventListener('pointermove', (ev) => {
+      if (nhanTai(ev)) this.canvas.style.cursor = 'pointer';
+    });
     // Mở ra là CHẾ ĐỘ XEM; đăng nhập mới được hiệu chỉnh.
     this.store.chiXem = true;
     this.store.onBiChan = (tt) => this.baoChiXem(tt);
@@ -149,6 +185,38 @@ export class App {
   }
 
   /** Trang loại 'tinh' (theo vị trí địa lý) hiển thị bản đồ GIS thay cho canvas. */
+  /** Ngữ cảnh cho sổ dây dẫn (mã dây / cáp theo đoạn). */
+  private get nguCanhDayDan(): NguCanhDayDan {
+    return {
+      store: this.store,
+      duLieu: () => this.congSuat.duLieu(),
+      tramTai: (p) => {
+        if (this.store.sheet.cadCode !== MA_TO_TONG) return undefined;
+        return stationsOf(MA_TO_TONG).find((t) => t.box && p.x >= t.box.minX && p.x <= t.box.maxX && p.y >= t.box.minY && p.y <= t.box.maxY)?.code;
+      },
+      nguoi: () => this.tk.phien?.hoTen || this.tk.phien?.ten,
+      danhDau: (doan) => {
+        this.ed.renderer.danhDauDoan = doan;
+        this.ed.requestDraw();
+      },
+      toi: (id, [x0, y0, x1, y1]) => {
+        this.ed.select([id]);
+        this.ed.vp.fit({ minX: x0, minY: y0, maxX: x1, maxY: y1 }, 0.05);
+        this.ed.requestDraw();
+      },
+      veLai: () => this.refreshProps(),
+    };
+  }
+
+  /** Dữ liệu → Sổ dây dẫn. */
+  private soDayDan(): void {
+    if (this.laTrangBanDo()) {
+      toast('Sổ dây dẫn dùng trên sơ đồ kết dây / sơ đồ trạm, không dùng trên trang bản đồ.', 'warn');
+      return;
+    }
+    hopThoaiSoDayDan(this.nguCanhDayDan);
+  }
+
   private laTrangBanDo(): boolean {
     return this.store.sheet.type === 'tinh';
   }
@@ -258,6 +326,7 @@ export class App {
         ['Bật/tắt lưới (F7)', () => this.toggleOpt('showGrid')],
         ['Bật/tắt nhãn mã dây', () => this.toggleOpt('showConductor')],
         ['Bật/tắt tên trạm', () => this.toggleOpt('showLabels')],
+        ['Bật/tắt tên trạm lớn khi thu nhỏ (bấm để tới trạm)', () => this.toggleOpt('tenTramLon')],
         ['Bật/tắt tên thiết bị', () => this.toggleOpt('showDeviceLabels')],
         ['—', () => undefined],
         ['Chế độ in (nền trắng)', () => this.toggleOpt('printMode')],
@@ -284,6 +353,7 @@ export class App {
         ['Trạng thái thiết bị (đang cắt / tiếp địa đóng)…', () => this.bangTrangThai()],
         ['—', () => undefined],
         ['Bảng trạm 110/220kV', () => this.showTramTable()],
+        ['Sổ dây dẫn - mã hiệu dây / cáp theo đoạn…', () => this.soDayDan()],
         ['Bảng đường dây', () => this.showLineTable()],
         ['Thêm trang sơ đồ trạm…', () => this.addSubstationSheet('tram'), true],
         ['Thêm trang lưới trung áp…', () => this.addSubstationSheet('trung-ap'), true],
@@ -511,7 +581,26 @@ export class App {
   }
 
   refreshProps(): void {
-    this.propsHost.replaceChildren(buildProps(this.ed, this.ed.selectedEntities()));
+    const sel = this.ed.selectedEntities();
+    // sơ đồ kết dây (không phải trang bản đồ): mã dây nhập theo ĐOẠN vào sổ dây dẫn
+    const theoDoan = sel.length === 1 && sel[0].kind === 'branch' && !this.laTrangBanDo();
+    this.propsHost.replaceChildren(buildProps(this.ed, sel, { anMaDay: theoDoan }));
+    let danhDau = false;
+    if (theoDoan) {
+      const phan = phanDayDan(this.nguCanhDayDan, sel[0].id);
+      if (phan) {
+        danhDau = true;
+        // đặt ngay sau các thông tin tuyến (trước ghi chú / nút xoá)
+        const props = this.propsHost.firstElementChild;
+        const ghiChu = props?.querySelector('textarea')?.closest('.field');
+        if (ghiChu) ghiChu.before(phan);
+        else props?.append(phan);
+      }
+    }
+    if (!danhDau && this.ed.renderer.danhDauDoan) {
+      this.ed.renderer.danhDauDoan = null;
+      this.ed.requestDraw();
+    }
     // Chế độ xem: thuộc tính chỉ để đọc
     if (this.store.chiXem) {
       for (const x of this.propsHost.querySelectorAll<HTMLInputElement>('input, select, textarea, button')) x.disabled = true;

@@ -1361,3 +1361,141 @@ export function vungNoiThong(d: DongCongSuat, goc: Id, quaMBA = false): VungNoiT
     : g.mayCat.filter((m) => m.id !== goc && m.dong && (g.cucTB.get(m.id) ?? []).some((v) => tham[v])).map((m) => ({ id: m.id, p: m.p }));
   return { doan, kv, thietBi, catBien, mcBien };
 }
+
+/**
+ * ĐOẠN DÂY: chuỗi nét dây dẫn liền nhau giữa hai điểm dừng - cực thiết bị nối tiếp (dao, máy cắt, TI,
+ * cầu chì... có từ 2 cực), chỗ rẽ nhánh / đấu chữ T (đỉnh có từ 3 nét), đầu dây hở, chỗ nối qua máy
+ * biến áp. Đi thẳng qua đỉnh gấp khúc, chỗ hai nét nối đầu nhau, vòng nhảy giao chéo. Mỗi đoạn một
+ * mã hiệu dây / cáp (xem sổ dây dẫn).
+ */
+export interface DoanDay {
+  /** Chỉ số cạnh vẽ (doThi.veU...) thuộc đoạn. */
+  canh: number[];
+  /** Id các tuyến (nét) có phần nằm trong đoạn. */
+  nhanh: Id[];
+  /** Hai (hoặc nhiều - hiếm) đỉnh đầu mút của đoạn. */
+  dau: number[];
+  kv: VoltageKv;
+  /** Chiều dài theo hình vẽ (đơn vị bản vẽ). */
+  dai: number;
+}
+
+export interface PhanDoan {
+  ds: DoanDay[];
+  /** Cạnh vẽ -> chỉ số đoạn. */
+  doanCua: Int32Array;
+  /** Đỉnh -> id các thiết bị có cực tại đó. */
+  tbTai: Map<number, Id[]>;
+}
+
+const daPhanDoan = new WeakMap<DongCongSuat, PhanDoan>();
+
+/** Chia các nét dây của tờ thành đoạn dây (tính một lần cho mỗi mô hình công suất). */
+export function phanDoanDay(d: DongCongSuat): PhanDoan {
+  const co = daPhanDoan.get(d);
+  if (co) return co;
+  const g = d.doThi;
+  const n = g.vx.length;
+  const m = g.veU.length;
+  const bacVe = new Int32Array(n);
+  const bacNoi = new Int32Array(n);
+  g.veU.forEach((u, i) => {
+    bacVe[u]++;
+    bacVe[g.veV[i]]++;
+  });
+  g.noiU.forEach((u, i) => {
+    bacNoi[u]++;
+    bacNoi[g.noiV[i]]++;
+  });
+  const cuc = new Uint8Array(n);
+  const tbTai = new Map<number, Id[]>();
+  for (const [id, ds] of g.cucTB) {
+    for (const v of ds) {
+      if (ds.length >= 2) cuc[v] = 1;
+      const a = tbTai.get(v);
+      if (a) a.push(id);
+      else tbTai.set(v, [id]);
+    }
+  }
+  // thiết bị đang cắt: hai cực cũng là điểm dừng (đã bỏ nét giữa hai cực)
+  for (const c of g.catTB) {
+    cuc[c.u] = 1;
+    cuc[c.v] = 1;
+  }
+  const noiQua = (v: number): boolean => bacVe[v] === 2 && bacNoi[v] === 0 && !cuc[v];
+  // hợp nhất các cạnh vẽ gặp nhau ở đỉnh đi qua được
+  const cha = new Int32Array(m);
+  for (let i = 0; i < m; i++) cha[i] = i;
+  const goc = (i: number): number => {
+    while (cha[i] !== i) {
+      cha[i] = cha[cha[i]];
+      i = cha[i];
+    }
+    return i;
+  };
+  const canhTai: number[][] = Array.from({ length: n }, () => []);
+  g.veU.forEach((u, i) => {
+    canhTai[u].push(i);
+    canhTai[g.veV[i]].push(i);
+  });
+  for (let v = 0; v < n; v++) {
+    if (!noiQua(v)) continue;
+    const [a, b] = canhTai[v];
+    const ra = goc(a);
+    const rb = goc(b);
+    if (ra !== rb) cha[ra] = rb;
+  }
+  const doanCua = new Int32Array(m).fill(-1);
+  const ds: DoanDay[] = [];
+  const soDoan = new Map<number, number>();
+  for (let i = 0; i < m; i++) {
+    const r = goc(i);
+    let k = soDoan.get(r);
+    if (k === undefined) {
+      k = ds.length;
+      soDoan.set(r, k);
+      ds.push({ canh: [], nhanh: [], dau: [], kv: g.veKv[i], dai: 0 });
+    }
+    doanCua[i] = k;
+    const t = ds[k];
+    t.canh.push(i);
+    t.dai += Math.hypot(g.vx[g.veU[i]] - g.vx[g.veV[i]], g.vy[g.veU[i]] - g.vy[g.veV[i]]);
+  }
+  for (const t of ds) {
+    const nh = new Set<Id>();
+    const dau = new Set<number>();
+    for (const c of t.canh) {
+      nh.add(g.veNhanh[c]);
+      for (const v of [g.veU[c], g.veV[c]]) if (!noiQua(v)) dau.add(v);
+    }
+    t.nhanh = [...nh];
+    t.dau = [...dau];
+  }
+  const kq = { ds, doanCua, tbTai };
+  daPhanDoan.set(d, kq);
+  return kq;
+}
+
+/** Đoạn dây chứa tuyến (nét) `id` - nét đi qua nhiều đoạn thì lấy đoạn chứa phần dài nhất của nét. */
+export function doanCuaNhanh(d: DongCongSuat, id: Id): number {
+  const g = d.doThi;
+  const p = phanDoanDay(d);
+  const dai = new Map<number, number>();
+  g.veNhanh.forEach((nh, i) => {
+    if (nh !== id) return;
+    const k = p.doanCua[i];
+    dai.set(k, (dai.get(k) ?? 0) + Math.hypot(g.vx[g.veU[i]] - g.vx[g.veV[i]], g.vy[g.veU[i]] - g.vy[g.veV[i]]));
+  });
+  let tot = -1;
+  let bd = -1;
+  for (const [k, l] of dai) if (l > bd) [bd, tot] = [l, k];
+  return tot;
+}
+
+/** Toạ độ các cạnh của một đoạn (x1, y1, x2, y2 liên tiếp) - để tô đánh dấu. */
+export function hinhDoan(d: DongCongSuat, k: number): number[] {
+  const g = d.doThi;
+  const out: number[] = [];
+  for (const c of phanDoanDay(d).ds[k]?.canh ?? []) out.push(g.vx[g.veU[c]], g.vy[g.veU[c]], g.vx[g.veV[c]], g.vy[g.veV[c]]);
+  return out;
+}

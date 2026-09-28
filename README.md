@@ -122,6 +122,64 @@ in đen trắng vẫn phân biệt được:
   hở mạch. Xuất SVG / DXF: thân máy cắt đóng tô đặc (SOLID trong DXF), thiết bị chưa
   rõ trạng thái màu cam.
 
+### Mã hiệu dây dẫn / cáp ngầm từng đoạn (sổ dây dẫn)
+
+Dùng làm căn cứ xác định dòng định mức của từng đoạn đường dây.
+
+**Đoạn dây** là chuỗi nét dây liền nhau giữa hai điểm dừng:
+* điểm dừng: cực thiết bị nối tiếp (DCL, LBS, MC, REC, FCO, TI…), chỗ rẽ nhánh / đấu chữ T, đầu
+  dây hở, chỗ nối vào máy biến áp;
+* đi thẳng qua: đỉnh gấp khúc, chỗ hai nét nối đầu nhau, vòng nhảy giao chéo.
+
+Tờ sơ đồ tổng có 26.692 đoạn.
+
+**Nhập mã dây cho một đoạn:**
+* Click một nét dây trên sơ đồ kết dây. Cả đoạn chứa nét đó được **tô cam nét đứt**. Bảng thuộc
+  tính có phần **"Dây dẫn / cáp của đoạn"**:
+  - tên hai đầu đoạn, số nét, chiều dài theo hình vẽ;
+  - gợi ý theo nhãn trên bản vẽ, ví dụ `"AC185 - 17,04km" → AC-185, 17040 m`;
+  - các ô nhập: **mã hiệu** (có danh sách gợi ý), **số sợi (mạch) song song mỗi pha**, **dòng cho
+    phép một sợi Icp (A)**, **chiều dài thực tế (m)**, ghi chú;
+  - dòng kết quả **"Dòng cho phép của đoạn: n × Icp = … A"**.
+* Bấm **Lưu cho cả đoạn**. Cần đăng nhập, như mọi hiệu chỉnh khác.
+
+**Gợi ý tự động theo nhãn bản vẽ:**
+* Bản vẽ có khoảng 550 nhãn dây / cáp: `AC120`, `AC 150`, `ACSR 185`, `Cu 3x240`,
+  `Cu-3x240-0,15km`, `2x(Cu/XLPE/PVC 1x500)`, `24KV-Cu/XLPE/PVC/PVC-3x2(1x630)`, `3xAL 1x400 - 148m`,
+  `AC2x185 - 11km`…
+* Mỗi nhãn được đọc ra **mã chuẩn** (AC-120, ACSR-185, Cu/XLPE 3x240, 2x(Cu/XLPE 1x630),
+  Al/XLPE 1x400), số sợi song song mỗi pha và chiều dài.
+* Nhãn được gắn vào đoạn dây chạy song song ngay cạnh chữ. Hiện có **479 đoạn** tự có mã.
+* Chưa nhập tay thì phần mềm dùng mã theo nhãn. Nhập tay vào sổ thì mã trong sổ được dùng thay.
+
+**Dòng cho phép (Icp):**
+* Chỉ gợi ý giá trị **tham khảo cho dây nhôm lõi thép trần AC / ACSR / ACKP**: AC-50 210 A, AC-70 265,
+  AC-95 330, AC-120 390, AC-150 445, AC-185 510, AC-240 610, AC-300 690, AC-400 835 A. Điều kiện:
+  nhiệt độ môi trường 25°C, dây 70°C.
+* **Cáp ngầm, cáp bọc** không có gợi ý. Dòng cho phép của chúng phụ thuộc cách lắp đặt (chôn trực
+  tiếp / trong ống / trên giá, số cáp đi chung, nhiệt trở đất), nên phải nhập theo catalogue.
+* Dòng định mức chính thức phải đối chiếu catalogue nhà sản xuất và điều kiện vận hành thực tế:
+  nhiệt độ mùa hè, lèo, tiếp xúc, thiết bị trên đoạn.
+
+**Sổ dây dẫn** (`src/io/soDayDan.ts`) lưu riêng khỏi bản vẽ, trong bộ nhớ trình duyệt:
+* Tờ sơ đồ tổng quá lớn nên bản vẽ không tự lưu tạm được; sổ riêng không mất khi đóng trang hay khi
+  cập nhật phần mềm.
+* Mỗi mục gắn với đoạn bằng **tên tờ + cấp điện áp + tên hai đầu đoạn**:
+  - thiết bị có cực tại đầu đoạn, ví dụ `DCL 373E6.22-7/01A`; thiết bị trong trạm thêm mã trạm, ví
+    dụ `E6.2 Máy cắt 172`;
+  - chỗ rẽ nhánh lấy số cột ghi cạnh đó, ví dụ `cột 28`;
+  - nếu không có thì lấy thiết bị có tên gần nhất theo dây, ví dụ `gần LBS 473E6.4/30`.
+* Nhờ khoá theo tên, bố trí lại sơ đồ vẫn tìm lại đúng đoạn.
+
+**Dữ liệu → Sổ dây dẫn - mã hiệu dây / cáp theo đoạn…** mở bảng các đoạn đã có mã trên tờ đang mở:
+* Các cột: cấp điện áp, hai đầu, mã hiệu, sợi/pha, Icp một sợi, Icp đoạn, nguồn Icp, chiều dài,
+  nguồn mã (sổ / nhãn bản vẽ), ghi chú.
+* Bấm một dòng để phóng tới đoạn đó.
+* **Xuất CSV** cho Excel; **Xuất / Nhập sổ (.json)** để lưu hồ sơ, chép sang máy khác hoặc gộp sổ
+  của nhiều người. Mục trùng khoá lấy bản cập nhật sau.
+
+Trên trang bản đồ (lưới 110kV theo địa lý) vẫn nhập mã dây theo từng tuyến như cũ.
+
 ### Click thiết bị: xem đang cấp điện tới đâu (vùng nối thông)
 
 Click một thiết bị hoặc một đoạn dây là tự tô sáng **toàn bộ dây và thiết bị nối thông
@@ -734,6 +792,31 @@ Khi mở tờ sơ đồ, `src/core/doiChu.ts` rà từng nhãn:
 Kết quả trên tờ sơ đồ kết dây: **193/193 nhãn bị lấp đã được dời**, còn 0; thời gian
 xử lý khoảng 0,3 giây khi mở phần mềm. Nhãn dời xa nhất là các dòng mô tả MBA dài
 (`MBA T2 - 40/40/40 MVA ...`), vẫn nằm ngay cạnh MBA của nó.
+
+### Tên trạm 110-220kV trên sơ đồ kết dây
+
+**Đặt lại cho cân đối** (`tools/dat-ten-tram.mjs`, chạy sau `doi-cho-tram`):
+* Trước đây tiêu đề trạm trong bản CAD đặt tuỳ tiện: căn trái từ giữa trạm (chữ lệch hẳn sang phải),
+  cỡ chữ 12 - 21,6, có trạm (E6.11) đặt lọt giữa hình vẽ.
+* Nay cả 25 trạm trong tỉnh ghi thống nhất `TRẠM 110kV ĐỊNH HÓA (E6.22)`: bỏ "SƠ ĐỒ", chữ "kV",
+  mã trạm trong ngoặc.
+* Cùng cao chữ 16, **căn giữa theo bề ngang phần hình vẽ của trạm**, ngay phía trên sơ đồ trạm,
+  trên cả các nhãn nơi đến ở đầu ngăn lộ (ví dụ "171 E26.1 BẮC KẠN").
+* Nếu phía trên vướng hình vẽ trạm khác hoặc lưới trung áp thì đặt giữa phía dưới. Hiện chỉ E6.11
+  phải đặt dưới, vì nằm ngay dưới E6.12.
+* Đường dây 110kV vào ngăn lộ có đi qua chỗ tên thì phần mềm vẽ tên sau cùng, trên nền che cùng màu
+  nền bản vẽ: đường dây chạy khuất sau chữ, như trên sơ đồ in.
+* Đã thử cách đặt tên vào khe giữa các ngăn lộ để tránh đường dây, nhưng nhiều trạm bị đẩy tên ra
+  sát mép (E6.2, E6.14 lệch gần 600), mất cân đối, nên không dùng.
+* Ô trạm trong danh mục được nới bao lấy tên; ô gốc lưu ở cột thứ 10 để chạy lại cho kết quả như nhau.
+
+**Tên trạm lớn khi thu nhỏ:**
+* Thu nhỏ tờ sơ đồ tổng tới mức tên trạm trên bản vẽ nhỏ hơn 8 điểm ảnh thì mỗi trạm hiện thêm một
+  **nhãn cỡ chữ cố định** ngay chỗ tên trạm, ví dụ `E6.22 · 110kV ĐỊNH HÓA`.
+* Nền tối, viền màu cấp điện áp: tím 220kV, đỏ 110kV.
+* **Bấm vào nhãn là phóng tới trạm đó.**
+* Hai nhãn chồng nhau thì bỏ nhãn sau; trạm 220kV được ưu tiên.
+* Bật / tắt: **Xem → Bật/tắt tên trạm lớn khi thu nhỏ**. Không hiện ở chế độ in.
 
 ### Danh mục trạm
 
