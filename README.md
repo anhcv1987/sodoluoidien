@@ -122,6 +122,24 @@ in đen trắng vẫn phân biệt được:
   hở mạch. Xuất SVG / DXF: thân máy cắt đóng tô đặc (SOLID trong DXF), thiết bị chưa
   rõ trạng thái màu cam.
 
+### Click thiết bị: xem đang cấp điện tới đâu (vùng nối thông)
+
+Click một thiết bị hoặc một đoạn dây là tự tô sáng **toàn bộ dây và thiết bị nối thông
+với nó qua các thiết bị đang đóng**. Vùng sáng dừng lại ở các thiết bị đang **cắt**
+(máy cắt, DCL, LBS, REC, FCO…), mỗi điểm dừng có **vòng tròn màu cam**. Thanh trạng thái
+báo số thiết bị, số đoạn dây và tên các thiết bị cắt ở biên, ví dụ “Vùng nối thông:
+381 thiết bị, 1784 đoạn dây - dừng ở 21 thiết bị đang cắt: LBS 473E6.4/14B, …”.
+
+* Tính trên cùng mô hình với **Chạy công suất**, nên đi đúng qua các cung vượt dây
+  (hop, chỗ trung áp vượt đường dây 110kV), khung RMU và các điểm đấu vẽ trên sơ đồ;
+  trước đây vùng sáng bị dừng ở cung vượt dây.
+* Mặc định không đi qua máy biến áp. **Shift+M** bật / tắt đi xuyên MBA (xem từ phía
+  110kV sang thanh cái trung áp và các xuất tuyến phía sau).
+* Đổi trạng thái thiết bị (tài khoản Biên tập) thì vùng sáng tự tính lại. Click ra chỗ
+  trống hoặc chọn nhiều đối tượng thì tắt.
+* Lần click đầu trên tờ sơ đồ tổng mất vài giây để dựng mô hình. Các lần sau dùng lại
+  kết quả cho đến khi bản vẽ thay đổi.
+
 **Trạng thái ban đầu** (Phòng Điều độ duyệt): máy cắt, dao cách ly đều **Đóng**, dao
 tiếp địa **Cắt**; Phòng tự chỉnh các dao cắt theo phương thức vận hành. Khi đặt lại,
 26 “dao cách ly” nằm trong vòng tròn cuộn dây MBA ở các trạm vẽ tay (nét hình sao /
@@ -791,8 +809,9 @@ Dùng trong phần mềm:
 | Lệnh | Tác dụng |
 |---|---|
 | **F4** | Hiện / ẩn điểm đấu nối của mọi thiết bị |
-| Chọn một đối tượng rồi **Shift+M** | Tô sáng toàn bộ mạch nối thông với nó |
-| **Dữ liệu → Tô sáng cả chuỗi 110kV - MBA - trung áp** | Như trên nhưng đi xuyên máy biến áp |
+| **Click** một thiết bị / đoạn dây | Tô sáng vùng nối thông với nó, dừng ở thiết bị đang cắt (vòng cam) |
+| **Shift+M** | Bật / tắt đi xuyên máy biến áp (xem cả phía sau MBA) |
+| **Dữ liệu → Tô sáng cả chuỗi 110kV - MBA - trung áp** | Như Shift+M |
 | **Dữ liệu → Kiểm tra liên kết điện…** | Bảng thống kê + chọn nhanh thiết bị chưa đấu vào lưới |
 
 Trên tờ sơ đồ kết dây hiện có: **1.471 nút điện, 807 mạch rời nhau, 98 cầu nối qua

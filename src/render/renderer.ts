@@ -107,6 +107,66 @@ export class Renderer {
    */
   diemNoi: { p: Pt; noi: boolean }[] = [];
 
+  /**
+   * Vùng nối thông đang tô sáng (click thiết bị): các đoạn dây x1,y1,x2,y2 kèm cấp điện áp, và thiết
+   * bị đang cắt ở biên vùng (công suất dừng tại đó). Do giao diện tính (vungNoiThong) rồi gán vào.
+   */
+  toSang: { doan: number[]; kv: VoltageKv[]; catBien: { p: Pt }[] } | null = null;
+
+  /** Vẽ vùng nối thông: quầng sáng theo màu cấp điện áp + lõi sáng; thiết bị cắt ở biên: vòng cam. */
+  private drawToSang(ctx: CanvasRenderingContext2D): void {
+    const t = this.toSang;
+    if (!t) return;
+    const view = this.vp.viewBox(20);
+    const sc = this.vp.scale;
+    const inAn = this.opt.printMode;
+    const theoCap = new Map<VoltageKv, number[]>();
+    for (let i = 0, k = 0; k + 3 < t.doan.length; i++, k += 4) {
+      const [x1, y1, x2, y2] = [t.doan[k], t.doan[k + 1], t.doan[k + 2], t.doan[k + 3]];
+      if (Math.max(x1, x2) < view.minX || Math.min(x1, x2) > view.maxX || Math.max(y1, y2) < view.minY || Math.min(y1, y2) > view.maxY) continue;
+      const a = theoCap.get(t.kv[i]);
+      if (a) a.push(k);
+      else theoCap.set(t.kv[i], [k]);
+    }
+    const w = 7 * Math.max(0.5, Math.min(1.2, sc / 0.5));
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.setLineDash([]);
+    for (const [kv, ds] of theoCap) {
+      const mau = colorOf(kv, inAn);
+      const duong = (): void => {
+        ctx.beginPath();
+        for (const k of ds) {
+          const a = this.vp.toScreen({ x: t.doan[k], y: t.doan[k + 1] });
+          const b = this.vp.toScreen({ x: t.doan[k + 2], y: t.doan[k + 3] });
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+        }
+        ctx.stroke();
+      };
+      ctx.strokeStyle = mau;
+      ctx.globalAlpha = inAn ? 0.3 : 0.4;
+      ctx.lineWidth = w;
+      duong();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = inAn ? mau : '#ffffff';
+      ctx.lineWidth = Math.max(1.2, w * 0.28);
+      duong();
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = inAn ? '#b45309' : '#fbbf24';
+    ctx.lineWidth = 2.5;
+    for (const c of t.catBien) {
+      if (c.p.x < view.minX || c.p.x > view.maxX || c.p.y < view.minY || c.p.y > view.maxY) continue;
+      const s = this.vp.toScreen(c.p);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, Math.max(7, 9 * Math.min(1.5, sc / 0.5)), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   /** Ve diem dau noi: o vuong xanh = da cham vao day, o do rong = chua noi. */
   private drawTerminals(ctx: CanvasRenderingContext2D): void {
     if (!this.diemNoi.length) return;
@@ -165,6 +225,7 @@ export class Renderer {
       }
     }
 
+    this.drawToSang(ctx);
     if (this.opt.showTerminals) this.drawTerminals(ctx);
     if (this.opt.showConductor) this.drawConductorLabels(ctx, visible, view);
     if (this.opt.showLabels) this.drawSubstationLabels(ctx, visible, view);

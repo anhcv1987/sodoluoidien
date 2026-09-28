@@ -14,8 +14,9 @@ import type { DeviceEntity, Entity, SubstationEntity, VoltageKv } from '../core/
 import { allStyles, colorOf } from '../core/voltage';
 import { exportDxf, exportSvg } from '../io/dxfExport';
 import { defaultImportOptions, importDxf, inspectDxf } from '../io/dxfImport';
-import { cungMach, daoCua, dungMangDien, type MangDien } from '../core/lienket';
+import { dungMangDien, type MangDien } from '../core/lienket';
 import { ChayCongSuat } from '../render/chayCongSuat';
+import { vungNoiThong } from '../core/dongCongSuat';
 import { getBlock, TEN_TRANG_THAI } from '../symbols/blocks';
 import {
   BUILD_ID,
@@ -90,7 +91,10 @@ export class App {
         else this.setMsg(m);
       },
       onPrompt: (m) => (this.statusPrompt.textContent = m),
-      onSelection: () => this.refreshProps(),
+      onSelection: () => {
+        this.refreshProps();
+        this.capNhatToSang();
+      },
       onOpenEntity: (e) => {
         // Nhấn đúp vào khối trạm trên sơ đồ địa lý -> nhảy tới đúng trạm đó
         // trên tờ sơ đồ kết dây tổng.
@@ -139,6 +143,8 @@ export class App {
     this.store.subscribe(() => {
       this.scheduleAutosave();
       this.capNhatBanDo();
+      // đổi trạng thái thiết bị -> vùng nối thông đang tô sáng tính lại ngay
+      if (this.ed.renderer.toSang) this.capNhatToSang(true);
     });
   }
 
@@ -272,7 +278,7 @@ export class App {
         ['Gán cấp điện áp theo lớp CAD gốc…', () => this.showSrcLayerDialog(), true],
         ['—', () => undefined],
         ['Hiện điểm đấu nối của thiết bị (F4)', () => this.batDiemNoi()],
-        ['Tô sáng mạch điện của đối tượng đang chọn (Shift+M)', () => this.toSangMach(false)],
+        ['Tô sáng vùng nối thông của đối tượng đang chọn (click thiết bị)', () => this.toSangMach(false)],
         ['Tô sáng cả chuỗi 110kV - MBA - trung áp', () => this.toSangMach(true)],
         ['Kiểm tra liên kết điện…', () => this.kiemTraLienKet()],
         ['Trạng thái thiết bị (đang cắt / tiếp địa đóng)…', () => this.bangTrangThai()],
@@ -829,7 +835,7 @@ export class App {
     }
     if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'm') {
       e.preventDefault();
-      this.toSangMach(false);
+      this.toSangMach(!this.toSangQuaMBA);
       return;
     }
     if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
@@ -935,24 +941,61 @@ export class App {
     this.ed.renderer.diemNoi = ds;
   }
 
-  /** Tô sáng toàn bộ đối tượng nối thông với đối tượng đang chọn. */
+  /** Tô sáng mạch của đối tượng đang chọn (Shift+M; quaMBA: đi xuyên máy biến áp sang cấp khác). */
   private toSangMach(quaMBA: boolean): void {
-    const goc = this.ed.selectedEntities()[0];
-    if (!goc) {
+    if (!this.ed.selectedEntities()[0]) {
       this.setMsg('Hãy chọn một thiết bị hoặc đoạn dây trước.');
       return;
     }
-    const m = this.mangDien();
-    const ids = cungMach(this.store.entities, m, goc, quaMBA);
-    if (!ids.length) {
-      this.setMsg('Đối tượng này chưa đấu vào lưới nào.');
+    this.toSangQuaMBA = quaMBA;
+    this.capNhatToSang(false, true);
+  }
+
+  /** Đối tượng đang được tô sáng vùng nối thông, và có đi xuyên máy biến áp hay không. */
+  private toSangGoc: string | null = null;
+  private toSangQuaMBA = false;
+
+  /**
+   * CLICK THIẾT BỊ (hoặc đoạn dây) -> TÔ SÁNG VÙNG NỐI THÔNG: mọi đoạn dây, thiết bị nối với nó qua
+   * các thiết bị đang ĐÓNG, dừng tại thiết bị đang CẮT (vòng cam) - để xem đang cấp điện tới đâu.
+   * Dùng đồ thị của mô hình chiều công suất (đi đúng qua chỗ nhảy dây, dừng đúng ở dao cắt nằm giữa
+   * nét dây liền). Mặc định trong một cấp điện áp (dừng ở máy biến áp).
+   */
+  private capNhatToSang(imLang = false, giuQuaMBA = false): void {
+    const r = this.ed.renderer;
+    const sel = this.ed.selectedEntities();
+    const goc = sel.length === 1 ? sel[0] : null;
+    const hopLe = !!goc && !this.laTrangBanDo() && (goc.kind === 'branch' || (goc.kind === 'device' && goc.layer !== 'Khung bản vẽ'));
+    if (!goc || !hopLe) {
+      if (r.toSang) {
+        r.toSang = null;
+        this.ed.requestDraw();
+      }
+      this.toSangGoc = null;
       return;
     }
-    this.ed.select(ids);
+    if (!imLang && !giuQuaMBA && this.toSangGoc !== goc.id) this.toSangQuaMBA = false;
+    const t0 = performance.now();
+    const v = vungNoiThong(this.congSuat.duLieu(), goc.id, this.toSangQuaMBA);
+    r.toSang = v && v.doan.length ? v : null;
+    this.toSangGoc = goc.id;
     this.ed.requestDraw();
+    if (imLang) return;
+    if (!v || !v.doan.length) {
+      this.setMsg('Đối tượng này chưa đấu vào dây dẫn nào.');
+      return;
+    }
+    const ten = v.catBien
+      .map((c) => {
+        const e = this.store.get(c.id);
+        return e && e.kind === 'device' ? this.nhanCuaThietBi(e) || (getBlock(e.block)?.name ?? e.block) : '';
+      })
+      .filter(Boolean);
+    const ds = ten.length > 6 ? `${ten.slice(0, 6).join(', ')}…` : ten.join(', ');
     this.setMsg(
-      `Mạch ${(daoCua(m, goc) ?? 0) + 1}: ${ids.length} đối tượng nối thông` +
-        (quaMBA ? ' (đã đi xuyên máy biến áp)' : ' qua các thiết bị đang đóng'),
+      `Vùng nối thông${this.toSangQuaMBA ? ' (xuyên máy biến áp)' : ''}: ${v.thietBi.length} thiết bị, ${v.doan.length / 4} đoạn dây` +
+        (v.catBien.length ? ` - dừng ở ${v.catBien.length} thiết bị đang cắt (vòng cam): ${ds}` : ' - không gặp thiết bị đang cắt') +
+        ` (${(performance.now() - t0).toFixed(0)} ms). Shift+M: xem cả phía sau máy biến áp.`,
     );
   }
 
@@ -1876,7 +1919,7 @@ export class App {
       <ul>
         <li><b>S / L / B / D / T / G / M</b>: Chọn · Đường dây · Thanh cái · Thiết bị · Trạm · Ghi chú · Đo</li>
         <li><b>F3</b> bắt điểm · <b>F4</b> hiện điểm đấu nối · <b>F6</b> công suất chạy trên đường dây · <b>F11</b> trình chiếu (Esc thoát) · <b>F7</b> hiện lưới · <b>F8</b> ORTHO · <b>F9</b> bắt lưới</li>
-         <li><b>Shift+M</b> tô sáng cả mạch điện nối thông với đối tượng đang chọn</li>
+         <li><b>Click thiết bị / đoạn dây</b>: tô sáng vùng nối thông qua các thiết bị đang đóng, dừng ở thiết bị đang cắt (vòng cam) - xem đang cấp điện tới đâu; <b>Shift+M</b> bật / tắt đi xuyên máy biến áp</li>
         <li><b>R</b>: xoay 90° khi đang đặt thiết bị</li>
         <li><b>Enter</b> kết thúc tuyến · <b>Esc</b> huỷ lệnh · <b>Delete</b> xoá</li>
         <li><b>Ctrl+Z / Ctrl+Y</b> hoàn tác / làm lại · <b>Ctrl+A</b> chọn tất cả · <b>Ctrl+S</b> lưu</li>

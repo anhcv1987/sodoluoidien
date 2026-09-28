@@ -46,6 +46,27 @@ export interface DongCongSuat {
   /** Thống kê để báo cho người dùng. */
   soNguon: number;
   soDoan: number;
+  /** Đồ thị hình học đã dựng (để tìm vùng nối thông - xem vungNoiThong). */
+  doThi: DoThiDien;
+}
+
+/** Đồ thị hình học của lưới: đỉnh, cạnh dây vẽ, cạnh nối (qua thiết bị đóng / máy biến áp). */
+export interface DoThiDien {
+  vx: number[];
+  vy: number[];
+  /** Cạnh dây dẫn có vẽ: hai đỉnh, cấp điện áp, id tuyến. */
+  veU: number[];
+  veV: number[];
+  veKv: VoltageKv[];
+  veNhanh: Id[];
+  /** Cạnh nối không vẽ; noiMBA = nối xuyên máy biến áp (hai cấp điện áp). */
+  noiU: number[];
+  noiV: number[];
+  noiMBA: boolean[];
+  /** Đỉnh cực của từng thiết bị. */
+  cucTB: Map<Id, number[]>;
+  /** Thiết bị đang cắt: id, hai đỉnh cực, vị trí. */
+  catTB: { id: Id; u: number; v: number; p: Pt }[];
 }
 
 /** Thiết bị đấu rẽ không mang tải - nhánh cụt tới đó không có công suất. */
@@ -427,12 +448,16 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   const noiU: number[] = [];
   const noiV: number[] = [];
   const noiL: number[] = [];
-  const noi = (u: number, v: number): void => {
+  const noiMBA: boolean[] = [];
+  const noi = (u: number, v: number, mba = false): void => {
     if (u === v) return;
     noiU.push(u);
     noiV.push(v);
     noiL.push(Math.hypot(vx[u] - vx[v], vy[u] - vy[v]));
+    noiMBA.push(mba);
   };
+  const cucTB = new Map<Id, number[]>();
+  const catTB: { id: Id; u: number; v: number; p: Pt }[] = [];
 
   /** Bắt một điểm vào đoạn dây gần nhất trong bán kính r -> [đỉnh, đoạn] hoặc null. */
   /**
@@ -728,20 +753,21 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       // có chỗ dừng ở mép vòng tròn, lại có cả dây trung tính / chống sét van đấu vào
       // cùng cuộn - nên nối MỌI đầu dây nằm trong (hoặc chạm mép) cuộn dây về tâm máy.
       const tam = dinh(d.p.x, d.p.y);
+      cucTB.set(d.id, [tam]);
       // máy biến áp là tải: phía hạ áp chưa vẽ tiếp thì công suất vẫn chạy tới máy
       diemTai.add(tam);
       const R = BAN_KINH_CUON * d.scale;
       for (const c of cuc) {
         let co = false;
         for (const v of dauTuyenQuanh(c.p.x, c.p.y, R * 1.3)) {
-          noi(v, tam);
+          noi(v, tam, true);
           diemThietBi.add(v);
           co = true;
         }
         if (!co) {
           const kq = bat(c.p.x, c.p.y, R * 1.3);
           if (kq) {
-            noi(kq[0], tam);
+            noi(kq[0], tam, true);
             diemThietBi.add(kq[0]);
           }
         }
@@ -767,6 +793,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       dinhCuc.push(v);
       diemThietBi.add(v);
     }
+    cucTB.set(d.id, dinhCuc);
     if (!soBat && cuc.length < 2) continue;
     // MBA phân phối, MBA tự dùng: phụ tải cuối đường dây
     if (MANG_TAI.has(d.block)) for (const v of dinhCuc) diemTai.add(v);
@@ -788,6 +815,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       const [u, v] = dinhCuc;
       doanCat.push([vx[u], vy[u], vx[v], vy[v]]);
       capCat.push([u, v]);
+      catTB.push({ id: d.id, u, v, p: { x: d.p.x, y: d.p.y } });
     }
   }
 
@@ -822,7 +850,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     for (let v = 0; v < soDinh; v++) {
       const g = trongMBA(vx[v], vy[v], saiSo);
       if (g >= 0 && v !== tamMBA[g]) {
-        noi(v, tamMBA[g]);
+        noi(v, tamMBA[g], true);
         diemTai.add(tamMBA[g]);
         diemThietBi.add(v);
       }
@@ -835,6 +863,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   const veL: number[] = [];
   const veKv: VoltageKv[] = [];
   const veTuyen: number[] = [];
+  const veNhanh: Id[] = [];
   const luoiCat = new LuoiO(Math.max(co / 300, saiSo * 4));
   doanCat.forEach((c, i) => luoiCat.them(c[0], c[1], c[2], c[3], i));
   const biCat = (u: number, v: number): boolean => {
@@ -867,6 +896,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       veL.push(Math.hypot(vx[u] - vx[v], vy[u] - vy[v]));
       veKv.push(kv);
       veTuyen.push(doanTuyen[s]);
+      veNhanh.push(tuyen[doanTuyen[s]].b.id);
     }
   }
   tuyen.forEach((t) => {
@@ -1181,5 +1211,79 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     if (!daDung[i]) dungChuoi(i);
   });
 
-  return { chuoi, diemDung, soNguon: nguon.size, soDoan: khuc.length };
+  return {
+    chuoi,
+    diemDung,
+    soNguon: nguon.size,
+    soDoan: khuc.length,
+    doThi: { vx, vy, veU, veV, veKv, veNhanh, noiU, noiV, noiMBA, cucTB, catTB },
+  };
+}
+
+/** Vùng nối thông với một thiết bị / đoạn dây: các đoạn dây, thiết bị, và thiết bị đang cắt ở biên. */
+export interface VungNoiThong {
+  /** Đoạn dây: x1, y1, x2, y2 liên tiếp. */
+  doan: number[];
+  /** Cấp điện áp từng đoạn. */
+  kv: VoltageKv[];
+  /** Thiết bị nằm trong vùng (có cực thuộc vùng). */
+  thietBi: Id[];
+  /** Thiết bị đang cắt ở biên vùng (công suất dừng ở đây). */
+  catBien: { id: Id; p: Pt }[];
+}
+
+/**
+ * VÙNG NỐI THÔNG: từ thiết bị (hoặc đoạn dây) đi theo dây dẫn và qua các thiết bị ĐANG ĐÓNG cho tới
+ * thiết bị ĐANG CẮT - trả lời "đang cấp điện tới đâu". Dùng đúng đồ thị của mô hình chiều công suất
+ * (qua chỗ nhảy dây, khung tủ RMU, thiết bị cắt nằm giữa nét dây liền...). `quaMBA` = false thì dừng ở
+ * máy biến áp (chỉ một cấp điện áp).
+ */
+export function vungNoiThong(d: DongCongSuat, goc: Id, quaMBA = false): VungNoiThong | null {
+  const g = d.doThi;
+  const n = g.vx.length;
+  const ke: number[][] = Array.from({ length: n }, () => []);
+  g.veU.forEach((u, i) => {
+    ke[u].push(i);
+    ke[g.veV[i]].push(i);
+  });
+  g.noiU.forEach((u, i) => {
+    if (g.noiMBA[i] && !quaMBA) return;
+    ke[u].push(-(i + 1));
+    ke[g.noiV[i]].push(-(i + 1));
+  });
+  const bat: number[] = [...(g.cucTB.get(goc) ?? [])];
+  if (!bat.length) g.veNhanh.forEach((id, i) => { if (id === goc) bat.push(g.veU[i], g.veV[i]); });
+  if (!bat.length) return null;
+  const tham = new Uint8Array(n);
+  const canhVe = new Uint8Array(g.veU.length);
+  const st: number[] = [];
+  for (const v of bat) if (!tham[v]) { tham[v] = 1; st.push(v); }
+  while (st.length) {
+    const u = st.pop() as number;
+    for (const c of ke[u]) {
+      let v: number;
+      if (c >= 0) {
+        canhVe[c] = 1;
+        v = g.veU[c] === u ? g.veV[c] : g.veU[c];
+      } else {
+        const k = -c - 1;
+        v = g.noiU[k] === u ? g.noiV[k] : g.noiU[k];
+      }
+      if (!tham[v]) {
+        tham[v] = 1;
+        st.push(v);
+      }
+    }
+  }
+  const doan: number[] = [];
+  const kv: VoltageKv[] = [];
+  canhVe.forEach((x, i) => {
+    if (!x) return;
+    doan.push(g.vx[g.veU[i]], g.vy[g.veU[i]], g.vx[g.veV[i]], g.vy[g.veV[i]]);
+    kv.push(g.veKv[i]);
+  });
+  const thietBi: Id[] = [];
+  for (const [id, ds] of g.cucTB) if (ds.some((v) => tham[v])) thietBi.push(id);
+  const catBien = g.catTB.filter((c) => tham[c.u] || tham[c.v]).map((c) => ({ id: c.id, p: c.p }));
+  return { doan, kv, thietBi, catBien };
 }
