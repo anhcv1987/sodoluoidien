@@ -29,7 +29,7 @@ export interface RenderOptions {
   showTerminals: boolean;
   /** Thu nho so do tong: hien ten tram co chu co dinh tren man hinh (bam de toi tram). */
   tenTramLon: boolean;
-  /** Cỡ chữ (px) nhãn tên trạm lớn - trạm 110kV; trạm 220kV lớn hơn 2px. */
+  /** Cỡ chữ (pt) nhãn tên trạm khi thu nhỏ - trạm 110kV; trạm 220kV lớn hơn 1pt. */
   coTenTram: number;
 }
 
@@ -54,7 +54,7 @@ export const defaultRenderOptions = (): RenderOptions => ({
   markDraft: true,
   showTerminals: false,
   tenTramLon: true,
-  coTenTram: 18,
+  coTenTram: 6,
 });
 
 export interface RenderState {
@@ -145,7 +145,8 @@ export class Renderer {
     this.oTenTram = [];
     const ds = this.opt.tenTramLon && !this.opt.printMode ? this.nguonTenTram?.() : null;
     if (!ds?.length || 16 * this.vp.scale >= 8) return;
-    const co110 = Math.max(10, Math.min(40, this.opt.coTenTram || 18));
+    // cỡ chữ theo pt (1pt = 4/3 px)
+    const co110 = (Math.max(5, Math.min(30, this.opt.coTenTram || 6)) * 4) / 3;
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -154,7 +155,7 @@ export class Renderer {
       const s = this.vp.toScreen(t.p);
       if (s.x < -200 || s.y < -50 || s.x > this.vp.width + 200 || s.y > this.vp.height + 50) continue;
       const nhan = `${t.ma} · ${t.ten}`;
-      const co = t.kv >= 220 ? co110 + 2 : co110;
+      const co = t.kv >= 220 ? co110 + 4 / 3 : co110;
       ctx.font = `700 ${co}px ${FONT}`;
       const w = ctx.measureText(nhan).width + co * 1.1;
       const h = co * 1.6;

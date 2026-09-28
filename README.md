@@ -816,9 +816,9 @@ xử lý khoảng 0,3 giây khi mở phần mềm. Nhãn dời xa nhất là cá
 * Nền tối, viền màu cấp điện áp: tím 220kV, đỏ 110kV.
 * **Bấm vào nhãn là phóng tới trạm đó.**
 * Hai nhãn chồng nhau thì bỏ nhãn sau; trạm 220kV được ưu tiên.
-* Cỡ chữ mặc định 18px (trạm 220kV 20px). Chỉnh bằng **Xem → Tên trạm lớn: chữ to hơn / nhỏ hơn**
-  hoặc **Ctrl+]** / **Ctrl+[**, mỗi lần 2px, từ 10 tới 40px. Phần mềm nhớ cỡ đã chọn cho lần mở
-  sau.
+* Cỡ chữ mặc định **6pt** (trạm 220kV 7pt). Chỉnh bằng **Xem → Tên trạm khi thu nhỏ: chữ to hơn /
+  nhỏ hơn** hoặc **Ctrl+]** / **Ctrl+[**, mỗi lần 1pt, từ 5 tới 30pt. Phần mềm nhớ cỡ đã chọn cho
+  lần mở sau.
 * Bật / tắt: **Xem → Bật/tắt tên trạm lớn khi thu nhỏ**. Không hiện ở chế độ in.
 
 ### Danh mục trạm

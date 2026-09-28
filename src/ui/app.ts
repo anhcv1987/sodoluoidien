@@ -140,8 +140,8 @@ export class App {
       box: st.box ?? { minX: st.x - 100, minY: st.y - 100, maxX: st.x + 100, maxY: st.y + 100 },
     }));
     try {
-      const co = Number(localStorage.getItem('sodoluoidien.coTenTram'));
-      if (co >= 10 && co <= 40) this.ed.renderer.opt.coTenTram = co;
+      const co = Number(localStorage.getItem('sodoluoidien.coTenTramPt'));
+      if (co >= 5 && co <= 30) this.ed.renderer.opt.coTenTram = co;
     } catch {
       /* không đọc được: dùng mặc định */
     }
@@ -217,15 +217,15 @@ export class App {
   /** Đổi cỡ chữ nhãn tên trạm lớn (khi thu nhỏ), nhớ lại cho lần mở sau. */
   private coTenTram(buoc: number): void {
     const o = this.ed.renderer.opt;
-    o.coTenTram = Math.max(10, Math.min(40, (o.coTenTram || 18) + buoc));
+    o.coTenTram = Math.max(5, Math.min(30, (o.coTenTram || 6) + buoc));
     o.tenTramLon = true;
     try {
-      localStorage.setItem('sodoluoidien.coTenTram', String(o.coTenTram));
+      localStorage.setItem('sodoluoidien.coTenTramPt', String(o.coTenTram));
     } catch {
       /* trình duyệt chặn lưu: chỉ giữ trong phiên */
     }
     this.ed.requestDraw();
-    toast(`Cỡ chữ tên trạm lớn: ${o.coTenTram}px (trạm 220kV ${o.coTenTram + 2}px)`);
+    toast(`Cỡ chữ tên trạm khi thu nhỏ: ${o.coTenTram}pt (trạm 220kV ${o.coTenTram + 1}pt)`);
   }
 
   /** Dữ liệu → Sổ dây dẫn. */
@@ -347,8 +347,8 @@ export class App {
         ['Bật/tắt nhãn mã dây', () => this.toggleOpt('showConductor')],
         ['Bật/tắt tên trạm', () => this.toggleOpt('showLabels')],
         ['Bật/tắt tên trạm lớn khi thu nhỏ (bấm để tới trạm)', () => this.toggleOpt('tenTramLon')],
-        ['Tên trạm lớn: chữ to hơn (Ctrl+])', () => this.coTenTram(+2)],
-        ['Tên trạm lớn: chữ nhỏ hơn (Ctrl+[)', () => this.coTenTram(-2)],
+        ['Tên trạm khi thu nhỏ: chữ to hơn (Ctrl+])', () => this.coTenTram(+1)],
+        ['Tên trạm khi thu nhỏ: chữ nhỏ hơn (Ctrl+[)', () => this.coTenTram(-1)],
         ['Bật/tắt tên thiết bị', () => this.toggleOpt('showDeviceLabels')],
         ['—', () => undefined],
         ['Chế độ in (nền trắng)', () => this.toggleOpt('printMode')],
@@ -926,7 +926,7 @@ export class App {
     // Ctrl+] / Ctrl+[: to / nhỏ chữ tên trạm lớn khi thu nhỏ
     if ((e.ctrlKey || e.metaKey) && (e.key === ']' || e.key === '[')) {
       e.preventDefault();
-      this.coTenTram(e.key === ']' ? 2 : -2);
+      this.coTenTram(e.key === ']' ? 1 : -1);
       return;
     }
     // Trang bản đồ GIS: phím tắt vẽ không áp dụng (Leaflet tự xử lý phím mũi tên, +/-)
