@@ -28,7 +28,7 @@ execFileSync('npx', ['esbuild', 'src/symbols/blocks.ts', '--bundle', '--format=e
   stdio: 'inherit',
 });
 const { getBlock } = await import(pathToFileURL(bundle).href);
-const { timCho, luoiChiem, timDuong, quyHoachCho, PHAT_RE, PHAT_CAT_NET } = await import(pathToFileURL(resolve('tools/pdf-lo/tim-duong.mjs')).href);
+const { timCho, timChoTotNhat, luoiChiem, timDuong, quyHoachCho, PHAT_RE, PHAT_CAT_NET } = await import(pathToFileURL(resolve('tools/pdf-lo/tim-duong.mjs')).href);
 const { doiDiem } = await import(pathToFileURL(resolve('tools/vi-tri-tram.mjs')).href);
 rmSync(tmp, { recursive: true, force: true });
 
@@ -621,7 +621,8 @@ const TAT = new Set((process.env.TAT ?? '').split(',').filter(Boolean));
  * vị trí bản vẽ bên kia cũng đang tìm. Bản vẽ nằm giữa các trạm nó nối tới; chỗ đặt thật là
  * khoảng trống gần tâm đó nhất (timCho), cáp đi đường ngắn nhất (timDuong).
  */
-function tinhTamTuDong(ds) {
+/** Neo các chỗ nối của mỗi bản vẽ đặt tự động (laTuDong) - xem tinhTamTuDong. */
+function neoCacBanVe(ds, laTuDong = (d) => d.goc === 'tu_dong') {
   const tt = new Map();
   for (const d of ds) {
     const J = docBanVe(d.json);
@@ -638,14 +639,14 @@ function tinhTamTuDong(ds) {
   const lien = ds.flatMap((d) => d.noi_ban_ve ?? []);
   const bai = [];
   for (const d of ds) {
-    if (d.goc !== 'tu_dong') continue;
+    if (!laTuDong(d)) continue;
     const t = tt.get(d.json);
     const noi = [];
     for (const lo of t.J.lo) {
       const n = d.noi?.[lo.ten];
       if (!n) continue;
       const A = Array.isArray(n) ? n[0] : n.tu;
-      noi.push({ o: lech(d.json, lo.chuoi[0]?.pts[0] ?? lo.nguon), A, tru: truCua(A), ra: Array.isArray(n) ? 'xuong' : n.ra ?? 'xuong', w: TS_NGAN });
+      noi.push({ o: lech(d.json, lo.chuoi[0]?.pts[0] ?? lo.nguon), A, tru: truCua(A), ra: Array.isArray(n) ? 'xuong' : n.ra ?? 'xuong', w: TS_NGAN, ngan: true });
     }
     for (const l of lien) {
       for (const [a, b] of [[l.tu, l.den], [l.den, l.tu]]) {
@@ -653,7 +654,7 @@ function tinhTamTuDong(ds) {
         if (typeof b[0] === 'string') {
           const tb = tt.get(b[0]);
           if (!tb) continue;
-          if (tb.d.goc === 'tu_dong') noi.push({ o: lech(d.json, a[1]), ref: b[0], oRef: lech(b[0], b[1]), w: 1 });
+          if (laTuDong(tb.d)) noi.push({ o: lech(d.json, a[1]), ref: b[0], oRef: lech(b[0], b[1]), w: 1 });
           else {
             const [gx, gy] = tb.d.goc_pdf;
             noi.push({ o: lech(d.json, a[1]), A: [tb.d.goc[0] + tb.k * (b[1][0] - gx), tb.d.goc[1] - tb.k * (b[1][1] - gy)], w: 1 });
@@ -663,6 +664,11 @@ function tinhTamTuDong(ds) {
     }
     bai.push({ id: d.json, w: (t.h[2] - t.h[0]) * t.k, h: (t.h[3] - t.h[1]) * t.k, noi });
   }
+  return { tt, bai };
+}
+
+function tinhTamTuDong(ds) {
+  const { tt, bai } = neoCacBanVe(ds);
   const E = process.env;
   const tam = quyHoachCho(s, data, bai, {
     le: LE_BAN_VE, boQua: BO_QUA_CHO,
@@ -678,6 +684,94 @@ function tinhTamTuDong(ds) {
     d.goc = [+(c[0] - ((t.h[2] - t.h[0]) * t.k) / 2).toFixed(1), +(c[1] + ((t.h[3] - t.h[1]) * t.k) / 2).toFixed(1)];
     console.log(`  đặt ${d.json}: tâm [${c.map(Math.round)}] (${((t.h[2] - t.h[0]) * t.k).toFixed(0)} x ${((t.h[3] - t.h[1]) * t.k).toFixed(0)})`);
   }
+}
+
+/**
+ * KÉO BẢN VẼ VỀ GẦN TRẠM (chạy trên vị trí đã giữ từ vi-tri.json).
+ *
+ * Cột đầu nguồn (thiết bị đầu tiên của lộ) phải nằm gần máy cắt đầu nguồn: cáp từ đầu ra ngăn lộ
+ * tới đầu lộ trên bản vẽ càng ngắn càng tốt. Quy hoạch lại cả tờ với trọng số cáp ngăn lộ lớn làm
+ * xáo trộn toàn bộ mà cáp chỉ ngắn đi ít (thiếu chỗ quanh trạm), nên ở đây dời TỪNG bản vẽ, các
+ * bản vẽ khác giữ nguyên (là vật cản): lần lượt từ bản vẽ có cáp ngăn lộ dài nhất, tìm chỗ trống có
+ * chi phí KEO_W x (cáp ngăn lộ) + (dây liên thông) nhỏ nhất; nhận khi cáp ngăn lộ ngắn đi ít nhất
+ * KEO_GIAM (30%) và KEO_NHAN (2) x cáp ngăn lộ + liên thông giảm (ước tính Manhattan): dây liên thông -
+ * đường dây nối hai lộ, thường qua thiết bị thường cắt - được phép dài ra đổi lấy cáp đầu lộ ngắn.
+ * KEO_GAN=0 tắt.
+ */
+function keoGanTram(ds) {
+  const TS = Number(process.env.KEO_W ?? 3);
+  const GIAM = Number(process.env.KEO_GIAM ?? 0.3);
+  const NHAN = Number(process.env.KEO_NHAN ?? 2);
+  const tuDong = new Set(ds.filter((d) => d.tuDong));
+  const { tt, bai } = neoCacBanVe(ds, (d) => tuDong.has(d));
+  // tâm (điểm PDF t.c) và hộp của mọi bản vẽ đã có chỗ, trên tờ tổng
+  const W = (t, p) => [t.d.goc[0] + t.k * (p[0] - t.d.goc_pdf[0]), t.d.goc[1] - t.k * (p[1] - t.d.goc_pdf[1])];
+  const tam = new Map();
+  const hop = new Map();
+  for (const [id, t] of tt) {
+    if (!Array.isArray(t.d.goc)) continue;
+    tam.set(id, W(t, t.c));
+    const [a, b] = [W(t, [t.h[0], t.h[1]]), W(t, [t.h[2], t.h[3]])];
+    hop.set(id, [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]);
+  }
+  // chiều dài nối (cáp ngăn lộ F, liên thông L) khi đặt bản vẽ b tại tâm (cx, cy) - như quyHoachCho
+  const doDai = (b, cx, cy) => {
+    let F = 0, L = 0;
+    for (const n of b.noi) {
+      const px = cx + n.o[0], py = cy + n.o[1];
+      let A = n.A;
+      if (n.ref) {
+        const t = tam.get(n.ref);
+        if (!t) continue;
+        A = [t[0] + n.oRef[0], t[1] + n.oRef[1]];
+      }
+      let d = Math.abs(px - A[0]) + Math.abs(py - A[1]);
+      if (n.tru) {
+        const [ux, uy] = { xuong: [0, -1], len: [0, 1], phai: [1, 0], trai: [-1, 0] }[n.ra ?? 'xuong'];
+        const truoc = (px - A[0]) * ux + (py - A[1]) * uy;
+        if (truoc < 20) {
+          d += 2 * (20 - truoc);
+          if (uy && px > n.tru[0] && px < n.tru[2]) d += 2 * Math.min(px - n.tru[0], n.tru[2] - px);
+          if (ux && py > n.tru[1] && py < n.tru[3]) d += 2 * Math.min(py - n.tru[1], n.tru[3] - py);
+        }
+      }
+      if (n.ngan) F += d;
+      else L += d;
+    }
+    return [F, L];
+  };
+  const mo = (h, e) => [h[0] - e, h[1] - e, h[2] + e, h[3] + e];
+  let soDoi = 0, giamF = 0;
+  for (let vong = 0; vong < 2; vong++) {
+    const thuTu = bai.filter((b) => b.noi.some((n) => n.ngan)).map((b) => ({ b, F: doDai(b, ...tam.get(b.id))[0] })).sort((x, y) => y.F - x.F);
+    for (const { b } of thuTu) {
+      const [F0, L0] = doDai(b, ...tam.get(b.id));
+      if (F0 < 150) continue;
+      const cam = [...hop.entries()].filter(([id]) => id !== b.id).map(([, h]) => mo(h, LE_BAN_VE));
+      // chỉ dò quanh các neo cáp ngăn lộ
+      const neo = b.noi.filter((n) => n.ngan).map((n) => [n.A[0] - n.o[0], n.A[1] - n.o[1]]);
+      if (!neo.length) continue;
+      const xs = neo.map((q) => q[0]), ys = neo.map((q) => q[1]);
+      const R = Math.max(800, F0 / neo.length);
+      const cuaSo = [Math.min(...xs) - R, Math.min(...ys) - R, Math.max(...xs) + R, Math.max(...ys) + R];
+      const c = timChoTotNhat(s, data, b.w, b.h, (cx, cy) => { const [F, L] = doDai(b, cx, cy); return TS * F + L; }, { le: LE_BAN_VE, cam, boQua: BO_QUA_CHO, cuaSo });
+      if (!c) continue;
+      const t = tt.get(b.id);
+      const moi = [c[0] + b.w / 2, c[1] - b.h / 2];
+      const [F1, L1] = doDai(b, ...moi);
+      if (process.env.KEO_IN) console.log(`    thử ${b.id}: F ${F0.toFixed(0)} -> ${F1.toFixed(0)}, L ${L0.toFixed(0)} -> ${L1.toFixed(0)} tại [${moi.map(Math.round)}] (${b.w.toFixed(0)} x ${b.h.toFixed(0)})`);
+      if (!(F1 <= F0 * (1 - GIAM) && NHAN * F1 + L1 < NHAN * F0 + L0)) continue;
+      console.log(`  kéo gần trạm ${b.id}: cáp ngăn lộ ${F0.toFixed(0)} -> ${F1.toFixed(0)}, liên thông ${L0.toFixed(0)} -> ${L1.toFixed(0)}`);
+      tam.set(b.id, moi);
+      hop.set(b.id, [c[0], c[1] - b.h, c[0] + b.w, c[1]]);
+      // góc hộp (trái trên) ứng với điểm PDF [h0, h1]
+      t.d.goc_pdf = [+t.h[0].toFixed(1), +t.h[1].toFixed(1)];
+      t.d.goc = [+c[0].toFixed(1), +c[1].toFixed(1)];
+      soDoi++;
+      giamF += F0 - F1;
+    }
+  }
+  console.log(`  kéo gần trạm: dời ${soDoi} lượt bản vẽ, cáp ngăn lộ ước tính ngắn đi ${giamF.toFixed(0)}`);
 }
 
 /**
@@ -1918,7 +2012,8 @@ if (existsSync(datPdf)) {
   // các bản vẽ cũ vẫn giữ chỗ
   const daCo = (d) => cu[d.json] && (cu[d.json].ti_le ?? 1) === (d.ti_le ?? 1);
   if (canDat.length && canDat.some(daCo) && canDat.every((d) => daCo(d) || d.gan)) {
-    for (const d of canDat.filter(daCo)) { d.goc = cu[d.json].goc; d.goc_pdf = cu[d.json].goc_pdf; }
+    for (const d of canDat.filter(daCo)) { d.goc = cu[d.json].goc; d.goc_pdf = cu[d.json].goc_pdf; d.tuDong = true; }
+    if ((process.env.KEO_GAN ?? '1') !== '0' && !canDat.some((d) => !daCo(d))) keoGanTram(ds);
     const moi = canDat.filter((d) => !daCo(d)).map((d) => d.json);
     console.log(`  giữ chỗ ${canDat.length - moi.length} bản vẽ theo vi-tri.json${moi.length ? `, đặt mới gần 'gan': ${moi.join(', ')}` : ''} (QUY_HOACH=1: quy hoạch lại)`);
   } else tinhTamTuDong(ds);

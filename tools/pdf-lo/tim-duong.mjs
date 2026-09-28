@@ -39,6 +39,53 @@ function moiDoan(s, cb) {
  * `cam`: các hộp [x0,y0,x1,y1] cấm thêm (vd bản vẽ vừa đặt). Trả về góc trái-trên [x, y] (y lớn).
  */
 export function timCho(s, data, w, h, gan, { le = 30, cam = [], vung = null, boQua = new Set() } = {}) {
+  const L = luoiBan(s, data, { cam, vung, boQua });
+  const { X0, Y0, nx, ny, tong } = L;
+  const cw = Math.ceil((w + 2 * le) / O_THO);
+  const ch = Math.ceil((h + 2 * le) / O_THO);
+  let tot = null;
+  let bd = Infinity;
+  for (let j = 0; j + ch <= ny; j++) {
+    for (let i = 0; i + cw <= nx; i++) {
+      const x = X0 + i * O_THO + le;
+      const yTren = Y0 + (j + ch) * O_THO - le;
+      const d = Math.hypot(x + w / 2 - gan[0], yTren - h / 2 - gan[1]);
+      if (d >= bd) continue;
+      if (tong(i, j, i + cw, j + ch) === 0) {
+        bd = d;
+        tot = [x, yTren];
+      }
+    }
+  }
+  return tot;
+}
+
+/**
+ * Chỗ trống (cách mọi hình vẽ, khung trạm và các hộp `cam` ít nhất `le`) cho hộp w x h có CHI PHÍ
+ * nhỏ nhất: chiPhi(tâm x, tâm y). Chỉ dò trong cửa sổ `cuaSo` = [x0, y0, x1, y1] (toạ độ tâm).
+ * Trả về [x trái, y trên, chi phí] hoặc null.
+ */
+export function timChoTotNhat(s, data, w, h, chiPhi, { le = 30, cam = [], boQua = new Set(), cuaSo = null } = {}) {
+  const { X0, Y0, nx, ny, tong } = luoiBan(s, data, { cam, boQua });
+  const cw = Math.ceil((w + 2 * le) / O_THO);
+  const ch = Math.ceil((h + 2 * le) / O_THO);
+  let tot = null;
+  for (let j = 0; j + ch <= ny; j++) {
+    for (let i = 0; i + cw <= nx; i++) {
+      const x = X0 + i * O_THO + le;
+      const yTren = Y0 + (j + ch) * O_THO - le;
+      const cx = x + w / 2, cy = yTren - h / 2;
+      if (cuaSo && (cx < cuaSo[0] || cx > cuaSo[2] || cy < cuaSo[1] || cy > cuaSo[3])) continue;
+      const c = chiPhi(cx, cy);
+      if (tot && c >= tot[2]) continue;
+      if (tong(i, j, i + cw, j + ch) === 0) tot = [x, yTren, c];
+    }
+  }
+  return tot;
+}
+
+/** Lưới chiếm chỗ thô (ô O_THO) của tờ: nét, chữ, thiết bị, khung trạm, hộp `cam`; kèm tổng vùng (ảnh tích phân). */
+function luoiBan(s, data, { cam = [], vung = null, boQua = new Set() } = {}) {
   // boQua: nguồn nét (chỉ số lớp CAD) không tính là chỗ bận, vd đường dây 110kV liên trạm sẽ đi lại sau
   const s0 = s;
   s = { ...s0, b: s0.b.filter((r) => !boQua.has(r[3])), t: s0.t.filter((r) => !boQua.has(r[7])), d: s0.d.filter((r) => !boQua.has(r[8])) };
@@ -86,23 +133,7 @@ export function timCho(s, data, w, h, gan, { le = 30, cam = [], vung = null, boQ
     }
   }
   const tong = (i0, j0, i1, j1) => I[j1 * (nx + 1) + i1] - I[j0 * (nx + 1) + i1] - I[j1 * (nx + 1) + i0] + I[j0 * (nx + 1) + i0];
-  const cw = Math.ceil((w + 2 * le) / O_THO);
-  const ch = Math.ceil((h + 2 * le) / O_THO);
-  let tot = null;
-  let bd = Infinity;
-  for (let j = 0; j + ch <= ny; j++) {
-    for (let i = 0; i + cw <= nx; i++) {
-      const x = X0 + i * O_THO + le;
-      const yTren = Y0 + (j + ch) * O_THO - le;
-      const d = Math.hypot(x + w / 2 - gan[0], yTren - h / 2 - gan[1]);
-      if (d >= bd) continue;
-      if (tong(i, j, i + cw, j + ch) === 0) {
-        bd = d;
-        tot = [x, yTren];
-      }
-    }
-  }
-  return tot;
+  return { X0, Y0, nx, ny, tong };
 }
 
 /**
