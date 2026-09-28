@@ -695,7 +695,8 @@ function tinhTamTuDong(ds) {
  * bản vẽ khác giữ nguyên (là vật cản): lần lượt từ bản vẽ có cáp ngăn lộ dài nhất, tìm chỗ trống có
  * chi phí KEO_W x (cáp ngăn lộ) + (dây liên thông) nhỏ nhất; nhận khi cáp ngăn lộ ngắn đi ít nhất
  * KEO_GIAM (30%) và KEO_NHAN (2) x cáp ngăn lộ + liên thông giảm (ước tính Manhattan): dây liên thông -
- * đường dây nối hai lộ, thường qua thiết bị thường cắt - được phép dài ra đổi lấy cáp đầu lộ ngắn.
+ * đường dây nối hai lộ, thường qua thiết bị thường cắt - được phép dài ra đổi lấy cáp đầu lộ ngắn; không
+ * lộ nào của bản vẽ dài ra quá 50% (và quá 500).
  * KEO_GAN=0 tắt.
  */
 function keoGanTram(ds) {
@@ -715,7 +716,7 @@ function keoGanTram(ds) {
     hop.set(id, [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]);
   }
   // chiều dài nối (cáp ngăn lộ F, liên thông L) khi đặt bản vẽ b tại tâm (cx, cy) - như quyHoachCho
-  const doDai = (b, cx, cy) => {
+  const doDai = (b, cx, cy, tung = null) => {
     let F = 0, L = 0;
     for (const n of b.noi) {
       const px = cx + n.o[0], py = cy + n.o[1];
@@ -735,8 +736,10 @@ function keoGanTram(ds) {
           if (ux && py > n.tru[1] && py < n.tru[3]) d += 2 * Math.min(py - n.tru[1], n.tru[3] - py);
         }
       }
-      if (n.ngan) F += d;
-      else L += d;
+      if (n.ngan) {
+        F += d;
+        tung?.push(d);
+      } else L += d;
     }
     return [F, L];
   };
@@ -758,9 +761,13 @@ function keoGanTram(ds) {
       if (!c) continue;
       const t = tt.get(b.id);
       const moi = [c[0] + b.w / 2, c[1] - b.h / 2];
-      const [F1, L1] = doDai(b, ...moi);
+      const [d0, d1] = [[], []];
+      doDai(b, ...tam.get(b.id), d0);
+      const [F1, L1] = doDai(b, ...moi, d1);
+      // không lộ nào của bản vẽ bị kéo xa trạm của nó (bản vẽ nối hai trạm: gần trạm này, xa trạm kia)
+      const xaHon = d1.some((v, i) => v > Math.max(d0[i] * 1.5, d0[i] + 500));
       if (process.env.KEO_IN) console.log(`    thử ${b.id}: F ${F0.toFixed(0)} -> ${F1.toFixed(0)}, L ${L0.toFixed(0)} -> ${L1.toFixed(0)} tại [${moi.map(Math.round)}] (${b.w.toFixed(0)} x ${b.h.toFixed(0)})`);
-      if (!(F1 <= F0 * (1 - GIAM) && NHAN * F1 + L1 < NHAN * F0 + L0)) continue;
+      if (xaHon || !(F1 <= F0 * (1 - GIAM) && NHAN * F1 + L1 < NHAN * F0 + L0)) continue;
       console.log(`  kéo gần trạm ${b.id}: cáp ngăn lộ ${F0.toFixed(0)} -> ${F1.toFixed(0)}, liên thông ${L0.toFixed(0)} -> ${L1.toFixed(0)}`);
       tam.set(b.id, moi);
       hop.set(b.id, [c[0], c[1] - b.h, c[0] + b.w, c[1]]);

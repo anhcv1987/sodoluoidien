@@ -325,7 +325,9 @@ export default [
       'ĐZ 456 E6.3': { tu: [-3248.78, -3070.71], ra: 'xuong' },
       'ĐZ 475 E6.3': { tu: [-3940.08, -3145.26], ra: 'xuong' },
       'ĐZ 472 E6.3': { tu: [-3550.08, -3145.26], ra: 'xuong' },
-      'ĐZ 475 E6.21': { tu: [-2158.61, -2409.6], ra: 'phai' }, // cuối nét ngăn lộ vẽ trong trạm (qua DCL 475E6.21-7/01A)
+      // bản vẽ trạm vẽ 475 qua DCL 7/01A, TD42, 7/01B, AL 1x300-810m tới DCL 7/02; bản vẽ 13 (mới hơn) đi cáp
+      // thẳng từ ngăn lộ vào tủ RMU 01-475E6.21 - giữ đầu nối tại ngăn lộ, chờ Phòng Điều độ xác nhận
+      'ĐZ 475 E6.21': { tu: [-2201.08, -2342.85], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 456 E6.3': true, 'ĐZ 475 E6.3': true, 'ĐZ 472 E6.3': true, 'ĐZ 475 E6.21': true },
   },
@@ -333,8 +335,11 @@ export default [
     json: '65.json',
     goc: 'tu_dong',
     ti_le: 1.2,
+    // DCL 477E6.21-7/01 đã có trong bản vẽ trạm (đầu nối cáp ngăn lộ đặt sau dao này)
+    bo_tb: ['DCL 477E6.21-7/01'],
     noi: {
-      'ĐZ 477 E6.21': { tu: [-2319.77, -2449.31], ra: 'trai' }, // cuối nét ngăn lộ vẽ trong trạm
+      // cuối nét ngăn lộ vẽ trong trạm (qua cáp AL 1x400-2536m, DCL 477E6.21-7/01)
+      'ĐZ 477 E6.21': { tu: [-2391.51, -2449.31], ra: 'trai' },
     },
     cap_noi: { 'ĐZ 477 E6.21': true },
     chu: [

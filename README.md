@@ -573,6 +573,11 @@ mới gán số hiệu cho các ngăn lộ còn lại theo hàng đó trở ra -
 so le nhau nên không chốt cứng một hàng. Chạy `XEM=1 node tools/noi-duong-day-110.mjs`
 để in ra bảng *số hiệu ngăn lộ → toạ độ đầu dây ra*.
 
+**Sửa tay đầu ngăn lộ** (`SUA_DAU_LO`): trạm 110kV Nà Phặc (E26.3) đặt nhãn nơi đến "174 E26.5
+BẮC KẠN", "171 E16.2 CAO BẰNG" trên nhánh TU 171 / TU 172 nên trước đây đường dây bị bắt vào đầu
+nét ký hiệu dao của nhánh TU. Nay đường dây vào **đỉnh ngăn lộ** 171 / 172, tức đầu trên của nét
+dọc ngăn lộ. Đã soát ảnh các trạm còn lại, không trạm nào mắc lỗi này.
+
 Lưu ý cách đọc nhãn nơi đến: **số trong nhãn là ngăn lộ của ĐẦU KIA**. Nhãn
 `171 E6.8` đặt ở ngăn 177 của E6.2 nghĩa là lộ 177E6.2 đi tới ngăn 171 của E6.8.
 
@@ -1213,6 +1218,45 @@ lại là cung vòng nhảy vẽ sẵn trong PDF), bậc lệch nhỏ 16 -> 9 (c
 
 Thứ tự chạy lại: `node tools/doi-cho-tram.mjs` → `node tools/ve-luoi-trung-ap.mjs` → `node
 tools/noi-duong-day-110.mjs src/data/tram-sld.json` → `node tools/ve-luoi-trung-ap.mjs` → `npx vite build`.
+
+### 7.3b. Điểm đấu xuất tuyến và cột đầu nguồn
+
+**Đấu vào cuối nét xuất tuyến vẽ trong trạm.** Cáp từ trạm tới đầu lộ trên bản vẽ PDF (`noi.tu`
+trong `dat.mjs`) phải bắt đầu ở CUỐI phần xuất tuyến mà sơ đồ trạm đã vẽ. Nếu bắt đầu ngay sau
+máy cắt thì nét trạm còn chạy tiếp song song với cáp, thành hai đường ra. Rà soát toàn bộ 139 lộ
+(nét trạm đi tiếp theo hướng ra của lộ) tìm được 8 lộ đấu sai, đã sửa 7 lộ:
+
+| Lộ | Trước | Nay (cuối nét xuất tuyến trong trạm) |
+|---|---|---|
+| 371 E6.22 | dưới MC 371 (TI371) | sau cáp Cu 3x240, DCL 371E6.22-7/1A, 7/1B, đầu "đi lộ 373 E6.6 trục chính" |
+| 373 E6.22 | dưới MC 373 (TI373) | đầu "đi NR Lam Vỹ" |
+| 371, 372, 373 E6.6 | sát MC | cuối nét ngăn lộ (nhãn Phú Lương / Sang Định Hóa) |
+| 477 E6.21 | dưới TI477 | sau cáp AL 1x400-2536m và DCL 477E6.21-7/01 (bỏ DCL 7/01 lặp trong bản vẽ 65 - `bo_tb`) |
+| 476 E6.3 | thiếu 5 đơn vị | cuối nét ngăn lộ |
+
+Riêng **475 E6.21** giữ đầu nối tại ngăn lộ vì hai nguồn tài liệu vênh nhau, chờ Phòng Điều độ
+xác nhận hiện trạng:
+* bản vẽ trạm vẽ lộ đi qua DCL 475E6.21-7/01A, nhánh TD42, DCL 7/01B, dây AL 1x300 dài 810 m, tới
+  DCL 7/02;
+* bản vẽ lộ số 13 lại vẽ cáp đi thẳng từ ngăn lộ vào tủ RMU 01-475E6.21.
+
+**Cột đầu nguồn gần máy cắt đầu nguồn - kéo bản vẽ về gần trạm** (`keoGanTram`). Khi quy hoạch,
+cáp ngăn lộ và dây liên thông có trọng số như nhau, nên bản vẽ nằm giữa hai trạm. Hệ quả: cột
+đầu tiên của lộ (ví dụ DCL 373E6.22-7/01A) ở xa trạm, cáp từ trạm tới đó dài 1.000-1.500 đơn vị.
+
+* Quy hoạch lại cả tờ với trọng số cáp ngăn lộ 3 / 6 đã thử: cáp ngăn lộ chỉ ngắn đi khoảng 20%,
+  tổng tuyến dài thêm 8-12%, vị trí mọi bản vẽ xáo trộn. Nguyên nhân là quanh trạm không đủ chỗ
+  cho mọi bản vẽ, nên không dùng cách này.
+* Cách đang dùng: giữ vị trí đã chốt (`vi-tri.json`), dời TỪNG bản vẽ, các bản vẽ khác là vật
+  cản. Duyệt từ bản vẽ có cáp ngăn lộ dài nhất, tìm chỗ trống (`timChoTotNhat`, cách hình vẽ và
+  khung trạm 100, cách bản vẽ khác 200) có chi phí 3 x cáp ngăn lộ + dây liên thông nhỏ nhất.
+* Chỉ nhận chỗ mới khi đủ ba điều kiện:
+  - cáp ngăn lộ ngắn đi ít nhất 30%;
+  - 2 x cáp + liên thông giảm (dây liên thông được phép dài ra, đổi lấy cột đầu nguồn gần trạm);
+  - không lộ nào của bản vẽ bị kéo xa trạm của nó quá 50%.
+* Biến môi trường: `KEO_GAN=0` tắt, `KEO_W`, `KEO_GIAM`, `KEO_NHAN` chỉnh tham số.
+* Bản vẽ nối hai trạm ở hai đầu tờ (10, 05, 33 có lộ của E6.17; 01 có lộ của E6.2 và E6.5) không
+  thể gần cả hai trạm. Muốn gần thì phải tách thành hai bản vẽ như 06b (việc còn lại).
 
 ### 7.4. Các cụm tiếp theo (E6.2 / E6.5 / TCCN, E6.3, E6.21, E6.7, E6.24, TCVB, E6.8, E6.17, E6.6, E6.19, E6.22)
 
