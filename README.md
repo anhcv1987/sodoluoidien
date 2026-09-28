@@ -1372,6 +1372,17 @@ mở lại. Vẫn nên lưu ra file `.sld` để giữ lâu dài và chia sẻ.
 > mọi phần mềm CAD đều mở được). Vì vậy **không nên** xuất DXF rồi nhập lại làm
 > quy trình làm việc chính — hãy dùng file `.sld`.
 
+> **Chữ tiếng Việt trong file DXF.** File DXF R12 được AutoCAD đọc theo bảng mã ANSI,
+> không theo UTF-8. Trước đây chữ ghi thẳng dạng UTF-8 nên bị lỗi font khi mở trong CAD,
+> ví dụ "TRẠM" hiện thành "TRáº M", "Dao cách ly" thành "Dao cÃ¡ch ly". Cách xuất hiện nay:
+> * mọi ký tự có dấu, trong nội dung chữ và trong tên lớp, ghi dạng `\U+XXXX` (Ạ → `\U+1EA0`),
+>   giống cách AutoCAD tự ghi ký tự ngoài bảng mã;
+> * kiểu chữ STANDARD dùng font TrueType `arial.ttf`, có đủ dấu tiếng Việt;
+> * các mã nhóm số nguyên (cờ, màu, căn lề) ghi đúng dạng số nguyên.
+>
+> Nếu máy không có Arial thì trong CAD đổi font của kiểu chữ STANDARD (lệnh `STYLE`) sang một
+> font Unicode khác, ví dụ Times New Roman hoặc Tahoma.
+
 ---
 
 ## 10. Cấu trúc mã nguồn

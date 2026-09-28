@@ -30,7 +30,9 @@ class DxfWriter {
 
   g(code: number, value: string | number): void {
     this.out.push(String(code));
-    this.out.push(typeof value === 'number' ? fmt(value) : value);
+    // mã nhóm số nguyên (cờ 70-79, màu 62, 60-99, 170-179, 270-289...) ghi số nguyên - chuẩn DXF
+    const nguyen = (code >= 60 && code <= 99) || (code >= 170 && code <= 179) || (code >= 270 && code <= 289) || (code >= 1060 && code <= 1071);
+    this.out.push(typeof value === 'number' ? (nguyen ? String(Math.round(value)) : fmt(value)) : value);
   }
 
   text(): string {
@@ -43,9 +45,26 @@ function fmt(v: number): string {
   return (Math.round(v * 1e6) / 1e6).toFixed(6);
 }
 
+/**
+ * CHỮ TIẾNG VIỆT TRONG DXF. File DXF R12 được CAD đọc theo bảng mã ANSI ($DWGCODEPAGE) chứ không
+ * phải UTF-8 - ghi thẳng UTF-8 thì "TRẠM" hiện thành "TRáº M". Mọi ký tự ngoài ASCII ghi dạng
+ * \U+XXXX (cách AutoCAD tự ghi ký tự ngoài bảng mã), đọc đúng với mọi bảng mã, mọi phần mềm CAD.
+ */
+export function maUnicode(s: string): string {
+  let out = '';
+  // dựng sẵn (NFC): chữ có dấu tổ hợp (A + dấu nặng rời) font CAD vẽ lệch dấu
+  for (const ch of s.normalize('NFC')) {
+    const c = ch.codePointAt(0) ?? 63;
+    if (c >= 32 && c < 127) out += ch;
+    else if (c > 0xffff || c < 32) out += c < 32 ? ' ' : '?';
+    else out += `\\U+${c.toString(16).toUpperCase().padStart(4, '0')}`;
+  }
+  return out;
+}
+
 /** DXF R12 khong chap nhan mot so ky tu trong ten lop. */
 function safeLayer(name: string): string {
-  return (name || '0').replace(/[<>/\\":;?*|=`,]/g, '_').slice(0, 31) || '0';
+  return maUnicode((name || '0').replace(/[<>/\\":;?*|=`,]/g, '_').slice(0, 31) || '0');
 }
 
 export function exportDxf(store: DocStore): string {
@@ -60,6 +79,8 @@ export function exportDxf(store: DocStore): string {
   w.g(1, 'AC1009');
   w.g(9, '$INSUNITS');
   w.g(70, 0);
+  w.g(9, '$DWGCODEPAGE');
+  w.g(3, 'ANSI_1252');
   w.g(0, 'ENDSEC');
 
   /* ------------------------------ TABLES ------------------------------ */
@@ -79,6 +100,21 @@ export function exportDxf(store: DocStore): string {
     w.g(62, color);
     w.g(6, 'CONTINUOUS');
   }
+  w.g(0, 'ENDTAB');
+  // Kiểu chữ STANDARD dùng font TrueType Arial (đủ dấu tiếng Việt); font mặc định txt.shx không có
+  w.g(0, 'TABLE');
+  w.g(2, 'STYLE');
+  w.g(70, 1);
+  w.g(0, 'STYLE');
+  w.g(2, 'STANDARD');
+  w.g(70, 0);
+  w.g(40, 0);
+  w.g(41, 1);
+  w.g(50, 0);
+  w.g(71, 0);
+  w.g(42, 2.5);
+  w.g(3, 'arial.ttf');
+  w.g(4, '');
   w.g(0, 'ENDTAB');
   w.g(0, 'ENDSEC');
 
@@ -190,7 +226,7 @@ export function exportDxf(store: DocStore): string {
           w.g(20, op.p.y);
           w.g(30, 0);
           w.g(40, op.h);
-          w.g(1, op.s);
+          w.g(1, maUnicode(op.s));
           w.g(50, op.rot);
           w.g(72, op.align === 'center' ? 1 : op.align === 'right' ? 2 : 0);
           if (op.align !== 'left') {
@@ -238,7 +274,7 @@ function writeText(
   w.g(20, y);
   w.g(30, 0);
   w.g(40, h);
-  w.g(1, s);
+  w.g(1, maUnicode(s));
   w.g(72, align);
   w.g(11, x);
   w.g(21, y);

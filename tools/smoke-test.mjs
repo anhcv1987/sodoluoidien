@@ -917,6 +917,11 @@ check('Dao cách ly cắt: đường dây hở ở khe dao (file DXF)', khe.vat 
 
 const dxf = await page.evaluate(() => window.sodo.exportDxfText());
 check('Xuất DXF có nội dung', dxf.includes('ENTITIES') && dxf.includes('EOF'), `${dxf.length} ký tự`);
+// chữ tiếng Việt ghi dạng \U+XXXX (CAD đọc DXF R12 theo bảng mã ANSI, ghi UTF-8 thẳng sẽ lỗi font)
+{
+  const ngoai = [...dxf].filter((c) => c.charCodeAt(0) > 126).length;
+  check('DXF chỉ có ký tự ASCII, chữ Việt mã \\U+XXXX, font Arial', ngoai === 0 && /\\U\+1EA0/.test(dxf) && dxf.includes('arial.ttf'), `${ngoai} ký tự ngoài ASCII`);
+}
 writeFileSync('/tmp/roundtrip.dxf', dxf);
 const stats = await page.evaluate((t) => window.sodo.importDxfText(t), dxf);
 check('Nhập lại chính file DXF vừa xuất', stats.tuyen > 0, `${stats.tuyen} tuyến, ${stats.chu} chữ`);
