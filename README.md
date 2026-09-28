@@ -133,8 +133,21 @@ báo số thiết bị, số đoạn dây và tên các thiết bị cắt ở b
 * Tính trên cùng mô hình với **Chạy công suất**, nên đi đúng qua các cung vượt dây
   (hop, chỗ trung áp vượt đường dây 110kV), khung RMU và các điểm đấu vẽ trên sơ đồ;
   trước đây vùng sáng bị dừng ở cung vượt dây.
-* Mặc định không đi qua máy biến áp. **Shift+M** bật / tắt đi xuyên MBA (xem từ phía
-  110kV sang thanh cái trung áp và các xuất tuyến phía sau).
+* **Dừng ở đầu máy cắt trong trạm**: vùng sáng không lan sang thanh cái. Nó dừng ở
+  đầu cực các máy cắt đang đóng trong trạm, gồm máy cắt 110kV và máy cắt lộ / tổng
+  trung áp (block MC, MCHB). Các máy cắt này có **ô vuông trắng nét đứt**. REC trên
+  đường dây trung áp vẫn được đi qua như thiết bị đóng cắt thường.
+  * Click DCL hoặc đoạn dây trên xuất tuyến 474 E6.4: sáng cả xuất tuyến, dừng ở
+    các LBS / DCL đang cắt và ở đầu MC 474.
+  * **Click đúng một máy cắt** (đóng hay cắt): chỉ tô **phía đường dây / xuất
+    tuyến**. Phía thanh cái được nhận ra vì có nét thanh cái hoặc chạm tới nhiều máy
+    cắt khác hơn. Ví dụ MC 171 E6.4 chỉ sáng đường dây 171 sang tới MC 175 E6.20. Máy
+    cắt liên lạc (112, 412) hai phía như nhau nên sáng cả hai phân đoạn thanh cái,
+    tới đầu các máy cắt ngăn lộ.
+  * Click thanh cái: sáng thanh cái tới đầu các máy cắt đấu vào nó.
+* Mặc định không đi qua máy biến áp. **Shift+M** bật / tắt xem **cả chuỗi**: đi qua
+  máy cắt, thanh cái và máy biến áp (từ 110kV xuống thanh cái trung áp và các xuất
+  tuyến phía sau).
 * Đổi trạng thái thiết bị (tài khoản Biên tập) thì vùng sáng tự tính lại. Click ra chỗ
   trống hoặc chọn nhiều đối tượng thì tắt.
 * Lần click đầu trên tờ sơ đồ tổng mất vài giây để dựng mô hình. Các lần sau dùng lại
@@ -809,8 +822,8 @@ Dùng trong phần mềm:
 | Lệnh | Tác dụng |
 |---|---|
 | **F4** | Hiện / ẩn điểm đấu nối của mọi thiết bị |
-| **Click** một thiết bị / đoạn dây | Tô sáng vùng nối thông với nó, dừng ở thiết bị đang cắt (vòng cam) |
-| **Shift+M** | Bật / tắt đi xuyên máy biến áp (xem cả phía sau MBA) |
+| **Click** một thiết bị / đoạn dây | Tô sáng vùng nối thông với nó, dừng ở thiết bị đang cắt (vòng cam) và đầu máy cắt trong trạm (ô vuông trắng) |
+| **Shift+M** | Bật / tắt xem cả chuỗi qua thanh cái và máy biến áp |
 | **Dữ liệu → Tô sáng cả chuỗi 110kV - MBA - trung áp** | Như Shift+M |
 | **Dữ liệu → Kiểm tra liên kết điện…** | Bảng thống kê + chọn nhanh thiết bị chưa đấu vào lưới |
 

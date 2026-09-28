@@ -109,11 +109,15 @@ export class Renderer {
 
   /**
    * Vùng nối thông đang tô sáng (click thiết bị): các đoạn dây x1,y1,x2,y2 kèm cấp điện áp, và thiết
-   * bị đang cắt ở biên vùng (công suất dừng tại đó). Do giao diện tính (vungNoiThong) rồi gán vào.
+   * bị đang cắt ở biên vùng (công suất dừng tại đó), máy cắt trong trạm mà vùng dừng ở đầu cực. Do
+   * giao diện tính (vungNoiThong) rồi gán vào.
    */
-  toSang: { doan: number[]; kv: VoltageKv[]; catBien: { p: Pt }[] } | null = null;
+  toSang: { doan: number[]; kv: VoltageKv[]; catBien: { p: Pt }[]; mcBien?: { p: Pt }[] } | null = null;
 
-  /** Vẽ vùng nối thông: quầng sáng theo màu cấp điện áp + lõi sáng; thiết bị cắt ở biên: vòng cam. */
+  /**
+   * Vẽ vùng nối thông: quầng sáng theo màu cấp điện áp + lõi sáng; thiết bị cắt ở biên: vòng cam;
+   * máy cắt trong trạm (đang đóng) nơi vùng dừng: ô vuông trắng nét đứt.
+   */
   private drawToSang(ctx: CanvasRenderingContext2D): void {
     const t = this.toSang;
     if (!t) return;
@@ -163,6 +167,15 @@ export class Renderer {
       ctx.beginPath();
       ctx.arc(s.x, s.y, Math.max(7, 9 * Math.min(1.5, sc / 0.5)), 0, Math.PI * 2);
       ctx.stroke();
+    }
+    ctx.strokeStyle = inAn ? '#334155' : '#e2e8f0';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    for (const c of t.mcBien ?? []) {
+      if (c.p.x < view.minX || c.p.x > view.maxX || c.p.y < view.minY || c.p.y > view.maxY) continue;
+      const s = this.vp.toScreen(c.p);
+      const h = Math.max(7, 9 * Math.min(1.5, sc / 0.5));
+      ctx.strokeRect(s.x - h, s.y - h, h * 2, h * 2);
     }
     ctx.restore();
   }

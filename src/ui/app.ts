@@ -279,7 +279,7 @@ export class App {
         ['—', () => undefined],
         ['Hiện điểm đấu nối của thiết bị (F4)', () => this.batDiemNoi()],
         ['Tô sáng vùng nối thông của đối tượng đang chọn (click thiết bị)', () => this.toSangMach(false)],
-        ['Tô sáng cả chuỗi 110kV - MBA - trung áp', () => this.toSangMach(true)],
+        ['Tô sáng cả chuỗi 110kV - thanh cái - MBA - trung áp', () => this.toSangMach(true)],
         ['Kiểm tra liên kết điện…', () => this.kiemTraLienKet()],
         ['Trạng thái thiết bị (đang cắt / tiếp địa đóng)…', () => this.bangTrangThai()],
         ['—', () => undefined],
@@ -941,7 +941,7 @@ export class App {
     this.ed.renderer.diemNoi = ds;
   }
 
-  /** Tô sáng mạch của đối tượng đang chọn (Shift+M; quaMBA: đi xuyên máy biến áp sang cấp khác). */
+  /** Tô sáng mạch của đối tượng đang chọn (Shift+M; quaMBA: cả chuỗi qua máy cắt, thanh cái, máy biến áp). */
   private toSangMach(quaMBA: boolean): void {
     if (!this.ed.selectedEntities()[0]) {
       this.setMsg('Hãy chọn một thiết bị hoặc đoạn dây trước.');
@@ -985,17 +985,20 @@ export class App {
       this.setMsg('Đối tượng này chưa đấu vào dây dẫn nào.');
       return;
     }
-    const ten = v.catBien
-      .map((c) => {
-        const e = this.store.get(c.id);
-        return e && e.kind === 'device' ? this.nhanCuaThietBi(e) || (getBlock(e.block)?.name ?? e.block) : '';
-      })
-      .filter(Boolean);
-    const ds = ten.length > 6 ? `${ten.slice(0, 6).join(', ')}…` : ten.join(', ');
+    const tenDs = (ds: { id: string }[], toiDa: number): string => {
+      const ten = ds
+        .map((c) => {
+          const e = this.store.get(c.id);
+          return e && e.kind === 'device' ? this.nhanCuaThietBi(e) || (getBlock(e.block)?.name ?? e.block) : '';
+        })
+        .filter(Boolean);
+      return ten.length > toiDa ? `${ten.slice(0, toiDa).join(', ')}…` : ten.join(', ');
+    };
     this.setMsg(
-      `Vùng nối thông${this.toSangQuaMBA ? ' (xuyên máy biến áp)' : ''}: ${v.thietBi.length} thiết bị, ${v.doan.length / 4} đoạn dây` +
-        (v.catBien.length ? ` - dừng ở ${v.catBien.length} thiết bị đang cắt (vòng cam): ${ds}` : ' - không gặp thiết bị đang cắt') +
-        ` (${(performance.now() - t0).toFixed(0)} ms). Shift+M: xem cả phía sau máy biến áp.`,
+      `Vùng nối thông${this.toSangQuaMBA ? ' (cả chuỗi: qua máy cắt, thanh cái, máy biến áp)' : ''}: ${v.thietBi.length} thiết bị, ${v.doan.length / 4} đoạn dây` +
+        (v.catBien.length ? ` - dừng ở ${v.catBien.length} thiết bị đang cắt (vòng cam): ${tenDs(v.catBien, 6)}` : ' - không gặp thiết bị đang cắt') +
+        (v.mcBien.length ? `; tới đầu ${v.mcBien.length} máy cắt trong trạm (ô vuông trắng): ${tenDs(v.mcBien, 4)}` : '') +
+        ` (${(performance.now() - t0).toFixed(0)} ms). Shift+M: ${this.toSangQuaMBA ? 'trở về dừng ở máy cắt trong trạm' : 'xem cả chuỗi qua thanh cái và máy biến áp'}.`,
     );
   }
 
@@ -1919,7 +1922,7 @@ export class App {
       <ul>
         <li><b>S / L / B / D / T / G / M</b>: Chọn · Đường dây · Thanh cái · Thiết bị · Trạm · Ghi chú · Đo</li>
         <li><b>F3</b> bắt điểm · <b>F4</b> hiện điểm đấu nối · <b>F6</b> công suất chạy trên đường dây · <b>F11</b> trình chiếu (Esc thoát) · <b>F7</b> hiện lưới · <b>F8</b> ORTHO · <b>F9</b> bắt lưới</li>
-         <li><b>Click thiết bị / đoạn dây</b>: tô sáng vùng nối thông qua các thiết bị đang đóng, dừng ở thiết bị đang cắt (vòng cam) - xem đang cấp điện tới đâu; <b>Shift+M</b> bật / tắt đi xuyên máy biến áp</li>
+         <li><b>Click thiết bị / đoạn dây</b>: tô sáng vùng nối thông qua các thiết bị đang đóng, dừng ở thiết bị đang cắt (vòng cam) và ở đầu máy cắt trong trạm (ô vuông trắng, không lan sang thanh cái) - xem đang cấp điện tới đâu; <b>Shift+M</b> bật / tắt xem cả chuỗi qua thanh cái và máy biến áp</li>
         <li><b>R</b>: xoay 90° khi đang đặt thiết bị</li>
         <li><b>Enter</b> kết thúc tuyến · <b>Esc</b> huỷ lệnh · <b>Delete</b> xoá</li>
         <li><b>Ctrl+Z / Ctrl+Y</b> hoàn tác / làm lại · <b>Ctrl+A</b> chọn tất cả · <b>Ctrl+S</b> lưu</li>

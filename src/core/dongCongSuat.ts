@@ -67,6 +67,10 @@ export interface DoThiDien {
   cucTB: Map<Id, number[]>;
   /** Thiết bị đang cắt: id, hai đỉnh cực, vị trí. */
   catTB: { id: Id; u: number; v: number; p: Pt }[];
+  /** Máy cắt trong trạm (MC, MCHB): id, vị trí, đang đóng hay không - cực lấy trong cucTB. */
+  mayCat: { id: Id; p: Pt; dong: boolean }[];
+  /** Cạnh vẽ thuộc thanh cái. */
+  veThanhCai: boolean[];
 }
 
 /** Thiết bị đấu rẽ không mang tải - nhánh cụt tới đó không có công suất. */
@@ -74,6 +78,8 @@ export interface DoThiDien {
 const MANG_TAI = new Set(['MBAPP', 'TD']);
 /** Máy cắt: nhánh có máy cắt là ngăn lộ / xuất tuyến, không phải nhánh cụt. */
 const MAY_CAT = new Set(['MC', 'MCHB', 'REC']);
+/** Máy cắt đặt trong trạm (REC là máy cắt trên đường dây trung áp, không tính). */
+const MAY_CAT_TRAM = new Set(['MC', 'MCHB']);
 const KHONG_TAI = new Set(['DTD', 'CSV', 'TU', 'TUC', 'TU3P', 'TUBU', 'COT', 'BDD', 'KHANG']);
 
 /** Bán kính vòng tròn cuộn dây của block MBA (theo hệ số phóng của block). */
@@ -458,6 +464,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   };
   const cucTB = new Map<Id, number[]>();
   const catTB: { id: Id; u: number; v: number; p: Pt }[] = [];
+  const mayCat: { id: Id; p: Pt; dong: boolean }[] = [];
 
   /** Bắt một điểm vào đoạn dây gần nhất trong bán kính r -> [đỉnh, đoạn] hoặc null. */
   /**
@@ -806,6 +813,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     }
     const dangCat = !!def?.switching && d.state === 'mo';
     if (!dangCat && MAY_CAT.has(d.block)) for (const v of dinhCuc) cucMayCat.add(v);
+    if (MAY_CAT_TRAM.has(d.block)) mayCat.push({ id: d.id, p: { x: d.p.x, y: d.p.y }, dong: !dangCat });
     if (!dangCat) {
       for (let i = 1; i < dinhCuc.length; i++) noi(dinhCuc[0], dinhCuc[i]);
       continue;
@@ -1216,7 +1224,24 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     diemDung,
     soNguon: nguon.size,
     soDoan: khuc.length,
-    doThi: { vx, vy, veU, veV, veKv, veNhanh, noiU, noiV, noiMBA, cucTB, catTB },
+    doThi: {
+      vx,
+      vy,
+      veU,
+      veV,
+      veKv,
+      veNhanh,
+      noiU,
+      noiV,
+      noiMBA,
+      cucTB,
+      catTB,
+      mayCat,
+      veThanhCai: (() => {
+        const tc = tuyen.map((_, i) => laThanhCai(i));
+        return veTuyen.map((i) => tc[i]);
+      })(),
+    },
   };
 }
 
@@ -1230,13 +1255,19 @@ export interface VungNoiThong {
   thietBi: Id[];
   /** Thiết bị đang cắt ở biên vùng (công suất dừng ở đây). */
   catBien: { id: Id; p: Pt }[];
+  /** Máy cắt trong trạm (đang đóng) mà vùng tô sáng dừng lại ở đầu cực. */
+  mcBien: { id: Id; p: Pt }[];
 }
 
 /**
  * VÙNG NỐI THÔNG: từ thiết bị (hoặc đoạn dây) đi theo dây dẫn và qua các thiết bị ĐANG ĐÓNG cho tới
  * thiết bị ĐANG CẮT - trả lời "đang cấp điện tới đâu". Dùng đúng đồ thị của mô hình chiều công suất
- * (qua chỗ nhảy dây, khung tủ RMU, thiết bị cắt nằm giữa nét dây liền...). `quaMBA` = false thì dừng ở
- * máy biến áp (chỉ một cấp điện áp).
+ * (qua chỗ nhảy dây, khung tủ RMU, thiết bị cắt nằm giữa nét dây liền...).
+ *
+ * Mặc định (`quaMBA` = false) vùng dừng ở ĐẦU CỰC các máy cắt trong trạm (MC, MCHB - máy cắt 110kV,
+ * máy cắt lộ trung áp) và ở máy biến áp: xem một đường dây / xuất tuyến tới đâu mà không lan sang
+ * thanh cái và các ngăn lộ khác. Click đúng một máy cắt thì chỉ tô phía KHÔNG có thanh cái (phía
+ * đường dây / xuất tuyến). `quaMBA` = true: đi xuyên cả máy cắt, thanh cái, máy biến áp (cả chuỗi).
  */
 export function vungNoiThong(d: DongCongSuat, goc: Id, quaMBA = false): VungNoiThong | null {
   const g = d.doThi;
@@ -1251,30 +1282,70 @@ export function vungNoiThong(d: DongCongSuat, goc: Id, quaMBA = false): VungNoiT
     ke[u].push(-(i + 1));
     ke[g.noiV[i]].push(-(i + 1));
   });
-  const bat: number[] = [...(g.cucTB.get(goc) ?? [])];
-  if (!bat.length) g.veNhanh.forEach((id, i) => { if (id === goc) bat.push(g.veU[i], g.veV[i]); });
-  if (!bat.length) return null;
-  const tham = new Uint8Array(n);
-  const canhVe = new Uint8Array(g.veU.length);
-  const st: number[] = [];
-  for (const v of bat) if (!tham[v]) { tham[v] = 1; st.push(v); }
-  while (st.length) {
-    const u = st.pop() as number;
-    for (const c of ke[u]) {
-      let v: number;
-      if (c >= 0) {
-        canhVe[c] = 1;
-        v = g.veU[c] === u ? g.veV[c] : g.veU[c];
-      } else {
-        const k = -c - 1;
-        v = g.noiU[k] === u ? g.noiV[k] : g.noiU[k];
-      }
-      if (!tham[v]) {
-        tham[v] = 1;
-        st.push(v);
+  // Đỉnh dừng: cực các máy cắt trong trạm (trừ chính máy cắt được click)
+  const dung = new Uint8Array(n);
+  if (!quaMBA) for (const m of g.mayCat) if (m.id !== goc && m.dong) for (const v of g.cucTB.get(m.id) ?? []) dung[v] = 1;
+
+  const chay = (bat: number[], chan: number[] = []): { tham: Uint8Array; canhVe: Uint8Array; diem: number } => {
+    const tham = new Uint8Array(n);
+    const canhVe = new Uint8Array(g.veU.length);
+    const st: number[] = [];
+    for (const v of chan) tham[v] = 1;
+    for (const v of bat) if (!tham[v]) { tham[v] = 1; st.push(v); }
+    const dau = new Set(bat);
+    let coThanhCai = false;
+    while (st.length) {
+      const u = st.pop() as number;
+      if (dung[u] && !dau.has(u)) continue; // tới đầu cực máy cắt trong trạm: dừng
+      for (const c of ke[u]) {
+        let v: number;
+        if (c >= 0) {
+          canhVe[c] = 1;
+          if (g.veThanhCai[c]) coThanhCai = true;
+          v = g.veU[c] === u ? g.veV[c] : g.veU[c];
+        } else {
+          const k = -c - 1;
+          v = g.noiU[k] === u ? g.noiV[k] : g.noiU[k];
+        }
+        if (!tham[v]) {
+          tham[v] = 1;
+          st.push(v);
+        }
       }
     }
+    for (const v of chan) tham[v] = 0;
+    // "độ thanh cái" của phía này: có đoạn thanh cái, số máy cắt khác chạm tới
+    let soMC = 0;
+    for (const m of g.mayCat) if (m.id !== goc && (g.cucTB.get(m.id) ?? []).some((v) => tham[v])) soMC++;
+    return { tham, canhVe, diem: (coThanhCai ? 1000 : 0) + soMC };
+  };
+
+  const cucGoc = g.cucTB.get(goc) ?? [];
+  let kq: { tham: Uint8Array; canhVe: Uint8Array };
+  const laMayCatGoc = !quaMBA && cucGoc.length >= 2 && g.mayCat.some((m) => m.id === goc);
+  if (laMayCatGoc) {
+    // Máy cắt được click (đóng hay cắt): đi riêng từng phía, bỏ phía thanh cái - phía có đoạn
+    // thanh cái hoặc chạm tới nhiều máy cắt khác hơn (thanh cái 22kV trong bản CAD nhiều chỗ vẽ
+    // bằng nét dây thường). Hai phía như nhau (máy cắt liên lạc) thì tô cả hai.
+    const phia = cucGoc.map((v) => chay([v], cucGoc.filter((x) => x !== v)));
+    const it = Math.min(...phia.map((p) => p.diem));
+    const chon = phia.filter((p) => p.diem === it);
+    const dung2 = chon.length < phia.length ? chon : phia;
+    const tham = new Uint8Array(n);
+    const canhVe = new Uint8Array(g.veU.length);
+    for (const p of dung2) {
+      p.tham.forEach((x, i) => { if (x) tham[i] = 1; });
+      p.canhVe.forEach((x, i) => { if (x) canhVe[i] = 1; });
+    }
+    for (const v of cucGoc) tham[v] = 1;
+    kq = { tham, canhVe };
+  } else {
+    const bat: number[] = [...cucGoc];
+    if (!bat.length) g.veNhanh.forEach((id, i) => { if (id === goc) bat.push(g.veU[i], g.veV[i]); });
+    if (!bat.length) return null;
+    kq = chay(bat);
   }
+  const { tham, canhVe } = kq;
   const doan: number[] = [];
   const kv: VoltageKv[] = [];
   canhVe.forEach((x, i) => {
@@ -1285,5 +1356,8 @@ export function vungNoiThong(d: DongCongSuat, goc: Id, quaMBA = false): VungNoiT
   const thietBi: Id[] = [];
   for (const [id, ds] of g.cucTB) if (ds.some((v) => tham[v])) thietBi.push(id);
   const catBien = g.catTB.filter((c) => tham[c.u] || tham[c.v]).map((c) => ({ id: c.id, p: c.p }));
-  return { doan, kv, thietBi, catBien };
+  const mcBien = quaMBA
+    ? []
+    : g.mayCat.filter((m) => m.id !== goc && m.dong && (g.cucTB.get(m.id) ?? []).some((v) => tham[v])).map((m) => ({ id: m.id, p: m.p }));
+  return { doan, kv, thietBi, catBien, mcBien };
 }
