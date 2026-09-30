@@ -547,3 +547,38 @@ body {
 .trinh-chieu .side,
 .trinh-chieu .status,
 .trinh-chieu .tabs { display: none; }
+
+/* ---------- Phiếu chỉnh định rơ le & tìm kiếm thiết bị ---------- */
+.cd-tip {
+  position: fixed; z-index: 1200; display: none; pointer-events: none;
+  max-width: 380px; padding: 7px 10px; border-radius: var(--radius);
+  background: rgba(16, 21, 29, 0.96); border: 1px solid var(--line);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); font-size: 12px; line-height: 1.45;
+}
+.cd-tip.hien { display: block; }
+.cd-tip-dau { font-weight: 600; color: var(--accent); margin-bottom: 3px; }
+.cd-tip-chu { color: var(--fg-dim); margin-top: 3px; font-size: 11.5px; }
+.cd-phan { margin: 4px 0 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+.cd-phieu { font-size: 12px; }
+.cd-dong { margin-bottom: 2px; }
+.cd-nhom { margin: 8px 0 3px; font-weight: 600; color: var(--yellow); }
+.cd-bang { margin: 4px 0 6px; font-size: 11.5px; }
+.cd-bang th, .cd-bang td { padding: 3px 5px; }
+.cd-bang tbody tr:hover { cursor: default; }
+.cd-luu-y { margin: 5px 0; padding: 4px 6px; border-left: 3px solid var(--yellow); background: rgba(255, 212, 0, 0.08); font-size: 11.5px; }
+.cd-link { display: inline-block; margin-top: 4px; color: var(--accent); font-size: 11.5px; word-break: break-all; }
+.cd-khac { margin-top: 8px; }
+.cd-khac summary, .cd-khac-1 summary { cursor: pointer; color: var(--fg-dim); padding: 2px 0; }
+.cd-khac-1 { margin: 4px 0 4px 10px; }
+.cd-nut { margin-top: 8px; }
+.cd-hop { max-width: 860px; max-height: 70vh; overflow: auto; }
+.cd-hop hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
+.cd-tim-wrap { position: relative; margin-left: 14px; }
+.cd-tim { width: 300px; }
+.dropdown-list.cd-kq { left: 0; right: auto; width: 440px; max-height: 60vh; overflow-y: auto; z-index: 1100; }
+.cd-kq-dong { display: flex; gap: 8px; align-items: baseline; width: 100%; }
+.cd-kq-loai { font-size: 10.5px; padding: 0 5px; border-radius: 3px; background: var(--bg-3); color: var(--fg-dim); }
+.cd-kq-nhan { font-weight: 600; white-space: nowrap; }
+.cd-kq-phu { color: var(--fg-dim); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-kq-trong { padding: 6px 10px; color: var(--fg-dim); }
+.dropdown-item.cd-kq-dong.dang-chon { background: #2b3544; }

@@ -229,6 +229,44 @@ Danh sách ghi trong `tools/phuong-thuc-van-hanh.mjs` (tìm theo nhãn ngăn l�
 `node tools/phuong-thuc-van-hanh.mjs` khi phương thức thay đổi. Công cụ cũng đổi tên
 **Trạm 110kV Đán → Trạm 110kV Thịnh Đán** trên tờ sơ đồ.
 
+### Phiếu chỉnh định rơ le của máy cắt / Recloser
+
+Thông số trang 1 của **731 phiếu** trong thư mục Drive `Role\Phieu chinh dinh role`
+(không lấy `Phieu het hieu luc`, `Phieu cu`) được nạp sẵn vào phần mềm
+(`src/data/chinhDinh.json`, ~430 KB). Để phần mềm không chậm đi, sơ đồ **không vẽ**
+thông số lên bản vẽ; dữ liệu chỉ được đọc khi cần:
+
+- **Rê chuột** lên máy cắt / Recloser: khung tóm tắt (rơ le, TI, các cấp bảo vệ chính,
+  số phiếu). Phiếu **2 nhóm thông số** hiện cả hai nhóm kèm **hướng nhận điện** của
+  từng nhóm (ví dụ “Group 1 - khi nhận điện 478E6.4 / Group 2 - khi nhận điện 475E6.5”,
+  lấy từ mục “Yêu cầu của TTĐKX / phòng Điều độ” của phiếu). Phiếu nào không ghi hướng
+  thì ghi chú “Phiếu không ghi hướng nhận điện từng nhóm”.
+- **Bấm chọn** thiết bị: bảng thuộc tính hiện đủ phiếu (mục đích, bảng từng nhóm,
+  TĐL, ghi chú sai lệch trong phiếu, link mở file gốc trên Drive), các phiếu khác của
+  cùng thiết bị (phiếu cũ hơn, phiếu xung kích) để trong mục thu gọn; nút
+  **Xem phiếu khung lớn** mở hộp thoại.
+- **Tìm kiếm (Ctrl+F**, ô tìm trên thanh tiêu đề, menu **Dữ liệu**): gõ tên / mã thiết
+  bị, trạm hoặc số phiếu - ví dụ `471 E6.6`, `475E6.3/03`, `111/474E6.17`, `E6.21`,
+  `B6-01-2025`. Không phân biệt dấu, khoảng trắng, dấu chấm; số cột `03` = `3`.
+  Enter / bấm kết quả để nhảy tới thiết bị (hoặc mở phiếu nếu thiết bị chưa có trên sơ đồ).
+
+Ghép phiếu ↔ thiết bị theo khoá `trạm:lộ[/cột]` (ví dụ `E6.6:471`, `E6.6:471/35`):
+máy cắt trong trạm lấy nhãn ngăn lộ gần nhất + trạm chứa nó; Recloser trên đường dây
+lấy nhãn “MC 471E6.6/35” trong bán kính 70. Công cụ trong `tools/chinh-dinh/`:
+
+```bash
+python3 tools/chinh-dinh/dung-du-lieu.py            # phieu.jsonl -> src/data/chinhDinh.json
+node tools/chinh-dinh/doi-chieu.ts /tmp/dc.json      # đối chiếu thiết bị trên sơ đồ với phiếu
+python3 tools/chinh-dinh/xuat-excel.py /tmp/dc.json docs/doi-chieu-phieu-chinh-dinh.xlsx
+```
+
+`docs/doi-chieu-phieu-chinh-dinh.xlsx`: danh sách máy cắt / Recloser **chưa tìm thấy
+phiếu** (trung áp và 110-220kV tách sheet), phiếu chưa gặp thiết bị trên sơ đồ (kèm lý
+do) và các phiếu cần lưu ý. Không rà trạm khách hàng, tụ bù, trạm trung gian.
+
+Tăng tốc kèm theo: tìm nhãn gần thiết bị (tooltip, bảng thuộc tính) dùng chỉ mục
+không gian của bộ vẽ thay vì duyệt toàn bộ đối tượng trên tờ.
+
 ### Công suất chạy trên đường dây (trình chiếu)
 
 **F6** (hoặc nút **CHẠY CÔNG SUẤT** ở thanh trạng thái, menu **Xem**) bật vạch sáng

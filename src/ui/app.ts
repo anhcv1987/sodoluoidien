@@ -40,6 +40,7 @@ import { buildLayers, buildProps, conductorDatalist } from './props';
 import { hopThoaiSoDayDan, phanDayDan, type NguCanhDayDan } from './dayDanUi';
 import { button, checkbox, dialog, el, input, labeled, select, toast } from './dom';
 import { BanDoDiaLy } from './banDoDiaLy';
+import { ChinhDinhUi, coPhieu } from './chinhDinhUi';
 import { MK_MAC_DINH, QuanLyTaiKhoan, TEN_VAI_TRO, type VaiTro } from '../core/taiKhoan';
 
 const TOOLS: { id: ToolName; label: string; key: string; hint: string }[] = [
@@ -70,6 +71,9 @@ export class App {
   private toolButtons = new Map<ToolName, HTMLButtonElement>();
   private toggles = el('div', { class: 'status-toggles' });
   private tabs = el('div', { class: 'tabs' });
+  /** Phiếu chỉnh định rơ le (rê chuột / bấm chọn máy cắt) và ô tìm kiếm thiết bị. */
+  private cd!: ChinhDinhUi;
+  private oTim!: { root: HTMLElement; focus: () => void };
   private paletteApi!: { root: HTMLElement; refresh: () => void };
   private autosaveTimer = 0;
   /** Bản vẽ quá lớn để lưu tạm -> chỉ nhắc một lần, không nhắc lại mỗi lần sửa. */
@@ -167,6 +171,19 @@ export class App {
     // Mở ra là CHẾ ĐỘ XEM; đăng nhập mới được hiệu chỉnh.
     this.store.chiXem = true;
     this.store.onBiChan = (tt) => this.baoChiXem(tt);
+    this.cd = new ChinhDinhUi({
+      store: this.store,
+      queryBox: (b) => this.ed.renderer.queryBox(b),
+      tramTai: (p) => this.tramChua(p),
+      nhanCua: (e) => this.nhanCuaThietBi(e),
+      nhayToi: (id) => this.nhayToiDoiTuong(id),
+      gotoStation: (code) => void this.gotoStation(code),
+      danhSachTram: () => stationsOf(MA_TO_TONG),
+    });
+    this.oTim = this.cd.oTimKiem();
+    this.canvas.addEventListener('pointermove', (ev) => this.cd.theoChuot(ev));
+    this.canvas.addEventListener('pointerleave', () => this.cd.anTip());
+    this.canvas.addEventListener('pointerdown', () => this.cd.anTip());
     this.build();
     this.apDungQuyen();
     void this.tk.khoiTao().then(() => this.apDungQuyen());
@@ -364,6 +381,7 @@ export class App {
     menu.append(
       this.dropdown('Dữ liệu', [
         ['Danh mục trạm trên sơ đồ kết dây…', () => this.showStationIndex()],
+        ['Tìm thiết bị / trạm / phiếu chỉnh định (Ctrl+F)', () => this.oTim.focus()],
         ['Mở tờ bản vẽ khác từ CAD…', () => this.showCadSheetList()],
         ['—', () => undefined],
         ['Gán cấp điện áp theo lớp CAD gốc…', () => this.showSrcLayerDialog(), true],
@@ -389,6 +407,7 @@ export class App {
     );
     menu.append(this.dropdown('Trợ giúp', [['Phím tắt & hướng dẫn', () => this.showHelp()]]));
     h.append(menu);
+    h.append(this.oTim.root);
     h.append(this.taiKhoanHost);
     return h;
   }
@@ -618,6 +637,13 @@ export class App {
         if (ghiChu) ghiChu.before(phan);
         else props?.append(phan);
       }
+    }
+    if (sel.length === 1 && coPhieu(sel[0]) && !this.laTrangBanDo()) {
+      const props = this.propsHost.firstElementChild;
+      const ghiChu = props?.querySelector('textarea')?.closest('.field');
+      const phan = this.cd.phanThuocTinh(sel[0]);
+      if (ghiChu) ghiChu.before(phan);
+      else props?.append(phan);
     }
     if (!danhDau && this.ed.renderer.danhDauDoan) {
       this.ed.renderer.danhDauDoan = null;
@@ -911,6 +937,11 @@ export class App {
   }
 
   private onKey(e: KeyboardEvent): void {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      this.oTim.focus();
+      return;
+    }
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
     if (e.key === 'Home') {
@@ -1151,13 +1182,17 @@ export class App {
 
   /** Rê chuột lên thiết bị đóng cắt: hiện nhãn "171-7 · Dao cách ly · Đóng". */
   private goiYThietBi(e: Entity | null): void {
-    if (!this.laThietBiDongCat(e)) {
-      this.canvas.title = '';
-      return;
-    }
-    const nhan = this.nhanCuaThietBi(e);
-    const ten = getBlock(e.block)?.name ?? e.block;
-    this.canvas.title = `${nhan ? nhan + ' · ' : ''}${ten} · ${TEN_TRANG_THAI[e.state ?? 'dong']}`;
+    // Máy cắt / Recloser: kèm tóm tắt phiếu chỉnh định rơ le (bấm chọn để xem đủ)
+    this.canvas.title = '';
+    this.cd.goiY(this.laThietBiDongCat(e) ? e : null);
+  }
+
+  /** Mã trạm chứa một điểm: ô trạm trên tờ tổng, hoặc mã của tờ sơ đồ trạm. */
+  private tramChua(p: { x: number; y: number }): string | undefined {
+    const ma = this.store.sheet.cadCode;
+    if (ma && ma !== MA_TO_TONG) return /^[EA]\d+\.\d+$/.test(ma) ? ma : undefined;
+    if (ma !== MA_TO_TONG) return undefined;
+    return stationsOf(MA_TO_TONG).find((t) => t.box && p.x >= t.box.minX && p.x <= t.box.maxX && p.y >= t.box.minY && p.y <= t.box.maxY)?.code;
   }
 
   /** Menu chuột phải trên thiết bị đóng cắt: Đóng / Cắt / Không xác định. */
@@ -1293,7 +1328,8 @@ export class App {
   private nhanGanNhat(p: { x: number; y: number }, r: number): string {
     let ten = '';
     let bd = r;
-    for (const e of this.store.entities) {
+    // qua chỉ mục không gian: chỉ xét chữ quanh điểm, không quét cả tờ sơ đồ
+    for (const { e } of this.ed.renderer.queryBox({ minX: p.x - r, minY: p.y - r, maxX: p.x + r, maxY: p.y + r })) {
       if (e.kind !== 'text') continue;
       const d = Math.hypot(e.p.x - p.x, e.p.y - p.y);
       if (d < bd) {
