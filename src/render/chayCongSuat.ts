@@ -173,12 +173,18 @@ export class ChayCongSuat {
   private ve(t: number): void {
     const ctx = this.dongBoKichThuoc();
     if (!ctx) return;
-    // đang tính lại ở luồng nền (vừa đổi trạng thái thiết bị): vẽ tạm theo mô hình cũ
+    // mô hình chưa có / đang tính lại ở luồng nền: vẽ tạm theo mô hình cũ của tờ (nếu có),
+    // không tính trực tiếp trong khung hình để giao diện không bị đứng
     let d: DongCongSuat;
-    if (!this.san && this.mo?.sheet === this.store.sheet.id && this.worker) {
-      this.tinhNen();
-      d = this.mo.d;
-    } else d = this.duLieu();
+    if (this.san) d = this.mo!.d;
+    else {
+      if (this.worker !== null) this.tinhNen();
+      if (this.mo?.sheet === this.store.sheet.id) d = this.mo.d;
+      else if (this.worker !== null) {
+        ctx.clearRect(0, 0, this.vp.width, this.vp.height);
+        return;
+      } else d = this.duLieu();
+    }
     const vp = this.vp;
     ctx.clearRect(0, 0, vp.width, vp.height);
     const view = vp.viewBox(20);

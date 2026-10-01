@@ -855,7 +855,10 @@ export class App {
       button('Huỷ', () => close()),
       button('Đăng nhập', () => void thu(), { class: 'btn primary' }),
     ]);
-    setTimeout(() => ten.focus(), 30);
+    // không cướp focus nếu người dùng đã bấm vào ô mật khẩu
+    setTimeout(() => {
+      if (!body.contains(document.activeElement)) ten.focus();
+    }, 30);
   }
 
   private dangXuat(): void {
@@ -891,7 +894,9 @@ export class App {
         });
       }, { class: 'btn primary' }),
     ]);
-    setTimeout(() => cu.focus(), 30);
+    setTimeout(() => {
+      if (![cu, moi, lai].includes(document.activeElement as HTMLInputElement)) cu.focus();
+    }, 30);
   }
 
   private hopQuanLyTaiKhoan(): void {
@@ -1081,10 +1086,14 @@ export class App {
     }
     if (bat) {
       this.congSuat.bat();
-      const d = this.congSuat.duLieu();
-      this.setMsg(
-        `Đang hiển thị công suất chạy trên đường dây: ${d.diemDung.length} điểm dừng tại thiết bị đang cắt. Đổi trạng thái thiết bị là chiều công suất cập nhật ngay. F6 để tắt.`,
-      );
+      if (!this.congSuat.san) this.setMsg('Đang dựng mô hình chiều công suất…');
+      this.congSuat.tinhNen(() => {
+        if (!this.congSuat.dangChay) return;
+        const d = this.congSuat.duLieu();
+        this.setMsg(
+          `Đang hiển thị công suất chạy trên đường dây: ${d.diemDung.length} điểm dừng tại thiết bị đang cắt. Đổi trạng thái thiết bị là chiều công suất cập nhật ngay. F6 để tắt.`,
+        );
+      });
     } else {
       this.congSuat.tat();
       if (this.root.classList.contains('trinh-chieu')) this.trinhChieu(false);
