@@ -24,6 +24,7 @@ import {
   autosave,
   clearAutosave,
   deserialize,
+  datQuyenTaiFile,
   download,
   exportPng,
   loadAutosave,
@@ -37,7 +38,7 @@ import {
 import { declutterSubstations, resetSubstationsToGeo } from '../editor/declutter';
 import { buildPalette } from './palette';
 import { buildLayers, buildProps, conductorDatalist } from './props';
-import { hopThoaiSoDayDan, phanDayDan, type NguCanhDayDan } from './dayDanUi';
+import { chuanBiDayDan, hopThoaiSoDayDan, phanDayDan, type NguCanhDayDan } from './dayDanUi';
 import { button, checkbox, dialog, el, input, labeled, select, toast } from './dom';
 import { BanDoDiaLy } from './banDoDiaLy';
 import { ChinhDinhUi, coPhieu } from './chinhDinhUi';
@@ -171,6 +172,11 @@ export class App {
     // Mở ra là CHẾ ĐỘ XEM; đăng nhập mới được hiệu chỉnh.
     this.store.chiXem = true;
     this.store.onBiChan = (tt) => this.baoChiXem(tt);
+    // Tài liệu nội bộ: chỉ tài khoản quản trị mới lưu / xuất được file.
+    datQuyenTaiFile(
+      () => this.tk.laQuanTri,
+      () => toast('Chỉ tài khoản Quản trị mới được lưu / xuất file (tài liệu nội bộ).', 'warn'),
+    );
     this.cd = new ChinhDinhUi({
       store: this.store,
       queryBox: (b) => this.ed.renderer.queryBox(b),
@@ -179,6 +185,9 @@ export class App {
       nhayToi: (id) => this.nhayToiDoiTuong(id),
       gotoStation: (code) => void this.gotoStation(code),
       danhSachTram: () => stationsOf(MA_TO_TONG),
+      duocSua: () => !!this.tk.phien,
+      nguoi: () => this.tk.phien?.hoTen || this.tk.phien?.ten,
+      veLai: () => this.refreshProps(),
     });
     this.oTim = this.cd.oTimKiem();
     this.canvas.addEventListener('pointermove', (ev) => this.cd.theoChuot(ev));
@@ -202,9 +211,12 @@ export class App {
     this.store.subscribe(() => {
       this.scheduleAutosave();
       this.capNhatBanDo();
-      // đổi trạng thái thiết bị -> vùng nối thông đang tô sáng tính lại ngay
+      // đổi trạng thái thiết bị -> vùng nối thông đang tô sáng tính lại (ở luồng nền)
       if (this.ed.renderer.toSang) this.capNhatToSang(true);
+      this.henTinhNen();
     });
+    // Dựng sẵn đồ thị lưới ở luồng nền ngay khi mở - lần click đầu tô sáng không phải chờ.
+    this.henTinhNen(300);
   }
 
   /** Trang loại 'tinh' (theo vị trí địa lý) hiển thị bản đồ GIS thay cho canvas. */
@@ -335,12 +347,12 @@ export class App {
         ['Tạo mới (sơ đồ tỉnh mẫu)', () => this.newProvince(), true],
         ['Tạo mới (bản vẽ trắng)', () => this.newBlank(), true],
         ['Mở file .sld…', () => void this.openFile(), true],
-        ['Lưu bản vẽ (.sld)', () => this.saveFile()],
+        ['Lưu bản vẽ (.sld)', () => this.saveFile(), 'qt'],
         ['—', () => undefined],
         ['Nhập từ CAD (.dxf)…', () => void this.importDxfDialog(), true],
-        ['Xuất ra CAD (.dxf)', () => this.doExportDxf()],
-        ['Xuất hình vector (.svg)', () => this.doExportSvg()],
-        ['Xuất ảnh (.png)', () => this.doExportPng()],
+        ['Xuất ra CAD (.dxf)', () => this.doExportDxf(), 'qt'],
+        ['Xuất hình vector (.svg)', () => this.doExportSvg(), 'qt'],
+        ['Xuất ảnh (.png)', () => this.doExportPng(), 'qt'],
         ['—', () => undefined],
         ['Xoá dữ liệu lưu tạm trong trình duyệt…', () => this.resetLocal(), true],
       ]),
@@ -382,6 +394,7 @@ export class App {
       this.dropdown('Dữ liệu', [
         ['Danh mục trạm trên sơ đồ kết dây…', () => this.showStationIndex()],
         ['Tìm thiết bị / trạm / phiếu chỉnh định (Ctrl+F)', () => this.oTim.focus()],
+        ['Sổ sửa phiếu chỉnh định (phiếu đã sửa / nhập mới)…', () => this.cd.hopThoaiSoPhieu()],
         ['Mở tờ bản vẽ khác từ CAD…', () => this.showCadSheetList()],
         ['—', () => undefined],
         ['Gán cấp điện áp theo lớp CAD gốc…', () => this.showSrcLayerDialog(), true],
@@ -405,7 +418,12 @@ export class App {
         ['Xoá toàn bộ đường dây sơ bộ', () => this.removeDraftLines(), true],
       ]),
     );
-    menu.append(this.dropdown('Trợ giúp', [['Phím tắt & hướng dẫn', () => this.showHelp()]]));
+    menu.append(
+      this.dropdown('Trợ giúp', [
+        ['Phím tắt & hướng dẫn', () => this.showHelp()],
+        ['Quyền mở phần mềm trên máy này…', () => this.hopQuyenMay()],
+      ]),
+    );
     h.append(menu);
     h.append(this.oTim.root);
     h.append(this.taiKhoanHost);
@@ -413,7 +431,7 @@ export class App {
   }
 
   /** Mục đánh dấu `true` ở cột thứ ba là thao tác HIỆU CHỈNH - ẩn đi ở chế độ xem. */
-  private dropdown(label: string, items: [string, () => void, boolean?][]): HTMLElement {
+  private dropdown(label: string, items: [string, () => void, (boolean | 'qt')?][]): HTMLElement {
     const wrap = el('div', { class: 'dropdown' });
     const btn = el('button', { class: 'menu-btn', type: 'button', text: label });
     const list = el('div', { class: 'dropdown-list' });
@@ -422,7 +440,7 @@ export class App {
         list.append(el('div', { class: 'sep' }));
         continue;
       }
-      const it = el('button', { class: `dropdown-item${canSua ? ' can-sua' : ''}`, type: 'button', text });
+      const it = el('button', { class: `dropdown-item${canSua === 'qt' ? ' can-qt' : canSua ? ' can-sua' : ''}`, type: 'button', text });
       it.addEventListener('click', () => {
         list.classList.remove('open');
         fn();
@@ -627,7 +645,15 @@ export class App {
     const theoDoan = sel.length === 1 && sel[0].kind === 'branch' && !this.laTrangBanDo();
     this.propsHost.replaceChildren(buildProps(this.ed, sel, { anMaDay: theoDoan }));
     let danhDau = false;
-    if (theoDoan) {
+    if (theoDoan && !this.congSuat.san) {
+      // đồ thị lưới đang dựng ở luồng nền: hiện phần sổ dây dẫn khi xong, không đứng giao diện
+      const id = sel[0].id;
+      this.propsHost.firstElementChild?.append(el('p', { class: 'muted small', text: 'Đang dựng đồ thị lưới để đọc đoạn dây…' }));
+      this.congSuat.tinhNen(() => {
+        const s2 = this.ed.selectedEntities();
+        if (s2.length === 1 && s2[0].id === id) this.refreshProps();
+      });
+    } else if (theoDoan) {
       const phan = phanDayDan(this.nguCanhDayDan, sel[0].id);
       if (phan) {
         danhDau = true;
@@ -760,6 +786,8 @@ export class App {
     if (!sua && this.ed.toolName !== 'select' && this.ed.toolName !== 'measure') this.ed.setTool('select');
     this.store.chiXem = !sua;
     this.root.classList.toggle('che-do-xem', !sua);
+    this.root.classList.toggle('khong-qt', !this.tk.laQuanTri);
+    document.body.classList.toggle('khong-qt', !this.tk.laQuanTri);
     this.veTaiKhoan();
     this.refreshProps();
     this.refreshChrome();
@@ -782,7 +810,7 @@ export class App {
       );
       return;
     }
-    const muc: [string, () => void, boolean?][] = [['Đổi mật khẩu…', () => this.hopDoiMatKhau()]];
+    const muc: [string, () => void, (boolean | 'qt')?][] = [['Đổi mật khẩu…', () => this.hopDoiMatKhau()]];
     if (this.tk.laQuanTri) muc.push(['Quản lý tài khoản…', () => this.hopQuanLyTaiKhoan()]);
     muc.push(['—', () => undefined], ['Đăng xuất (về chế độ xem)', () => this.dangXuat()]);
     const dd = this.dropdown(`${ph.ten} · ${TEN_VAI_TRO[ph.vaiTro]}`, muc);
@@ -1099,6 +1127,26 @@ export class App {
     this.capNhatToSang(false, true);
   }
 
+  private henTinhNenTimer = 0;
+  /** Hẹn dựng lại đồ thị lưới ở luồng nền sau khi bản vẽ / trạng thái thiết bị thay đổi. */
+  private henTinhNen(tre = 500): void {
+    window.clearTimeout(this.henTinhNenTimer);
+    this.henTinhNenTimer = window.setTimeout(() => {
+      if (this.laTrangBanDo()) return;
+      const ri = (window as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+      const lucRanh = (f: () => void): void => {
+        if (ri) ri(f, { timeout: 3000 });
+        else window.setTimeout(f, 500);
+      };
+      // chỉ mục tìm kiếm thiết bị / phiếu: dựng lúc rảnh
+      lucRanh(() => this.cd.chuanBiTim());
+      // đồ thị lưới ở luồng nền, xong thì dựng sẵn bộ đệm sổ dây dẫn
+      this.congSuat.tinhNen(() => lucRanh(() => {
+        if (this.congSuat.san && !this.laTrangBanDo()) chuanBiDayDan(this.nguCanhDayDan);
+      }));
+    }, tre);
+  }
+
   /** Đối tượng đang được tô sáng vùng nối thông, và có đi xuyên máy biến áp hay không. */
   private toSangGoc: string | null = null;
   private toSangQuaMBA = false;
@@ -1123,6 +1171,24 @@ export class App {
       return;
     }
     if (!imLang && !giuQuaMBA && this.toSangGoc !== goc.id) this.toSangQuaMBA = false;
+    if (!this.congSuat.san) {
+      // đồ thị lưới đang dựng ở luồng nền: tô sáng ngay khi xong, giao diện không bị đứng
+      if (this.toSangGoc !== goc.id && r.toSang) {
+        r.toSang = null;
+        this.ed.requestDraw();
+      }
+      if (!imLang) this.setMsg('Đang dựng đồ thị lưới điện để tô sáng vùng nối thông…');
+      const id = goc.id;
+      const quaMBA = this.toSangQuaMBA;
+      this.congSuat.tinhNen(() => {
+        const s2 = this.ed.selectedEntities();
+        if (s2.length === 1 && s2[0].id === id) {
+          this.toSangQuaMBA = quaMBA;
+          this.capNhatToSang(imLang, true);
+        }
+      });
+      return;
+    }
     const t0 = performance.now();
     const v = vungNoiThong(this.congSuat.duLieu(), goc.id, this.toSangQuaMBA);
     r.toSang = v && v.doan.length ? v : null;
@@ -1320,7 +1386,7 @@ export class App {
     const csv = button('Tải về .csv', () => {
       const rows = [['Trạm', 'Nhãn', 'Thiết bị', 'Cấp điện áp', 'Trạng thái', 'Ghi chú'], ...ds.map((v) => [v.tram, v.nhan, v.ten, `${v.kv}kV`, v.tt, v.loai])];
       download('trang-thai-thiet-bi.csv', '\ufeff' + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n'), 'text/csv');
-    });
+    }, { class: 'btn can-qt' });
     const dong = dialog(`Trạng thái thiết bị (${ds.length})`, than, [csv, button('Đóng', () => dong())]);
   }
 
@@ -1901,7 +1967,7 @@ export class App {
         rows.push([s.code, s.name, s.levels.join('/') + ' kV', s.transformers.map((x) => x.capacity).join(' + '), s.commune ?? '', String(s.lat ?? ''), String(s.lon ?? '')]);
       }
       download('danh-muc-tram.csv', '﻿' + rows.map((r) => r.map((c) => `"${c}"`).join(';')).join('\r\n'), 'text/csv');
-    });
+    }, { class: 'btn can-qt' });
     const close = dialog(`Danh mục trạm (${subs.length})`, wrap, [csv, button('Đóng', () => close())]);
   }
 
@@ -2047,6 +2113,32 @@ export class App {
   /** Giãn các trạm chồng lấn (dùng cho kiểm thử và menu Dữ liệu). */
   declutter(): number {
     return declutterSubstations(this.store);
+  }
+
+  /** Thông tin kích hoạt máy (bản phát hành mã hoá - tools/ma-hoa.mjs); quản trị thu hồi được. */
+  private hopQuyenMay(): void {
+    const kh = (window as unknown as { sodoKichHoat?: { maMay: string; ngay?: string; nguoi?: string; luuDuoc: boolean; huy: () => Promise<unknown> } }).sodoKichHoat;
+    const than = el('div', {}, kh
+      ? [
+          el('p', { text: `Mã máy: ${kh.maMay}` }),
+          el('p', { text: `Kích hoạt lúc: ${kh.ngay ? new Date(kh.ngay).toLocaleString('vi-VN') : '—'}${kh.nguoi ? ' · ' + kh.nguoi : ''}` }),
+          el('p', {
+            class: 'muted small',
+            text: kh.luuDuoc
+              ? 'Máy này đã được cấp quyền: khoá giải mã lưu trong trình duyệt (không xuất ra được), lần sau mở file không phải nhập lại. Mang file sang máy chưa kích hoạt sẽ chỉ thấy màn hình kích hoạt.'
+              : 'Trình duyệt không cho lưu khoá (cửa sổ ẩn danh?) - đóng trang là phải kích hoạt lại.',
+          }),
+        ]
+      : [el('p', { text: 'Bản đang chạy không mã hoá (bản phát triển) - không cần kích hoạt.' })]);
+    const nut: HTMLElement[] = [];
+    if (kh && this.tk.laQuanTri) {
+      nut.push(button('Thu hồi quyền máy này', () => {
+        if (!confirm('Thu hồi quyền mở phần mềm trên máy này? Lần mở sau phải nhập lại mật khẩu kích hoạt.')) return;
+        void kh.huy().then(() => location.reload());
+      }, { class: 'btn danger' }));
+    }
+    nut.push(button('Đóng', () => close()));
+    const close = dialog('Quyền mở phần mềm trên máy này', than, nut);
   }
 
   private showHelp(): void {

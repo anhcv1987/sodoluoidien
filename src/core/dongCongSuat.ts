@@ -157,14 +157,38 @@ class LuoiO {
       }
     }
   }
-  quanh(x: number, y: number, r: number): Set<number> {
+  /** Đánh dấu đã gặp (thay cho Set mỗi lần hỏi - hàm này được gọi hàng trăm nghìn lần). */
+  private dau = new Int32Array(1024);
+  private luot = 0;
+  /** Các giá trị trong ô quanh (x, y), không trùng, theo thứ tự gặp. */
+  quanh(x: number, y: number, r: number): number[] {
     const c = this.cell;
-    const out = new Set<number>();
+    const out: number[] = [];
+    if (++this.luot > 2e9) {
+      this.luot = 1;
+      this.dau.fill(0);
+    }
+    const L = this.luot;
     const i0 = Math.floor((x - r) / c);
     const i1 = Math.floor((x + r) / c);
     const j0 = Math.floor((y - r) / c);
     const j1 = Math.floor((y + r) / c);
-    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) for (const v of this.o.get(this.key(i, j)) ?? []) out.add(v);
+    for (let i = i0; i <= i1; i++) {
+      for (let j = j0; j <= j1; j++) {
+        const a = this.o.get(this.key(i, j));
+        if (!a) continue;
+        for (const v of a) {
+          if (v >= this.dau.length) {
+            const moi = new Int32Array(Math.max(v + 1, this.dau.length * 2));
+            moi.set(this.dau);
+            this.dau = moi;
+          }
+          if (this.dau[v] === L) continue;
+          this.dau[v] = L;
+          out.push(v);
+        }
+      }
+    }
     return out;
   }
 }
@@ -277,12 +301,40 @@ function loaiKhungTu(tuyen: Tuyen[], devices: DeviceEntity[], saiSo: number): Tu
     }
     ungVien.push(i);
   });
+  // Chỉ mục lưới các nét khung (dựng lại mỗi vòng lan) - trước đây mỗi đầu nét ứng viên dò
+  // qua TOÀN BỘ nét khung, tờ sơ đồ tổng mất ~2,5 s ở bước này.
+  const O_K = Math.max(saiSo * 8, 40);
   for (let lan = 0; lan < 6; lan++) {
     const ds = [...khung];
-    /** Các khung gốc mà điểm q tựa vào. */
+    const thuTu = new Map<number, number>();
+    const luoi = new Map<string, number[]>();
+    const dai: number[] = []; // nét quá dài so với ô lưới: luôn dò
+    ds.forEach((i, n) => {
+      thuTu.set(i, n);
+      const p = tuyen[i].p;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const q of p) {
+        x0 = Math.min(x0, q.x);
+        y0 = Math.min(y0, q.y);
+        x1 = Math.max(x1, q.x);
+        y1 = Math.max(y1, q.y);
+      }
+      const i0 = Math.floor((x0 - saiSo) / O_K);
+      const i1 = Math.floor((x1 + saiSo) / O_K);
+      const j0 = Math.floor((y0 - saiSo) / O_K);
+      const j1 = Math.floor((y1 + saiSo) / O_K);
+      if ((i1 - i0 + 1) * (j1 - j0 + 1) > 400) {
+        dai.push(i);
+        return;
+      }
+      for (let a = i0; a <= i1; a++) for (let b = j0; b <= j1; b++) (luoi.get(`${a}|${b}`) ?? luoi.set(`${a}|${b}`, []).get(`${a}|${b}`)!).push(i);
+    });
+    /** Các khung gốc mà điểm q tựa vào (giữ thứ tự nét khung như khi dò tuần tự). */
     const tua = (q: Pt, boQua: number): Set<number> => {
+      const cand = [...(luoi.get(`${Math.floor(q.x / O_K)}|${Math.floor(q.y / O_K)}`) ?? []), ...dai];
+      cand.sort((a, b) => thuTu.get(a)! - thuTu.get(b)!);
       const g = new Set<number>();
-      for (const i of ds) if (i !== boQua && kcDenTuyen(q, tuyen[i].p) <= saiSo) g.add(goc.get(i) ?? -1);
+      for (const i of cand) if (i !== boQua && kcDenTuyen(q, tuyen[i].p) <= saiSo) g.add(goc.get(i) ?? -1);
       return g;
     };
     let them = 0;

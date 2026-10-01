@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node tools/ma-hoa.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

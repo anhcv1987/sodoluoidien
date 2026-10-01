@@ -214,6 +214,13 @@ const soNguyen = (s: string): number | undefined => {
   return Number.isFinite(v) && v > 0 ? Math.round(v) : undefined;
 };
 
+/** Dựng sẵn các bộ đệm của sổ dây dẫn cho mô hình hiện tại (gọi lúc rảnh) - lần chọn đoạn dây đầu không phải chờ. */
+export function chuanBiDayDan(c: NguCanhDayDan): void {
+  const d = c.duLieu();
+  goiYTo(c, d);
+  chuGan(c, d, { x: 0, y: 0 }, 0);
+}
+
 /** Phần "Dây dẫn / cáp của đoạn" trong bảng thuộc tính (chọn một nét dây). */
 export function phanDayDan(c: NguCanhDayDan, id: Id): HTMLElement | null {
   const d = c.duLieu();
@@ -393,8 +400,8 @@ export function hopThoaiSoDayDan(c: NguCanhDayDan): void {
   const csv = button('Xuất CSV (Excel)', () => {
     const rows = [tieuDe, ...dong.map((r) => r.o), ...khongKhop.map(([, m]) => [String(m.kv), m.dau[0] ?? '', m.dau[1] ?? '', m.ma, String(m.songSong ?? 1), String(m.icp ?? ''), '', '(không tìm thấy đoạn)', String(m.daiM ?? ''), 'sổ', m.ghiChu ?? ''])];
     download(`so-day-dan-${to}.csv`.replace(/[\\/:*?"<>| ]+/g, '-'), '﻿' + rows.map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(';')).join('\r\n'), 'text/csv');
-  });
-  const xuat = button('Xuất sổ (.json)', () => download('so-day-dan.json', xuatSo(), 'application/json'));
+  }, { class: 'btn can-qt' });
+  const xuat = button('Xuất sổ (.json)', () => download('so-day-dan.json', xuatSo(), 'application/json'), { class: 'btn can-qt' });
   const nhap = button('Nhập sổ (.json)…', () => {
     void pickFile('.json,application/json').then(async (f) => {
       if (!f) return;

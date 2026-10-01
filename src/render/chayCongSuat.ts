@@ -3,6 +3,7 @@ import { tinhDongCongSuat, type DongCongSuat } from '../core/dongCongSuat';
 import type { Pt, VoltageKv } from '../core/types';
 import { colorOf } from '../core/voltage';
 import type { Viewport } from './viewport';
+import CongSuatWorker from '../core/congSuatWorker?worker&inline';
 
 /**
  * LỚP HIỂN THỊ CÔNG SUẤT CHẠY TRÊN ĐƯỜNG DÂY (phục vụ trình chiếu).
@@ -58,6 +59,77 @@ export class ChayCongSuat {
     this.layer.style.display = 'none';
   }
 
+  /* ---------------- tính ở luồng nền (Web Worker) ---------------- */
+
+  /** undefined: chưa tạo; null: trình duyệt không cho chạy luồng nền -> tính trực tiếp. */
+  private worker: Worker | null | undefined;
+  private dangTinh: { sheet: string; rev: number } | null = null;
+  private choXong: (() => void)[] = [];
+
+  private layWorker(): Worker | null {
+    if (this.worker !== undefined) return this.worker;
+    try {
+      const w = new CongSuatWorker();
+      w.onmessage = (ev: MessageEvent<{ sheet: string; rev: number; d: DongCongSuat; ms: number }>) => {
+        const { sheet, rev, d, ms } = ev.data;
+        if (this.dangTinh?.sheet === sheet && this.dangTinh.rev === rev) this.dangTinh = null;
+        if (this.store.sheet.id === sheet && this.store.version === rev) {
+          this.mo = { sheet, rev, d };
+          this.onTinh?.(d, ms);
+          const cb = this.choXong;
+          this.choXong = [];
+          for (const f of cb) f();
+        } else if (!this.dangTinh) {
+          this.tinhNen(); // bản vẽ đã đổi trong lúc tính - tính lại, giữ các lời hẹn
+        }
+      };
+      w.onerror = () => {
+        this.worker = null;
+        this.dangTinh = null;
+        if (this.choXong.length) this.tinhNen();
+      };
+      this.worker = w;
+    } catch {
+      this.worker = null;
+    }
+    return this.worker;
+  }
+
+  /** Mô hình của tờ đang mở đã có sẵn (không phải tính lại)? */
+  get san(): boolean {
+    return !!this.mo && this.mo.sheet === this.store.sheet.id && this.mo.rev === this.store.version;
+  }
+
+  /**
+   * Dựng mô hình ở LUỒNG NỀN (giao diện không đứng); `xong` được gọi khi đã có dữ liệu.
+   * Trình duyệt không cho chạy luồng nền thì tính trực tiếp như trước.
+   */
+  tinhNen(xong?: () => void): void {
+    if (this.san) {
+      xong?.();
+      return;
+    }
+    if (xong) this.choXong.push(xong);
+    const sheet = this.store.sheet.id;
+    const rev = this.store.version;
+    if (this.dangTinh?.sheet === sheet && this.dangTinh.rev === rev) return;
+    const w = this.layWorker();
+    if (w) {
+      try {
+        this.dangTinh = { sheet, rev };
+        w.postMessage({ sheet, rev, entities: this.store.entities });
+        return;
+      } catch {
+        this.worker = null;
+        this.dangTinh = null;
+      }
+    }
+    this.duLieu();
+    const cb = this.choXong;
+    this.choXong = [];
+    for (const f of cb) f();
+  }
+
   /** Mô hình chiều công suất của tờ đang mở (tính lại khi bản vẽ hay trạng thái đổi). */
   duLieu(): DongCongSuat {
     const sheet = this.store.sheet.id;
@@ -101,7 +173,12 @@ export class ChayCongSuat {
   private ve(t: number): void {
     const ctx = this.dongBoKichThuoc();
     if (!ctx) return;
-    const d = this.duLieu();
+    // đang tính lại ở luồng nền (vừa đổi trạng thái thiết bị): vẽ tạm theo mô hình cũ
+    let d: DongCongSuat;
+    if (!this.san && this.mo?.sheet === this.store.sheet.id && this.worker) {
+      this.tinhNen();
+      d = this.mo.d;
+    } else d = this.duLieu();
     const vp = this.vp;
     ctx.clearRect(0, 0, vp.width, vp.height);
     const view = vp.viewBox(20);

@@ -69,6 +69,12 @@ const check = (name, cond, detail = '') => {
 };
 
 await page.goto(url);
+// Bản phát hành đã mã hoá (tools/ma-hoa.mjs): kích hoạt máy thử bằng mật khẩu kích hoạt (biến môi trường)
+if (await page.waitForSelector('#kh-mk', { timeout: 3000 }).catch(() => null)) {
+  await page.fill('#kh-mk', process.env.MAT_KHAU_KICH_HOAT ?? '');
+  await page.click('#kh-nut');
+}
+await page.waitForFunction(() => window.sodo, null, { timeout: 60000 });
 await page.waitForTimeout(2500);
 // __P: điểm kiểm thử lưới trung áp; __cd(x, y): điểm (bắt vào nét đường dây gần nhất trong 1 đơn vị) có điện;
 // __D(x, y): điểm theo toạ độ bản CAD gốc -> vị trí sau khi dời trạm (tools/vi-tri-tram.mjs)

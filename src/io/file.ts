@@ -16,7 +16,28 @@ export function suggestName(title: string, ext: string): string {
   return `${slug}_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}.${ext}`;
 }
 
+/**
+ * Quyền lưu / xuất file: phần mềm chứa tài liệu nội bộ nên chỉ tài khoản QUẢN TRỊ mới
+ * được tải file ra (lưu .sld, xuất DXF/SVG/PNG, bảng .csv/.json). Mọi lối tải file đều đi
+ * qua `download()` nên chặn ở đây là đủ.
+ */
+let duocTaiFile: () => boolean = () => true;
+let khiBiChan: () => void = () => undefined;
+
+export function datQuyenTaiFile(kiemTra: () => boolean, baoChan: () => void): void {
+  duocTaiFile = kiemTra;
+  khiBiChan = baoChan;
+}
+
+export function choPhepTaiFile(): boolean {
+  return duocTaiFile();
+}
+
 export function download(name: string, content: string | Blob, mime = 'text/plain'): void {
+  if (!duocTaiFile()) {
+    khiBiChan();
+    return;
+  }
   const blob = content instanceof Blob ? content : new Blob([content], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

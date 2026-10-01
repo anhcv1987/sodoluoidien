@@ -1,11 +1,12 @@
 /**
  * TÀI KHOẢN VÀ PHÂN QUYỀN.
  *
- * Mở phần mềm ra là CHẾ ĐỘ XEM: xem, phóng, tìm trạm, tô sáng mạch, xuất file đều
- * được, nhưng không sửa được sơ đồ. Muốn hiệu chỉnh phải đăng nhập.
+ * Mở phần mềm ra là CHẾ ĐỘ XEM: xem, phóng, tìm trạm, tô sáng mạch đều được, nhưng
+ * không sửa được sơ đồ. Muốn hiệu chỉnh phải đăng nhập.
  *
- *   quan-tri  (quản trị) : hiệu chỉnh sơ đồ + quản lý tài khoản
- *   bien-tap  (biên tập) : hiệu chỉnh sơ đồ
+ *   quan-tri  (quản trị) : hiệu chỉnh sơ đồ, sửa phiếu chỉnh định + LƯU / XUẤT file
+ *                          + quản lý tài khoản
+ *   bien-tap  (biên tập) : hiệu chỉnh sơ đồ, sửa phiếu chỉnh định; không lưu / xuất file
  *
  * Tài khoản mặc định: admin / dieudob6 (nên đổi mật khẩu ngay lần đầu dùng).
  *

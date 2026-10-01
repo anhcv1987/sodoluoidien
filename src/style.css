@@ -582,3 +582,22 @@ body {
 .cd-kq-phu { color: var(--fg-dim); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cd-kq-trong { padding: 6px 10px; color: var(--fg-dim); }
 .dropdown-item.cd-kq-dong.dang-chon { background: #2b3544; }
+
+/* Lưu / xuất file chỉ dành cho tài khoản quản trị (tài liệu nội bộ) */
+.khong-qt .can-qt { display: none !important; }
+@media print {
+  body.khong-qt > * { display: none !important; }
+  body.khong-qt::after { content: 'Tài liệu nội bộ - chỉ tài khoản Quản trị được in / xuất.'; display: block; padding: 40px; font: 16px sans-serif; }
+}
+.cd-da-sua { margin-top: 4px; color: var(--yellow); font-size: 11.5px; }
+.cd-nut-hang { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cd-nut-sua { margin: 6px 0 0; }
+.btn-nho { padding: 2px 8px; font-size: 11.5px; }
+.cd-sua { width: min(920px, 92vw); }
+.cd-sua-chung { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-bottom: 10px; }
+.cd-sua-chung textarea { resize: vertical; }
+.cd-sua-1nhom { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin: 6px 0; }
+.cd-sua-dau { display: flex; gap: 8px; align-items: center; }
+.cd-sua-dau .input { flex: 1; }
+.cd-sua-bang .input { width: 100%; min-width: 60px; padding: 2px 4px; }
+.cd-sua-bang td { padding: 2px 3px; }

@@ -9,13 +9,16 @@ import {
   khoaPhieu,
   khoaThietBi,
   laBanLuu,
+  laPhieuMoi,
   laXungKich,
   linkPhieu,
   tomTatPhieu,
   type PhieuCD,
 } from '../core/chinhDinh';
 import { getBlock, TEN_TRANG_THAI } from '../symbols/blocks';
-import { button, dialog, el } from './dom';
+import { apSoPhieu, datPhieu, docSoPhieu, nhapSoPhieu, xuatSoPhieu } from '../io/soPhieu';
+import { download, pickFile } from '../io/file';
+import { button, dialog, el, labeled, toast } from './dom';
 
 /**
  * PHIẾU CHỈNH ĐỊNH RƠ LE TRÊN SƠ ĐỒ + TÌM KIẾM THIẾT BỊ.
@@ -32,10 +35,12 @@ const LOAI_CO_PHIEU = new Set(['MC', 'MCHB', 'REC']);
 export const coPhieu = (e: Entity | null | undefined): e is DeviceEntity =>
   !!e && e.kind === 'device' && LOAI_CO_PHIEU.has(e.block) && e.layer !== 'Khung bản vẽ';
 
+let goc: PhieuCD[] | null = null;
 let chiMuc: ChiMucCD | null = null;
-/** Chỉ mục phiếu - phân tích dữ liệu ở lần gọi đầu tiên. */
+/** Chỉ mục phiếu - phân tích dữ liệu ở lần gọi đầu tiên; áp các phiếu đã sửa trên máy này. */
 export function chiMucCD(): ChiMucCD {
-  if (!chiMuc) chiMuc = new ChiMucCD(JSON.parse(raw) as PhieuCD[]);
+  if (!goc) goc = JSON.parse(raw) as PhieuCD[];
+  if (!chiMuc) chiMuc = new ChiMucCD(apSoPhieu(goc));
   return chiMuc;
 }
 
@@ -48,6 +53,12 @@ export interface NguCanhCD {
   nhayToi: (id: Id) => void;
   gotoStation: (code: string) => void;
   danhSachTram: () => { code: string; title: string }[];
+  /** Đã đăng nhập (biên tập / quản trị) - được sửa phiếu. */
+  duocSua: () => boolean;
+  /** Tên người đang đăng nhập (ghi vào bản sửa). */
+  nguoi: () => string | undefined;
+  /** Vẽ lại bảng thuộc tính sau khi sửa phiếu. */
+  veLai: () => void;
 }
 
 interface MucTim {
@@ -187,6 +198,9 @@ export class ChinhDinhUi {
             : 'Không đọc được số hiệu máy cắt từ nhãn trên sơ đồ nên chưa ghép được phiếu.',
         }),
       );
+      if (k && this.ctx.duocSua()) {
+        box.append(button('Nhập phiếu cho thiết bị này…', () => this.hopThoaiSuaPhieu(null, this.tenHienThi(e)), { class: 'btn cd-nut' }));
+      }
       return box;
     }
     box.append(this.khoiPhieu(ds[0], true));
@@ -201,14 +215,18 @@ export class ChinhDinhUi {
       }
       box.append(kh);
     }
-    box.append(
-      button('Xem phiếu khung lớn', () => this.hopThoaiPhieu(ds, this.tenHienThi(e)), { class: 'btn cd-nut' }),
-    );
+    const nut = el('div', { class: 'cd-nut-hang' }, [
+      button('Xem phiếu khung lớn', () => this.hopThoaiPhieu(ds, this.tenHienThi(e)), { class: 'btn' }),
+    ]);
+    if (this.ctx.duocSua()) {
+      nut.append(button('Thêm phiếu mới…', () => this.hopThoaiSuaPhieu(null, this.tenHienThi(e)), { class: 'btn', title: 'Nhập phiếu mới ban hành cho thiết bị này' }));
+    }
+    box.append(nut);
     return box;
   }
 
   /** Một phiếu: thông tin chung + bảng thông số từng nhóm. */
-  khoiPhieu(p: PhieuCD, dayDu: boolean): HTMLElement {
+  khoiPhieu(p: PhieuCD, dayDu: boolean, sauSua?: () => void): HTMLElement {
     const k = el('div', { class: 'cd-phieu' });
     const dong = (nhan: string, gt?: string): void => {
       if (gt) k.append(el('div', { class: 'cd-dong' }, [el('span', { class: 'muted', text: `${nhan}: ` }), gt]));
@@ -238,20 +256,213 @@ export class ChinhDinhUi {
       k.append(t);
     }
     if (p.tdl) dong('Tự động đóng lại', p.tdl);
-    k.append(el('a', { class: 'cd-link', href: linkPhieu(p), target: '_blank', rel: 'noopener', text: `Mở phiếu gốc: ${p.ten}` }));
+    if (p.sua) k.append(el('div', { class: 'cd-da-sua', text: `${laPhieuMoi(p) ? 'Nhập trên phần mềm' : 'Đã sửa trên phần mềm'}: ${p.sua}` }));
+    const link = linkPhieu(p);
+    if (link) k.append(el('a', { class: 'cd-link', href: link, target: '_blank', rel: 'noopener', text: `Mở phiếu gốc: ${p.ten}` }));
+    if (this.ctx.duocSua()) {
+      k.append(button('Sửa phiếu…', () => this.hopThoaiSuaPhieu(p, undefined, sauSua), { class: 'btn btn-nho cd-nut-sua' }));
+    }
     return k;
   }
 
   hopThoaiPhieu(ds: PhieuCD[], tieuDe: string): void {
     const than = el('div', { class: 'cd-hop' });
+    let close = (): void => undefined;
     ds.forEach((p, i) => {
       if (i) than.append(el('hr'));
-      than.append(this.khoiPhieu(p, true));
+      than.append(this.khoiPhieu(p, true, () => close()));
     });
-    const close = dialog(`Phiếu chỉnh định${tieuDe ? ' - ' + tieuDe : ''}`, than, [button('Đóng', () => close())]);
+    close = dialog(`Phiếu chỉnh định${tieuDe ? ' - ' + tieuDe : ''}`, than, [button('Đóng', () => close())]);
+  }
+
+  /* ------------------------------ sửa phiếu ------------------------------ */
+
+  /** Sau khi sửa: dựng lại chỉ mục phiếu, chỉ mục tìm kiếm, bảng thuộc tính. */
+  private sauKhiSua(): void {
+    chiMuc = null;
+    this.chiMucTim = null;
+    this.ctx.veLai();
+  }
+
+  /**
+   * Hộp thoại sửa phiếu (p = null: nhập phiếu mới cho thiết bị `tbMoi`).
+   * Bản sửa lưu trong sổ sửa phiếu của máy này, đè lên phiếu gốc khi hiển thị.
+   */
+  hopThoaiSuaPhieu(goc: PhieuCD | null, tbMoi?: string, sauLuu?: () => void): void {
+    if (!this.ctx.duocSua()) {
+      toast('Đăng nhập (Biên tập / Quản trị) để sửa phiếu chỉnh định.', 'warn');
+      return;
+    }
+    const p: PhieuCD = goc
+      ? (JSON.parse(JSON.stringify(goc)) as PhieuCD)
+      : { id: `moi-${Date.now().toString(36)}`, ten: '', so: '', tb: tbMoi ?? '', mo: '', rl: '', ti: '', nam: '', nb: '', g: [{ c: [] }] };
+    delete p.sua;
+    const rec = p as unknown as Record<string, string | undefined>;
+    const o = (k: string, nhan: string, dai = false, goiY = ''): HTMLElement => {
+      const i = dai ? el('textarea', { class: 'input', rows: 2, placeholder: goiY }) : el('input', { class: 'input', type: 'text', placeholder: goiY });
+      i.value = rec[k] ?? '';
+      i.addEventListener('input', () => {
+        rec[k] = i.value;
+      });
+      return labeled(nhan, i);
+    };
+    const chung = el('div', { class: 'cd-sua-chung' }, [
+      o('tb', 'Máy cắt (nhiều MC cách nhau "; ")', false, 'MC 471 E6.6 / REC 475E6.3/03'),
+      o('so', 'Số phiếu'),
+      o('nb', 'Ngày / tháng ban hành', false, '03/2025'),
+      o('mo', 'Thiết bị được bảo vệ'),
+      o('rl', 'Rơ le - hãng', false, '7SJ81 - Siemens'),
+      o('nam', 'Năm lắp đặt'),
+      o('ti', 'Tỷ số TI / TU'),
+      o('tdl', 'Tự động đóng lại (F79)'),
+      o('md', 'Mục đích ban hành', true),
+      o('gc', 'Ghi chú', true),
+    ]);
+    const nhom = el('div', { class: 'cd-sua-nhom' });
+    const veNhom = (): void => {
+      nhom.replaceChildren();
+      p.g.forEach((n, gi) => {
+        const hop = el('div', { class: 'cd-sua-1nhom' });
+        const h = el('input', { class: 'input', type: 'text', placeholder: p.g.length > 1 ? `Group ${gi + 1} - khi nhận điện từ …` : 'Tên nhóm (bỏ trống nếu chỉ một nhóm)' });
+        h.value = n.h ?? '';
+        h.addEventListener('input', () => {
+          n.h = h.value || undefined;
+        });
+        hop.append(
+          el('div', { class: 'cd-sua-dau' }, [
+            el('b', { text: `Nhóm ${gi + 1}` }),
+            h,
+            button('Bỏ nhóm', () => {
+              if (p.g.length > 1 || confirm('Bỏ nhóm thông số duy nhất?')) {
+                p.g.splice(gi, 1);
+                if (!p.g.length) p.g.push({ c: [] });
+                veNhom();
+              }
+            }, { class: 'btn btn-nho' }),
+          ]),
+        );
+        const t = el('table', { class: 'table cd-bang cd-sua-bang' });
+        t.append(el('thead', {}, [el('tr', {}, ['Chức năng', 'Cấp', 'Giá trị', 'Thời gian', 'Tác động', ''].map((x) => el('th', { text: x })))]));
+        const tb = el('tbody');
+        n.c.forEach((c, ci) => {
+          const tr = el('tr');
+          c.forEach((x, j) => {
+            const i = el('input', { class: 'input', type: 'text' });
+            i.value = x;
+            i.addEventListener('input', () => {
+              c[j] = i.value;
+            });
+            tr.append(el('td', {}, [i]));
+          });
+          tr.append(el('td', {}, [button('×', () => {
+            n.c.splice(ci, 1);
+            veNhom();
+          }, { class: 'btn btn-nho', title: 'Xoá dòng' })]));
+          tb.append(tr);
+        });
+        t.append(tb);
+        hop.append(t, button('+ Thêm dòng', () => {
+          n.c.push(['', '', '', '', '']);
+          veNhom();
+        }, { class: 'btn btn-nho' }));
+        nhom.append(hop);
+      });
+      nhom.append(button('+ Thêm nhóm thông số (Group 2…)', () => {
+        p.g.push({ h: `Group ${p.g.length + 1} - khi nhận điện từ `, c: [] });
+        veNhom();
+      }, { class: 'btn btn-nho' }));
+    };
+    veNhom();
+    const than = el('div', { class: 'cd-hop cd-sua' }, [
+      chung,
+      el('div', { class: 'props-title', text: 'Thông số chỉnh định (nhóm có 2 hướng nhận điện: ghi hướng vào tên nhóm)' }),
+      nhom,
+      el('p', { class: 'muted small', text: 'Bản sửa lưu trên máy này (sổ sửa phiếu), ghi kèm người sửa và ngày sửa. Quản trị xuất sổ ra .json để chép sang máy khác: menu Dữ liệu → Sổ sửa phiếu chỉnh định.' }),
+    ]);
+    const luu = (muc: Parameters<typeof datPhieu>[1], bao: string): void => {
+      if (!datPhieu(p.id, muc)) toast('Trình duyệt chặn lưu - bản sửa chỉ giữ trong phiên này.', 'warn');
+      else toast(bao);
+      close();
+      this.sauKhiSua();
+      sauLuu?.();
+    };
+    const nut: HTMLElement[] = [
+      button('Lưu phiếu', () => {
+        for (const k of ['md', 'tdl', 'gc']) if (!rec[k]?.trim()) delete rec[k];
+        for (const k of ['tb', 'so', 'nb', 'mo', 'rl', 'ti', 'nam']) rec[k] = (rec[k] ?? '').trim();
+        if (!p.tb) {
+          toast('Chưa ghi máy cắt của phiếu.', 'warn');
+          return;
+        }
+        for (const n of p.g) n.c = n.c.filter((c) => c.some((x) => x.trim()));
+        if (!khoaPhieu(p.tb).length) {
+          toast('Không đọc được số hiệu máy cắt (vd "MC 471 E6.6", "REC 475E6.3/03") - phiếu lưu nhưng chưa gắn được vào sơ đồ.', 'warn');
+        }
+        if (!p.ten) p.ten = `Nhập trên phần mềm: ${p.tb}`;
+        luu({ p, capNhat: new Date().toISOString(), nguoi: this.ctx.nguoi() }, goc ? 'Đã lưu bản sửa phiếu' : 'Đã thêm phiếu');
+      }, { class: 'btn primary' }),
+    ];
+    if (goc && !laPhieuMoi(goc) && docSoPhieu().muc[goc.id]) {
+      nut.push(button('Khôi phục theo phiếu gốc', () => {
+        if (confirm('Bỏ bản sửa, dùng lại thông số theo phiếu gốc?')) luu(null, 'Đã khôi phục phiếu gốc');
+      }));
+    }
+    if (goc) {
+      nut.push(button('Bỏ phiếu này', () => {
+        if (!confirm('Bỏ phiếu này khỏi dữ liệu (phiếu hết hiệu lực / nhập nhầm)?')) return;
+        luu(laPhieuMoi(goc) ? null : { p, xoa: 1, capNhat: new Date().toISOString(), nguoi: this.ctx.nguoi() }, 'Đã bỏ phiếu');
+      }));
+    }
+    nut.push(button('Huỷ', () => close()));
+    const close = dialog(goc ? `Sửa phiếu chỉnh định - ${goc.so || goc.tb}` : `Nhập phiếu chỉnh định - ${p.tb}`, than, nut);
+  }
+
+  /** Danh sách phiếu đã sửa / thêm / bỏ trên máy này + xuất / nhập sổ. */
+  hopThoaiSoPhieu(): void {
+    const so = docSoPhieu();
+    const ds = Object.entries(so.muc).sort((a, b) => b[1].capNhat.localeCompare(a[1].capNhat));
+    const t = el('table', { class: 'table' });
+    t.append(el('thead', {}, [el('tr', {}, ['Ngày sửa', 'Người sửa', 'Máy cắt', 'Số phiếu', 'Nội dung'].map((x) => el('th', { text: x })))]));
+    const tb = el('tbody');
+    for (const [id, m] of ds) {
+      tb.append(el('tr', {}, [
+        el('td', { text: new Date(m.capNhat).toLocaleString('vi-VN') }),
+        el('td', { text: m.nguoi ?? '' }),
+        el('td', { text: m.p.tb }),
+        el('td', { text: m.p.so }),
+        el('td', { text: m.xoa ? 'Bỏ phiếu' : id.startsWith('moi-') ? 'Phiếu nhập mới' : 'Sửa thông số' }),
+      ]));
+    }
+    t.append(tb);
+    const than = el('div', { class: 'cd-hop' }, [
+      el('p', { class: 'muted small', text: ds.length ? `${ds.length} phiếu đã sửa / thêm / bỏ trên máy này.` : 'Chưa sửa phiếu nào trên máy này.' }),
+      el('div', { class: 'table-wrap' }, [t]),
+    ]);
+    const xuat = button('Xuất sổ (.json)', () => download('so-sua-phieu-chinh-dinh.json', xuatSoPhieu(), 'application/json'), { class: 'btn can-qt' });
+    const nhap = button('Nhập sổ (.json)…', () => {
+      void pickFile('.json,application/json').then(async (f) => {
+        if (!f) return;
+        try {
+          const n = nhapSoPhieu(await f.text());
+          toast(`Đã nhận ${n} phiếu từ sổ`);
+          close();
+          this.sauKhiSua();
+        } catch (err) {
+          toast((err as Error).message, 'error');
+        }
+      });
+    });
+    if (!this.ctx.duocSua()) nhap.disabled = true;
+    const close = dialog('Sổ sửa phiếu chỉnh định', than, [xuat, nhap, button('Đóng', () => close())]);
   }
 
   /* ------------------------------ tìm kiếm ------------------------------ */
+
+  /** Dựng sẵn chỉ mục tìm kiếm (gọi lúc trình duyệt rảnh) để lần gõ đầu có kết quả ngay. */
+  chuanBiTim(): void {
+    chiMucCD();
+    this.dungChiMucTim();
+  }
 
   private dungChiMucTim(): MucTim[] {
     const v = `${this.ctx.store.sheet.id}|${this.ctx.store.version}`;
@@ -351,21 +562,26 @@ export class ChinhDinhUi {
       ds.classList.add('open');
     };
     let hen = 0;
+    let henDong = 0;
     o.addEventListener('input', () => {
       clearTimeout(hen);
+      clearTimeout(henDong);
       hen = window.setTimeout(() => {
         kq = this.tim(o.value);
         dang = kq.length ? 0 : -1;
         ve();
-      }, 120);
+      }, 60);
     });
     o.addEventListener('focus', () => {
+      clearTimeout(henDong);
       if (o.value.trim()) {
         kq = this.tim(o.value);
         ve();
       }
     });
-    o.addEventListener('blur', () => setTimeout(() => ds.classList.remove('open'), 150));
+    o.addEventListener('blur', () => {
+      henDong = window.setTimeout(() => ds.classList.remove('open'), 150);
+    });
     o.addEventListener('keydown', (ev) => {
       if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
         ev.preventDefault();

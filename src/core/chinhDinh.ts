@@ -50,7 +50,12 @@ export interface PhieuCD {
   gc?: string;
   /** Trích đoạn phiếu bị thiếu, cần mở file gốc để xem đủ. */
   thieu?: 1;
+  /** Đã sửa trên phần mềm: "ngày - người sửa" (gắn khi áp sổ sửa phiếu, không lưu trong dữ liệu gốc). */
+  sua?: string;
 }
+
+/** Phiếu thêm mới trên phần mềm (không có file gốc trên Drive). */
+export const laPhieuMoi = (p: PhieuCD): boolean => p.id.startsWith('moi-');
 
 /** Tên trạm / trạm cắt đứng sau số lộ. */
 const TRAM = String.raw`(E\s*\d+\s*\.\s*\d+|TCCN|TCVB|TC\s*Cao\s*Ngạn|TC\s*Vòng\s*Bi|T[ÂA]N\s*Đ[ỨU]C|Đ[ỒO]NG\s*LI[ÊE]N)`;
@@ -225,7 +230,7 @@ export class ChiMucCD {
 }
 
 /** Link mở phiếu gốc trên Google Drive. */
-export const linkPhieu = (p: PhieuCD): string => `https://drive.google.com/file/d/${p.id}/view`;
+export const linkPhieu = (p: PhieuCD): string => (laPhieuMoi(p) ? '' : `https://drive.google.com/file/d/${p.id}/view`);
 
 /** Tóm tắt một phiếu thành vài dòng ngắn để hiện khi rê chuột. */
 export function tomTatPhieu(p: PhieuCD): string[] {

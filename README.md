@@ -19,17 +19,23 @@ qua email hoặc đặt trên thư mục dùng chung của phòng.
 ### Tài khoản và phân quyền
 
 Mở phần mềm ra là **CHẾ ĐỘ XEM** (góc trên bên phải ghi "CHẾ ĐỘ XEM"): xem, phóng to,
-tìm trạm, tô sáng mạch (Shift+M), điểm đấu nối (F4), đo, lưu và xuất file đều được,
-nhưng các công cụ vẽ, thư viện thiết bị, mục menu sửa đổi đều ẩn và bản vẽ không sửa
-được (kéo thả, xoá, hoàn tác, sửa thuộc tính đều bị chặn).
+tìm trạm, tô sáng mạch (Shift+M), điểm đấu nối (F4), đo đều được, nhưng các công cụ vẽ,
+thư viện thiết bị, mục menu sửa đổi đều ẩn và bản vẽ không sửa được (kéo thả, xoá, hoàn
+tác, sửa thuộc tính đều bị chặn).
+
+**Lưu / xuất file chỉ dành cho tài khoản Quản trị** (tài liệu nội bộ): lưu bản vẽ .sld,
+xuất DXF / SVG / PNG, các bảng .csv / .json (trạng thái thiết bị, danh mục trạm, sổ dây
+dẫn, sổ sửa phiếu). Với tài khoản khác các mục này ẩn đi, Ctrl+S và mọi lối tải file bị
+chặn ở một chỗ chung (`download()` trong `src/io/file.ts`); in trang (Ctrl+P) chỉ ra dòng
+"Tài liệu nội bộ".
 
 Muốn hiệu chỉnh: bấm **Đăng nhập**.
 
 | Vai trò | Quyền |
 |---|---|
 | Chưa đăng nhập | Chỉ xem |
-| Biên tập | Hiệu chỉnh sơ đồ |
-| Quản trị | Hiệu chỉnh sơ đồ + thêm / xoá tài khoản, đặt lại mật khẩu, đổi vai trò |
+| Biên tập | Hiệu chỉnh sơ đồ, sửa phiếu chỉnh định |
+| Quản trị | Như Biên tập + **lưu / xuất file** + thêm / xoá tài khoản, đặt lại mật khẩu, đổi vai trò |
 
 Tài khoản mặc định: **admin / dieudob6** - phần mềm nhắc đổi mật khẩu ngay khi đăng
 nhập bằng mật khẩu mặc định (menu tài khoản > *Đổi mật khẩu*). Không xoá hay hạ quyền
@@ -42,20 +48,45 @@ nhập bằng mật khẩu mặc định (menu tài khoản > *Đổi mật kh�
 > trang. Muốn phân quyền thật sự cho nhiều người cùng dùng chung một sơ đồ thì phải
 > đặt phần mềm lên máy chủ có đăng nhập.
 
+### Chỉ máy được cấp quyền mới mở được file (bản phát hành mã hoá)
+
+`npm run build` mã hoá toàn bộ mã và dữ liệu trong `dist/index.html` (nén gzip + AES-256-GCM,
+`tools/ma-hoa.mjs`). Mở file trên máy chưa kích hoạt chỉ thấy **màn hình kích hoạt** kèm
+**mã máy**; quản trị nhập **mật khẩu kích hoạt** một lần, khoá giải mã được lưu trong trình
+duyệt của máy đó (IndexedDB, dạng không xuất ra được), những lần sau mở thẳng phần mềm.
+File chép sang máy khác / gửi ra ngoài: dữ liệu chỉ là chuỗi mã hoá, không đọc được nếu
+không có mật khẩu kích hoạt.
+
+- Menu **Trợ giúp → Quyền mở phần mềm trên máy này**: xem mã máy, ngày kích hoạt; quản trị
+  **thu hồi quyền** của máy (lần mở sau phải kích hoạt lại).
+- Bản cập nhật mới vẫn mở được trên máy đã kích hoạt (khoá dẫn xuất từ mật khẩu với muối cố
+  định). Đổi mật khẩu kích hoạt thì mọi máy phải kích hoạt lại.
+- Khoá gắn với **hồ sơ trình duyệt** trên máy (Edge / Chrome, người dùng Windows); cửa sổ ẩn
+  danh không lưu được khoá. Xoá dữ liệu duyệt web của trang thì phải kích hoạt lại.
+- Mật khẩu kích hoạt **không ghi trong mã nguồn**: đặt biến môi trường khi build, thiếu thì
+  build dừng (không ra bản chưa mã hoá):
+
+```bash
+MAT_KHAU_KICH_HOAT='...' npm run build
+```
+
+> Giới hạn: người đã có quyền trên máy đã kích hoạt vẫn xem được dữ liệu (đó là mục đích);
+> cơ chế này chặn việc file bị chép / gửi ra ngoài rồi mở ở máy lạ.
+
 ### Khi cần sửa mã nguồn
 
 ```bash
 npm install
-npm run dev          # mở http://localhost:5173
-npm run build        # tạo lại dist/index.html
-npm run typecheck    # kiểm tra kiểu dữ liệu
+npm run dev                                  # mở http://localhost:5173 (không mã hoá)
+MAT_KHAU_KICH_HOAT='...' npm run build       # tạo lại dist/index.html (đã mã hoá)
+npm run typecheck                            # kiểm tra kiểu dữ liệu
 ```
 
 Kiểm thử tự động bằng trình duyệt thật (tuỳ chọn):
 
 ```bash
 npm i -D playwright && npx playwright install chromium
-npm run build && node tools/smoke-test.mjs anh-kiem-thu.png
+MAT_KHAU_KICH_HOAT='...' npm run build && MAT_KHAU_KICH_HOAT='...' node tools/smoke-test.mjs anh-kiem-thu.png
 ```
 
 ---
@@ -188,6 +219,14 @@ với nó qua các thiết bị đang đóng**. Vùng sáng dừng lại ở cá
 báo số thiết bị, số đoạn dây và tên các thiết bị cắt ở biên, ví dụ “Vùng nối thông:
 381 thiết bị, 1784 đoạn dây - dừng ở 21 thiết bị đang cắt: LBS 473E6.4/14B, …”.
 
+* **Tốc độ:** đồ thị lưới của tờ được dựng ở **luồng nền** (Web Worker,
+  `src/core/congSuatWorker.ts`) ngay khi mở phần mềm và sau mỗi lần đổi trạng thái thiết
+  bị, nên giao diện không bị đứng. Lần click đầu trước đây mất ~4 s; nay đợi luồng nền xong
+  (~1 s sau khi mở) thì tô sáng ngay (~40 ms). Bước nhận khung tủ RMU dùng lưới chỉ mục
+  không gian (kết quả giống hệt bản cũ, 2,5 s còn ~0,1 s). Chỉ mục tìm kiếm (Ctrl+F) và bộ
+  đệm sổ dây dẫn dựng sẵn lúc trình duyệt rảnh: gõ tìm ra kết quả ~0,1 s, Enter hiện thiết
+  bị ~0,05 s.
+
 * Tính trên cùng mô hình với **Chạy công suất**, nên đi đúng qua các cung vượt dây
   (hop, chỗ trung áp vượt đường dây 110kV), khung RMU và các điểm đấu vẽ trên sơ đồ;
   trước đây vùng sáng bị dừng ở cung vượt dây.
@@ -266,6 +305,19 @@ do) và các phiếu cần lưu ý. Không rà trạm khách hàng, tụ bù, tr
 
 Tăng tốc kèm theo: tìm nhãn gần thiết bị (tooltip, bảng thuộc tính) dùng chỉ mục
 không gian của bộ vẽ thay vì duyệt toàn bộ đối tượng trên tờ.
+
+**Sửa phiếu ngay trên phần mềm** (đã đăng nhập Biên tập / Quản trị): nút **Sửa phiếu…**
+dưới mỗi phiếu (bảng thuộc tính, khung lớn) mở hộp thoại sửa thông tin chung và bảng thông
+số từng nhóm (thêm / xoá dòng, thêm nhóm Group 2 kèm hướng nhận điện). Thiết bị chưa có
+phiếu có nút **Nhập phiếu cho thiết bị này…**; phiếu hết hiệu lực bấm **Bỏ phiếu này**.
+Bản sửa lưu trong **sổ sửa phiếu** của máy (`src/io/soPhieu.ts`, localStorage), ghi người
+sửa và ngày sửa, đè lên phiếu gốc khi hiển thị; **Khôi phục theo phiếu gốc** để bỏ bản sửa.
+Menu **Dữ liệu → Sổ sửa phiếu chỉnh định**: danh sách phiếu đã sửa, quản trị xuất sổ .json
+để nhập sang máy khác, hoặc gộp hẳn vào dữ liệu gốc khi dựng lại phần mềm:
+
+```bash
+python3 tools/chinh-dinh/dung-du-lieu.py --so-sua so-sua-phieu-chinh-dinh.json
+```
 
 ### Công suất chạy trên đường dây (trình chiếu)
 
