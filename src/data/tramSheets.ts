@@ -183,6 +183,8 @@ export function buildCadSheet(code: string, name: string, substationId?: Id): Sh
     };
     const sl3 = data.srcLayers[row[5]];
     if (sl3) ce.srcLayer = sl3;
+    // cột 7 (tuỳ chọn): 1 = chấm tô đặc (điểm đấu rẽ nhánh - tools/diem-re-nhanh.mjs)
+    if (row[6]) ce.filled = true;
     put(ce);
   }
 

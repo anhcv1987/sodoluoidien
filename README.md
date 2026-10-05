@@ -1246,7 +1246,26 @@ chừa lề hành lang (mục 7.3) là 99.030 - thưa hơn, dễ xem hơn. Thứ
 cần làm lại (có dời trạm thì chạy `node tools/doi-cho-tram.mjs` trước): `node tools/ve-luoi-trung-ap.mjs` → `node tools/noi-duong-day-110.mjs
 src/data/tram-sld.json` (đường dây 110kV đi vòng quanh lưới trung áp) → `node
 tools/ve-luoi-trung-ap.mjs` (vị trí bản vẽ không phụ thuộc đường dây 110kV nên không đổi) →
-`npx vite build`.
+`node tools/diem-re-nhanh.mjs` (chấm điểm đấu rẽ nhánh, mục 7.2a) → `npx vite build`.
+
+### 7.2a. Chấm điểm đấu rẽ nhánh
+
+`node tools/diem-re-nhanh.mjs [src/data/tram-sld.json]` đặt **chấm tròn tô đặc** ở mọi chỗ đường dây
+rẽ nhánh chữ T trên tờ sơ đồ tổng, để phân biệt rõ chỗ **đấu nối thật** với chỗ dây chỉ vẽ chéo qua
+nhau (đã có vòng nhảy). Điểm rẽ lấy đúng theo mô hình kết lưới / chiều công suất
+(`src/core/dongCongSuat.ts`), nên chấm nào hiện trên sơ đồ thì phần mềm cũng coi là chỗ đấu:
+
+* đỉnh có từ 3 **hướng dây** khác nhau gặp nhau, thuộc ít nhất hai nét (nét vẽ trùng không tính);
+* bỏ thanh cái, cực thiết bị, giữa thân thiết bị, các ký hiệu bản CAD vẽ bằng đường (mũi tên đầu
+  ra lộ, tam giác, lưỡi dao cách ly mở có đầu bỏ lửng);
+* phạm vi: đường dây ngoài trạm (lưới trung áp, đường dây 110kV) và chỗ lưới trung áp đấu ra ngăn lộ;
+  **đấu nối bên trong ô trạm giữ nguyên như bản CAD gốc** (không chấm thêm);
+* chấm cột lưới trung áp (rỗng) nằm đúng điểm rẽ thì tô đặc chấm đó thay vì vẽ chồng.
+
+Chấm nằm ở lớp điện áp của đường dây (cột 7 của hàng `c` = 1: tô đặc), nguồn CAD "Điểm rẽ nhánh";
+`ve-luoi-trung-ap.mjs` xoá các chấm này khi vẽ lại nên luôn chạy `diem-re-nhanh.mjs` sau cùng.
+Hiện có 124 điểm rẽ (108 chấm mới, 16 chấm cột được tô đặc). Xuất DXF: chấm đặc ghi thành
+POLYLINE donut (bề rộng nét = bán kính), nhập DXF đọc lại đúng thành chấm đặc.
 
 ### 7.3. Dời các trạm nhiều liên thông trung áp ra chỗ rộng
 

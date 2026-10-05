@@ -201,6 +201,31 @@ export function exportDxf(store: DocStore): string {
         }
         case 'circle':
           if (op.r <= 0) break;
+          if (op.fill) {
+            // chấm tô đặc (điểm đấu rẽ nhánh): DONUT - polyline kín hai cung nửa vòng, bề rộng = bán
+            // kính (DXF R12: POLYLINE + VERTEX; mở bằng AutoCAD / GstarCAD thấy chấm đặc)
+            w.g(0, 'POLYLINE');
+            w.g(8, layer);
+            if (op.kv !== undefined) w.g(62, aci(op.kv));
+            w.g(66, 1);
+            w.g(10, 0);
+            w.g(20, 0);
+            w.g(30, 0);
+            w.g(70, 1);
+            w.g(40, op.r);
+            w.g(41, op.r);
+            for (const dx of [-op.r / 2, op.r / 2]) {
+              w.g(0, 'VERTEX');
+              w.g(8, layer);
+              w.g(10, op.c.x + dx);
+              w.g(20, op.c.y);
+              w.g(30, 0);
+              w.g(42, 1);
+            }
+            w.g(0, 'SEQEND');
+            w.g(8, layer);
+            break;
+          }
           w.g(0, 'CIRCLE');
           w.g(8, layer);
           if (op.kv !== undefined) w.g(62, aci(op.kv));

@@ -50,7 +50,9 @@ const ALIGN = { trai: data.aligns.indexOf('left'), giua: data.aligns.indexOf('ce
 // xoá phần đã vẽ lần trước
 for (const k of ['b', 'd']) s[k] = s[k].filter((r) => r[k === 'b' ? 3 : 8] !== SRC);
 s.t = s.t.filter((r) => r[7] !== SRC);
-s.c = (s.c ?? []).filter((r) => r[5] !== SRC);
+// chấm điểm rẽ nhánh phụ thuộc nét lưới vừa vẽ: xoá luôn, chạy lại tools/diem-re-nhanh.mjs sau cùng
+const SRC_RN = data.srcLayers.indexOf('Điểm rẽ nhánh');
+s.c = (s.c ?? []).filter((r) => r[5] !== SRC && r[5] !== SRC_RN);
 s.nhay = []; // điểm đầu các vòng nhảy giao chéo (chỉ lưới trung áp dùng)
 
 /* ------------------------------ cỡ chữ, khoảng cách ------------------------------ */

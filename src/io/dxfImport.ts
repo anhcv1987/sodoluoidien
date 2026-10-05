@@ -66,6 +66,8 @@ interface Circ {
   c: Pt;
   r: number;
   layer: string;
+  /** Chấm tô đặc (DONUT: polyline kín hai cung nửa vòng có bề rộng). */
+  filled?: boolean;
 }
 interface Txt {
   p: Pt;
@@ -717,13 +719,26 @@ function flatten(recs: Rec[]): Flat {
         }
         case 'POLYLINE': {
           const pts: Pt[] = [];
+          const bulge: number[] = [];
           let j = i + 1;
           for (; j < list.length && list[j].type === 'VERTEX'; j++) {
             pts.push(apply(m, { x: num(list[j], 10), y: num(list[j], 20) }));
+            bulge.push(num(list[j], 42));
           }
           if (j < list.length && list[j].type === 'SEQEND') j++;
           i = j - 1;
           const closed = (num(r, 70) & 1) === 1;
+          // DONUT (chấm tô đặc - điểm đấu rẽ nhánh): kín, hai đỉnh, hai cung nửa vòng
+          if (closed && pts.length === 2 && bulge.every((b) => Math.abs(Math.abs(b) - 1) < 1e-3)) {
+            const w = num(r, 40) * Math.abs(m.sx);
+            sink.circles.push({
+              c: { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 },
+              r: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) / 2 + w / 2,
+              layer,
+              filled: true,
+            });
+            break;
+          }
           for (let k = 1; k < pts.length; k++) sink.segs.push({ a: pts[k - 1], b: pts[k], layer });
           if (closed && pts.length > 2) sink.segs.push({ a: pts[pts.length - 1], b: pts[0], layer });
           break;
@@ -1288,6 +1303,7 @@ export function importDxf(text: string, opt: ImportOptions): ImportResult {
       r: Math.max(1e-4, c.r * opt.scale),
       srcLayer: c.layer,
       note: `Nhập từ DXF - lớp "${c.layer}"`,
+      ...(c.filled ? { filled: true } : {}),
     });
   }
 
