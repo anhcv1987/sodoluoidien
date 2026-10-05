@@ -9,6 +9,8 @@
  * đấu vào đầu ra ngăn lộ. Bỏ qua: đấu nối bên trong ô trạm theo bản CAD gốc, thanh cái, cực thiết bị.
  *
  * Chấm cột rỗng sẵn có của lưới trung áp nằm đúng điểm rẽ thì tô đặc chấm đó (không vẽ chồng).
+ * Số cột: điểm rẽ trung áp chưa có số cột bên cạnh thì ghi chữ số cột sát điểm đó trên bản vẽ PDF gốc
+ * ("cot_le" do tools/pdf-lo/xuat.py ghi, đổi toạ độ theo tools/luoi-trung-ap/pdf/vi-tri.json).
  * Chạy lại được: xoá chấm của lần trước (lớp CAD gốc "Điểm rẽ nhánh") rồi tính lại. Chạy sau
  * ve-luoi-trung-ap.mjs và noi-duong-day-110.mjs.
  */
@@ -40,6 +42,7 @@ const SRC_110 = data.srcLayers.indexOf('Kết lưới 110kV');
 
 // xoá chấm lần trước; bỏ cờ tô đặc đã đặt cho chấm cột lưới trung áp
 s.c = (s.c ?? []).filter((r) => r[5] !== SRC_RN);
+s.t = s.t.filter((r) => r[7] !== SRC_RN);
 for (const r of s.c) if (r[5] === SRC_LTA && r.length > 6) r.length = 6;
 
 /* ---------- mô hình (dựng giống tools/ra-soat-noi-trung-ap.mjs) ---------- */
@@ -155,5 +158,64 @@ for (let v = 0; v < nV; v++) {
   s.c.push([lop >= 0 ? lop : s.b[[...net[v]][0]][0], kv, +x.toFixed(3), +y.toFixed(3), r, SRC_RN, 1]);
   them++;
 }
+
+/* ---------- số cột tại điểm rẽ (lấy chữ số cột trên bản vẽ PDF gốc) ---------- */
+// tools/pdf-lo/xuat.py ghi mọi chữ số cột sát đường dây vào "cot_le"; vi-tri.json (ve-luoi-trung-ap.mjs
+// ghi) cho phép đổi toạ độ PDF -> tờ tổng giống hệt lúc vẽ
+const RE_COT = /^\d{1,3}[A-Za-z]?(-\d)?$/;
+const thuMuc = resolve('tools/luoi-trung-ap/pdf');
+const viTri = JSON.parse(readFileSync(join(thuMuc, 'vi-tri.json'), 'utf8'));
+const cotPdf = [];
+for (const [ten, v] of Object.entries(viTri)) {
+  const J = JSON.parse(readFileSync(join(thuMuc, ten), 'utf8'));
+  const [X0, Y0] = v.goc;
+  const [gx, gy] = v.goc_pdf;
+  const k = v.ti_le;
+  const W = (x, y) => [X0 + k * (x - gx), Y0 - k * (y - gy)];
+  for (const c of J.cot_le ?? []) {
+    const [a0, b0] = W(c.x0, c.y1);
+    const [a1, b1] = W(c.x1, c.y0);
+    cotPdf.push({ t: c.t, hop: [a0, b0, a1, b1], k, c });
+  }
+}
+const kcHop = (h, x, y) => Math.hypot(Math.max(h[0] - x, 0, x - h[2]), Math.max(h[1] - y, 0, y - h[3]));
+// chữ số cột đã có trên tờ (khung ước lượng theo cỡ chữ)
+const hopChu = (r) => {
+  const w = String(r[8]).length * r[4] * 0.62;
+  return r[5] === 90 ? [r[2] - r[4], r[3], r[2], r[3] + w] : [r[2], r[3], r[2] + w, r[3] + r[4]];
+};
+const chuCot = s.t.filter((r) => RE_COT.test(String(r[8]).trim())).map(hopChu);
+const LOP_CHU = data.layers.indexOf('Ghi chú');
+const ALIGN_TRAI = data.aligns.indexOf('left');
+const daDung = new Set();
+let ghiSo = 0;
+let coSan = 0;
+const cap = [];
+for (const c of s.c) {
+  if (!(c[5] === SRC_RN || (c[5] === SRC_LTA && c.length > 6)) || c[1] >= 110) continue;
+  if (chuCot.some((h) => kcHop(h, c[2], c[3]) < 4)) {
+    coSan++;
+    continue;
+  }
+  cotPdf.forEach((p, i) => {
+    const d = kcHop(p.hop, c[2], c[3]) / p.k;
+    if (d <= 5) cap.push([d, c, i]);
+  });
+}
+// ghép gần nhất trước: mỗi chấm một số cột, mỗi chữ trên PDF dùng một lần
+const daGhi = new Set();
+for (const [, c, i] of cap.sort((a, b) => a[0] - b[0])) {
+  if (daGhi.has(c) || daDung.has(i)) continue;
+  daGhi.add(c);
+  daDung.add(i);
+  const { t: so, k, c: n } = cotPdf[i];
+  const h = Math.max(n.h, 2.5) * k * 0.92;
+  // cùng cách đặt chữ như chuPdf trong ve-luoi-trung-ap.mjs
+  const hp = cotPdf[i].hop;
+  const [x, y] = n.doc ? [hp[2] - n.h * 0.18 * k, hp[1]] : [hp[0], hp[1] + n.h * 0.18 * k];
+  s.t.push([LOP_CHU, c[1], +x.toFixed(3), +y.toFixed(3), +h.toFixed(3), n.doc ? 90 : 0, ALIGN_TRAI, SRC_RN, so]);
+  ghiSo++;
+}
 writeFileSync(duongDan, JSON.stringify(data));
 console.log(`Điểm rẽ nhánh: thêm ${them} chấm đặc, tô đặc ${toDac} chấm cột sẵn có (${daCham.length} điểm rẽ).`);
+console.log(`Số cột tại điểm rẽ trung áp: ${coSan} đã có, ghi thêm ${ghiSo} (theo bản vẽ PDF gốc).`);

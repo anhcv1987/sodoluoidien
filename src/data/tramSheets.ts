@@ -313,7 +313,7 @@ export const lopDuongDay = (kv: VoltageKv): string => `Đường dây ${styleOf(
 export const LOP_DUONG_DAY = allStyles().map((st) => lopDuongDay(st.kv));
 
 /** Nguồn nét (lớp CAD) luôn thuộc đường dây dù nằm trong ô trạm (cáp nối ngăn lộ đi ra). */
-const NGUON_DUONG_DAY = new Set(['Lưới trung áp', 'Kết lưới 110kV']);
+const NGUON_DUONG_DAY = new Set(['Lưới trung áp', 'Kết lưới 110kV', 'Điểm rẽ nhánh']);
 /** Trạm ngoài tỉnh do công cụ vẽ thêm: là trạm, không phải đường dây. */
 const NGUON_TRAM = new Set(['Trạm ngoài tỉnh']);
 

@@ -1262,8 +1262,14 @@ nhau (đã có vòng nhảy). Điểm rẽ lấy đúng theo mô hình kết lư
   **đấu nối bên trong ô trạm giữ nguyên như bản CAD gốc** (không chấm thêm);
 * chấm cột lưới trung áp (rỗng) nằm đúng điểm rẽ thì tô đặc chấm đó thay vì vẽ chồng.
 
-Chấm nằm ở lớp điện áp của đường dây (cột 7 của hàng `c` = 1: tô đặc), nguồn CAD "Điểm rẽ nhánh";
-`ve-luoi-trung-ap.mjs` xoá các chấm này khi vẽ lại nên luôn chạy `diem-re-nhanh.mjs` sau cùng.
+**Số cột tại điểm rẽ** (lưới trung áp): điểm rẽ chưa có số cột ghi bên cạnh thì lấy chữ số cột
+nằm sát điểm đó (≤ 5 pt) trên bản vẽ PDF gốc, đặt đúng vị trí như trên PDF. `xuat.py` ghi mọi chữ
+số cột sát đường dây vào khoá `cot_le` của `tools/luoi-trung-ap/pdf/*.json`; toạ độ đổi sang tờ tổng
+theo `vi-tri.json`. Hiện 61/121 điểm rẽ trung áp có số cột (18 có sẵn, 43 ghi thêm); các điểm còn
+lại bản vẽ PDF không ghi số cột (phần lớn là chỗ cáp nối ngăn lộ / liên thông do phần mềm vẽ).
+
+Chấm, số cột nằm ở lớp đường dây của cấp điện áp (cột 7 của hàng `c` = 1: tô đặc), nguồn CAD "Điểm rẽ nhánh";
+`ve-luoi-trung-ap.mjs` xoá các chấm, số cột này khi vẽ lại nên luôn chạy `diem-re-nhanh.mjs` sau cùng.
 Hiện có 124 điểm rẽ (108 chấm mới, 16 chấm cột được tô đặc). Xuất DXF: chấm đặc ghi thành
 POLYLINE donut (bề rộng nét = bán kính), nhập DXF đọc lại đúng thành chấm đặc.
 

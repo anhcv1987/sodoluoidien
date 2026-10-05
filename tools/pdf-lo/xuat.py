@@ -516,6 +516,15 @@ for a_i, a in enumerate(hs):
                                                    y1=round(e['y1'], 2), h=round(e['h'], 2)) for e in (a, b)]))
 
 # tủ RMU: tiêu đề + tên ngăn; chỗ chuỗi đi vào/ra khung tủ
+# mọi chữ số cột sát đường dây (kể cả chữ không bắt được vào chuỗi ở trên): tools/diem-re-nhanh.mjs
+# dùng để ghi số cột cạnh chấm điểm rẽ nhánh
+ket['cot_le'] = []
+for e in tex:
+    if not RE_COT.match(e['t']): continue
+    d, ij, q = gan_chuoi(e['x'], e['y'])
+    if d > 15: continue
+    ket['cot_le'].append(dict(t=e['t'], x0=round(e['x0'], 2), y0=round(e['y0'], 2), x1=round(e['x1'], 2),
+                              y1=round(e['y1'], 2), h=round(e['h'], 2), doc=e['doc']))
 json.dump(ket, open(sys.argv[2], 'w'), ensure_ascii=False)
 
 # ---------------- ảnh kiểm tra ----------------
