@@ -110,7 +110,7 @@ Mỗi cấp điện áp là một lớp (layer) riêng, bật/tắt và khoá đ
 
 ## 3. Thư viện ký hiệu thiết bị
 
-22 ký hiệu, **lấy đúng hình học từ file CAD gốc** của Phòng Điều độ
+Các ký hiệu **lấy đúng hình học từ file CAD gốc** của Phòng Điều độ
 (`Sơ đồ lưới điện liên thông tỉnh Thái Nguyên.dwg`) — tỷ lệ giữa các thiết bị giữ
 nguyên như bản vẽ CAD:
 
@@ -119,7 +119,7 @@ nguyên như bản vẽ CAD:
 | Đóng cắt | Máy cắt · Máy cắt hợp bộ · Dao cách ly (đóng/mở) · Dao cách ly hợp bộ · Dao tiếp địa · Tiếp địa trực tiếp · Recloser · LBS · FCO |
 | Đo lường – Bảo vệ | TI · TU · TU thanh cái 3 pha · Chống sét van · Bộ đo đếm |
 | Máy biến áp – Bù | MBA 3 cuộn (110/35/22) · MBA 2 cuộn · MBA phân phối · Tụ bù · Kháng điện · SVC |
-| Khác | Vị trí cột · Đầu cáp |
+| Khác | Vị trí cột · Đầu cáp · **Máy phát** (nhà máy thuỷ điện: vòng tròn có dấu ~) |
 
 Bảng đối chiếu hình học gốc lưu tại `docs/cad-blocks-goc.txt`. Mỗi ký hiệu đều ghi
 rõ nguồn gốc (block CAD nào, hoặc "vẽ theo quy ước EVN") trong bảng thuộc tính.
@@ -1483,6 +1483,31 @@ Không vẽ (lộ hình tia, không có liên thông, hoặc trùng bản vẽ k
 | BK 7 - 10 | 371, 373, 375, 377, 379 E26.2 | MC 371E26.2/02, 15, 1B, MC 373E26.2/01, DCL 373E26.2-7/9-1, MC 379E26.3/144, MC 375E26.3/45 |
 | BK 11 - 13 | 371, 373, 375 E26.3 | MC 371E26.3/20, MC 375E26.3/85, MC 376E26.1/285 (nối tắt) |
 | BK 14 - 16 | 471, 472, 473, 474, 476 E26.1 (mạng cáp tủ RMU) | ngăn tủ RMU thường cắt (RMU 05, 06, 08 - 471; RMU 04, 11 - 472; RMU 03, 16, 23, 26 - 474; RMU 04 - 476), DPT 473E26.1-7/57, MC 472E26.1/59, MC 474E26.1/18 |
+
+**7 nhà máy thuỷ điện khu vực Bắc Kạn** (bản vẽ lộ vẽ khung chữ nhật ghi tên nhà máy ở cuối nhánh rẽ;
+công cụ dò trước đây chỉ lấy trục và nhánh liên thông nên bỏ qua các nhánh này):
+
+| Nhà máy | Mã | Công suất | Đấu vào | Nhánh rẽ (từ trục ra nhà máy) |
+|---|---|---|---|---|
+| NMTĐ Tà Làng | A26.0 | 2×2,5 MW | 375 E26.3 | DCL 375E26.3-7/01 Tà Làng - 331-7 - MC 331 - 331-3 |
+| NMTĐ Thượng Ân | A26.1 | 3×0,8 MW | 373 E26.3 | CD 331-7 |
+| NMTĐ Nặm Cắt | A26.2 | 2×1,6 MW | 372 E26.1 | MC 372E26.1/1A Đôn Phong - DCL 372E26.1-7/02 TĐ Nặm Cắt - 371-7 - MC 371 - 371-1 |
+| NMTĐ Thác Giềng 1 | A26.3 | 1×5,5 MW | 373 E26.1 | DCL 373E26.1-7/16.1 - CD 371-7 - MC 371 |
+| NMTĐ Pác Cáp | A26.4 | 2×3,0 MW | 371 E26.3 | hai máy cắt đầu cực song song: 371-1/MC 371/371-7 và 373-1/MC 373/373-7 |
+| NMTĐ Khuổi Thốc | A26.5 | 1×3,0 MW | 372 E26.1 | DPT 372E26.1-7/01 - MC 372E26.1/01 - 371-7 - MC 371 |
+| NMTĐ Nặm Cắt 2 | (chưa có mã) | MBA 320 kVA | 375 E26.3 | DCL 375E26.3-7/01 Phiêng Phung - MC 375E26.3/02 Nặm Cắt - cột 42 |
+
+Nặm Cắt 2: bản vẽ 375 E26.3 chỉ ghi "Nặm Cắt 2 - 320" ở cột 42; xác định là nhà máy theo bảng tính
+bảo vệ "Nặm cắt 2 (375E26.3)" trên Drive (Co so tinh toan/E26.3) - cần bổ sung mã điều độ, công suất.
+
+* Cấu hình dò (`tools/pdf-lo/cfgbk02/03/11/12/13.json`): thêm `dich` là điểm dây vào khung nhà máy;
+  `tb_vi_tri` khai tay các thiết bị đầu cực ghi nhãn tắt ("371", "371-7"…) - nay nhận nhiều vị trí
+  cùng một nhãn và ép loại ký hiệu: `{"371": [[x, y, "REC"], [x2, y2, "REC"]]}`.
+* `dat.mjs` → `nha_may`: ký hiệu máy phát đặt đúng đầu dây, kèm tên / mã / công suất; `noi` vẽ thêm
+  đoạn dây (khép vòng hai máy cắt song song của Pác Cáp - cây dò chỉ giữ một phía).
+* **Mô hình**: máy phát là **nguồn** (như thanh cái 220kV). Cắt lộ mà máy cắt đầu cực nhà máy còn
+  đóng thì phía nhà máy vẫn tính là có điện (vùng nối thông, chạy công suất F6) - nhắc nguy cơ cấp
+  ngược; cắt máy cắt đầu cực thì nhà máy tách khỏi lưới.
 
 Mạng cáp RMU Bắc Kạn (BK 14 - 16) mới dò trục và các tủ trên đường liên thông (các nhánh tủ hình tia
 không vẽ). Liên thông 472 - 474 E26.1: RMU 20-472 (ngăn 472-7/02 thường cắt) sang RMU 37-474 và

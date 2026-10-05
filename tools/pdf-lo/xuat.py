@@ -431,18 +431,28 @@ for dist, k_, q, ij, sg in ung_vien:
     da_gan.add(k_); da_diem.append(q)
     tb[k_]['q'] = q; tb[k_]['ij'] = ij
 # thiết bị khai vị trí bằng tay (ký hiệu vẽ lạ, công cụ không nhận ra): cfg "tb_vi_tri": {"tên": [x, y]}
-for ten_, (px_, py_) in cfg.get('tb_vi_tri', {}).items():
+# hoặc nhiều chỗ cùng nhãn / ép loại ký hiệu: {"371": [[x, y, "REC"], [x2, y2, "REC"]]} (nhãn ghi tắt ở đầu
+# cực nhà máy điện: "371", "371-7"... không có chữ MC / DCL đứng trước)
+def _ds_vi_tri():
+    for ten_, v in cfg.get('tb_vi_tri', {}).items():
+        for w in (v if isinstance(v[0], list) else [v]):
+            yield ten_, w[0], w[1], (w[2] if len(w) > 2 else None)
+da_tay = set()  # thiết bị đã khai tay (một nhãn khai nhiều chỗ thì mỗi chỗ một thiết bị riêng)
+for ten_, px_, py_, loai_ep in _ds_vi_tri():
     # cùng tên có thể có nhiều nhãn (vd "DCL 371E26.1-7/01" ở nhiều nhánh): lấy nhãn gần điểm khai nhất
-    ung_ = [k for k, d_ in enumerate(tb) if d_['ten'][0] == ten_ or d_['ten'][0].startswith(ten_ + ' ')]
+    ung_ = [k for k, d_ in enumerate(tb) if k not in da_tay and (d_['ten'][0] == ten_ or d_['ten'][0].startswith(ten_ + ' '))]
     k_ = min(ung_, key=lambda k: kc_khung(tb[k]['nhan'][0], px_, py_)) if ung_ else None
     if k_ is None:
-        e = min((e for e in tex if e['t'].strip() == ten_), key=lambda e: kc_khung(e, px_, py_), default=None)
+        da_dung = [tb[k]['nhan'][0] for k in da_tay]
+        e = min((e for e in tex if e['t'].strip() == ten_ and e not in da_dung), key=lambda e: kc_khung(e, px_, py_), default=None)
         if e is None:
             print('tb_vi_tri: không thấy chữ', ten_); continue
         tb.append(dict(ten=[ten_], nhan=[e], d=0, ij=None, q=None)); k_ = len(tb) - 1
     dd, ij, q = gan_chuoi(px_, py_)
     tb[k_]['q'] = q; tb[k_]['ij'] = ij
+    if loai_ep: tb[k_]['loai_ep'] = loai_ep
     da_gan.add(k_)
+    da_tay.add(k_)
 for k_, d_ in enumerate(tb):
     if k_ not in da_gan:
         d_['bo'] = True   # không có ký hiệu trên đường dò: thiết bị ở nhánh rẽ bên cạnh
@@ -480,7 +490,7 @@ for d_ in tb:
     i, j, s = d_['ij']
     ket['lo'][i]['chuoi'][j].setdefault('tb', []).append(dict(
         s=round(s, 2), p=[round(d_['q'][0], 2), round(d_['q'][1], 2)], h=[round(d_['q'][2], 3), round(d_['q'][3], 3)],
-        loai=loai_tb(d_['ten']), mo=d_['mo'], ten=d_['ten'],
+        loai=d_.get('loai_ep') or loai_tb(d_['ten']), mo=d_['mo'], ten=d_['ten'],
         nhan=[dict(t=e['t'], x0=round(e['x0'], 2), y0=round(e['y0'], 2), x1=round(e['x1'], 2), y1=round(e['y1'], 2),
                    h=round(e['h'], 2), doc=e['doc']) for e in d_['nhan']]))
 for c in cot:

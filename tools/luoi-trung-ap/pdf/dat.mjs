@@ -7,6 +7,8 @@
  *   noi     : cáp từ đầu ra ngăn lộ trong trạm (tu) tới đầu lộ trên bản vẽ, tìm đường tự động
  *   noi_ban_ve: dây nối chỗ liên thông giữa hai bản vẽ (mỗi bản vẽ chỉ vẽ một phía), tìm đường tự động
  *   chu     : chữ thêm (toạ độ PDF); giao: khúc đường dây cấp khác cắt ngang tuyến (toạ độ PDF)
+ *   nha_may : nhà máy điện ở cuối nhánh - { p: điểm dây vào khung nhà máy (PDF), huong: phía đặt ký hiệu
+ *             máy phát (phai/trai/len/xuong), ten, ma (mã điều độ), cs (công suất), noi: đoạn dây vẽ thêm }
  * Vị trí thực sau khi đặt ghi ra tools/luoi-trung-ap/pdf/vi-tri.json.
  */
 export default [
@@ -734,6 +736,10 @@ export default [
       'ĐZ 372 E26.1': { tu: [945.28, 5968.75], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 372 E26.1': true },
+    nha_may: [
+      { p: [356.5, 382.0], huong: 'phai', ten: 'NMTĐ Nặm Cắt', ma: 'A26.2', cs: '2×1,6 MW' },
+      { p: [463.5, 501.5], huong: 'phai', ten: 'NMTĐ Khuổi Thốc', ma: 'A26.5', cs: '1×3,0 MW' },
+    ],
   },
   {
     json: 'bk03.json',
@@ -743,6 +749,7 @@ export default [
       'ĐZ 373 E26.1': { tu: [315.12, 5986.95], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 373 E26.1': true },
+    nha_may: [{ p: [583.6, 361.7], huong: 'trai', ten: 'NMTĐ Thác Giềng 1', ma: 'A26.3', cs: '1×5,5 MW' }],
   },
   {
     json: 'bk04.json',
@@ -845,6 +852,11 @@ export default [
       'ĐZ 371 E26.3': { tu: [1747.18, 6491.97], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 371 E26.3': true },
+    // NMTĐ Pác Cáp: hai máy cắt đầu cực 371, 373 song song (khép vòng hai đầu)
+    nha_may: [{
+      p: [101.5, 383.5], huong: 'trai', ten: 'NMTĐ Pác Cáp', ma: 'A26.4', cs: '2×3,0 MW',
+      noi: [[[151.64, 374.59], [151.64, 383.77]], [[113.24, 374.59], [113.24, 391.96]]],
+    }],
     noi_ban_ve: [
       { tu: ['bk11.json', [667.91, 167.38]], den: ['bk01.json', [718.5, 262.8]], tu_dong: true },
       { tu: ['bk11.json', [212.66, 465.79]], den: ['bk04.json', [117.48, 104.01]], tu_dong: true },
@@ -858,6 +870,7 @@ export default [
       'ĐZ 373 E26.3': { tu: [1839.93, 6540.48], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 373 E26.3': true },
+    nha_may: [{ p: [713.5, 362.0], huong: 'trai', ten: 'NMTĐ Thượng Ân', ma: 'A26.1', cs: '3×0,8 MW' }],
     noi_ban_ve: [
       { tu: ['bk12.json', [558.26, 173.86]], den: ['bk11.json', [717.5, 327.31]], tu_dong: true },
     ],
@@ -870,6 +883,12 @@ export default [
       'ĐZ 375 E26.3': { tu: [1931.18, 6540.48], ra: 'xuong' },
     },
     cap_noi: { 'ĐZ 375 E26.3': true },
+    nha_may: [
+      { p: [550.0, 488.5], huong: 'phai', ten: 'NMTĐ Tà Làng', ma: 'A26.0', cs: '2×2,5 MW' },
+      // bản vẽ 375 E26.3 ghi "Nặm Cắt 2 - 320" ở cột 42 sau MC 375E26.3/02 Nặm Cắt; tính toán bảo vệ
+      // "Nặm cắt 2 (375E26.3)" (Drive: Co so tinh toan/E26.3) xác định đây là nhà máy thuỷ điện
+      { p: [405.0, 502.0], huong: 'trai', ten: 'NMTĐ Nặm Cắt 2', cs: 'MBA 320 kVA' },
+    ],
     noi_ban_ve: [
       { tu: ['bk13.json', [257.87, 380.56]], den: ['bk06.json', [617.38, 247.5]], tu_dong: true },
       { tu: ['bk13.json', [405.86, 437.56]], den: ['bk06.json', [661.0, 351.94]], tu_dong: true },

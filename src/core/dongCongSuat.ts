@@ -17,7 +17,8 @@ import type { BranchEntity, CircleEntity, DeviceEntity, Entity, Id, Pt, VoltageK
  *  - Máy biến áp (block MBA hoặc các vòng tròn cuộn dây chồng nhau): nối các
  *    phía với nhau nên công suất đi xuyên từ 220/110kV xuống trung áp.
  *
- * Nguồn là thanh cái 220kV (trong tỉnh và các trạm 220kV ngoài tỉnh). Mạch nào
+ * Nguồn là thanh cái 220kV (trong tỉnh và các trạm 220kV ngoài tỉnh) và các nhà
+ * máy thuỷ điện nhỏ đấu vào lưới trung áp (ký hiệu máy phát MF). Mạch nào
  * không nối về được thanh cái 220kV thì lấy thanh cái cấp điện áp cao nhất trong
  * mạch đó làm nguồn. Chiều công suất trên mỗi đoạn là chiều đi xa dần nguồn
  * (lưới trung áp vận hành hình tia); mạch vòng thì hai dòng gặp nhau ở giữa.
@@ -803,6 +804,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   const capCat: [number, number][] = []; // hai cực của từng thiết bị đang cắt
   const doanCat: [number, number, number, number][] = []; // khoảng dây nằm giữa hai cực thiết bị cắt
   const cucTreo: { v: number; x: number; y: number; dev: Id; r: number }[] = [];
+  const cucMayPhat: number[] = []; // cực máy phát (nhà máy thuỷ điện đấu vào lưới trung áp) - nguồn phát
   const tatCaCuc: { v: number; x: number; y: number; dev: Id }[] = [];
   for (const d of devices) {
     const cuc = mang.cucCua.get(d.id) ?? [];
@@ -856,6 +858,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     if (!soBat && cuc.length < 2) continue;
     // MBA phân phối, MBA tự dùng: phụ tải cuối đường dây
     if (MANG_TAI.has(d.block)) for (const v of dinhCuc) diemTai.add(v);
+    if (d.block === 'MF') cucMayPhat.push(...dinhCuc);
     if (cuc.length < 2) {
       for (const v of dinhCuc) {
         if (KHONG_TAI.has(d.block)) diemKhongTai.add(v);
@@ -1041,6 +1044,13 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       nguon.add(v);
       coNguon[mach[v]] = 1;
     }
+  }
+  // Nhà máy điện (thuỷ điện nhỏ) cũng là nguồn: cắt lộ mà máy cắt đầu cực nhà máy còn đóng thì
+  // phía nhà máy vẫn tính là CÓ ĐIỆN (nguy cơ cấp ngược) cho tới khi nhà máy tách khỏi lưới.
+  for (const v of cucMayPhat) {
+    if (mach[v] < 0) continue;
+    nguon.add(v);
+    coNguon[mach[v]] = 1;
   }
   const biTach = new Uint8Array(soMach);
   {

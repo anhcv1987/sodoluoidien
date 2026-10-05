@@ -335,6 +335,18 @@ const CAD_BDD: Prim[] = [
   L(-3.2, -1.6, 3.2, -1.6),
 ];
 
+/**
+ * Máy phát điện (nhà máy thuỷ điện nhỏ đấu vào lưới trung áp): vòng tròn có dấu "~", dây đấu ở
+ * đỉnh (điểm chèn). Vẽ theo quy ước sơ đồ một sợi; bản vẽ lộ của Phòng chỉ vẽ khung chữ nhật ghi
+ * tên nhà máy.
+ */
+const CAD_MF: Prim[] = [
+  L(0, 0, 0, -6),
+  C(0, -16, 10),
+  A(-3.6, -16, 3.6, 0, 180),
+  A(3.6, -16, 3.6, 180, 360),
+];
+
 /** SVC / thiet bi bu tinh. */
 const CAD_SVC: Prim[] = [
   L(0, 12, 0, 7),
@@ -554,6 +566,13 @@ export const BLOCKS: BlockDef[] = [
   make('SVC', 'Thiết bị bù SVC', 'SVC', 'Máy biến áp - Bù', CAD_SVC, {
     inline: false,
     source: 'Vẽ theo quy ước EVN',
+  }),
+
+  /* ------------------------------ Nguồn ---------------------------- */
+  make('MF', 'Máy phát (nhà máy thuỷ điện)', 'MF', 'Khác', CAD_MF, {
+    // một cực: đỉnh dây dẫn (điểm chèn của ký hiệu)
+    inline: false,
+    source: 'Vẽ theo quy ước sơ đồ một sợi: vòng tròn có dấu ~',
   }),
 
   /* ------------------------------ Khac ----------------------------- */

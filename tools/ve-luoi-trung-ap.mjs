@@ -1173,6 +1173,7 @@ function noiChuoi(ds) {
 function vePdf(dat) {
   const J = docBanVe(dat.json);
   const k = dat.ti_le ?? 1;
+  const netTruoc = s.b.length; // nét của bản vẽ này bắt đầu từ đây (để tìm đầu nhánh nhà máy)
   // hộp bao bản vẽ (điểm chuỗi, nhãn thiết bị, khung tủ) theo toạ độ PDF
   const hopPdf = hopBanVe(J);
   // goc: 'tu_dong' -> tìm khoảng trống gần tâm lý tưởng (dat.gan hoặc tính từ các chỗ nối - xem
@@ -1856,6 +1857,75 @@ function vePdf(dat) {
   for (const g of dat.chu ?? []) {
     const [x, y] = W(g.p);
     chu(x, y, (g.h ?? 3) * k, g.t, g.canh ?? 'trai', g.rot ?? 0);
+  }
+  // nhà máy điện ở cuối nhánh (bản vẽ lộ vẽ khung chữ nhật ghi tên nhà máy): ký hiệu máy phát đặt
+  // đúng đầu dây gần điểm khai nhất, thân máy về phía `huong`, kèm tên / mã điều độ / công suất
+  // điểm PDF -> toạ độ tờ tổng, bắt vào đầu nét / thân nét đã vẽ của bản vẽ này gần nhất
+  const batNet = (q) => {
+    const [px, py] = W(q);
+    let tot = null, bd = 4 * k;
+    for (const r of s.b.slice(netTruoc)) {
+      const n = r.length;
+      for (const [x, y] of [[r[4], r[5]], [r[n - 2], r[n - 1]]]) {
+        const d = Math.hypot(x - px, y - py);
+        if (d < bd) [bd, tot] = [d, [x, y]];
+      }
+    }
+    if (tot) return tot;
+    bd = 6 * k;
+    for (const r of s.b.slice(netTruoc)) {
+      for (let i = 4; i + 3 < r.length; i += 2) {
+        const [ax, ay, bx, by] = [r[i], r[i + 1], r[i + 2], r[i + 3]];
+        const L2 = (bx - ax) ** 2 + (by - ay) ** 2;
+        const t = L2 ? Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / L2)) : 0;
+        const [x, y] = [ax + t * (bx - ax), ay + t * (by - ay)];
+        const d = Math.hypot(x - px, y - py);
+        if (d < bd) [bd, tot] = [d, [x, y]];
+      }
+    }
+    return tot ?? [px, py];
+  };
+  for (const m of dat.nha_may ?? []) {
+    // đoạn dây vẽ bổ sung (vd hai máy cắt đầu cực song song khép vòng - cây dò chỉ giữ một phía)
+    for (const [a, b] of m.noi ?? []) {
+      const A = batNet(a);
+      const B = batNet(b);
+      // gần đứng / gần ngang thì nắn thẳng theo đầu thứ nhất (đầu thứ hai bắt vào thân nét)
+      if (Math.abs(B[0] - A[0]) < Math.abs(B[1] - A[1]) * 0.5) B[0] = A[0];
+      else if (Math.abs(B[1] - A[1]) < Math.abs(B[0] - A[0]) * 0.5) B[1] = A[1];
+      net([A, B], false);
+    }
+    const [px, py] = W(m.p);
+    let dau = null;
+    let bd = 10 * k;
+    for (const r of s.b.slice(netTruoc)) {
+      const n = r.length;
+      for (const [x, y] of [[r[4], r[5]], [r[n - 2], r[n - 1]]]) {
+        const d = Math.hypot(x - px, y - py);
+        if (d < bd) [bd, dau] = [d, [x, y]];
+      }
+    }
+    if (!dau) {
+      console.warn(`  ! ${dat.json}: không thấy đầu dây cho nhà máy ${m.ten}`);
+      continue;
+    }
+    const [ux, uy] = { phai: [1, 0], trai: [-1, 0], len: [0, 1], xuong: [0, -1] }[m.huong];
+    const rot = { phai: 90, trai: 270, len: 180, xuong: 0 }[m.huong];
+    const sc = 7 * k;
+    const ra = getBlock('MF').cuc[0][1] * sc; // tâm ký hiệu - cực (đỉnh dây)
+    const [cx, cy] = [dau[0] + ux * ra, dau[1] + uy * ra];
+    thietBi('MF', cx, cy, rot, false, sc);
+    const dong = [m.ten, m.ma, m.cs].filter(Boolean);
+    const h = H_TEN * k * 0.92;
+    const nua = 0.6 * sc;
+    if (ux) {
+      const x = cx + ux * (nua + 2);
+      dong.forEach((t, i) => chu(x, cy + (dong.length / 2 - i - 0.8) * (h + 1), h, t, ux > 0 ? 'trai' : 'phai'));
+    } else {
+      const y = cy + uy * (nua + 2) + (uy > 0 ? (dong.length - 1) * (h + 1) : -h);
+      dong.forEach((t, i) => chu(cx, y - i * (h + 1), h, t, 'giua'));
+    }
+    console.log(`  nhà máy ${m.ten} (${m.ma ?? '-'}): đầu dây [${dau.map((v) => v.toFixed(1))}], lệch ${bd.toFixed(1)}`);
   }
   // cáp nối ngăn lộ - đầu lộ tìm đường tự động: để sau khi đã vẽ xong mọi bản vẽ (các bản vẽ đặt
   // theo quy hoạch nên bản vẽ sau có thể nằm trên hướng đi của cáp bản vẽ trước)

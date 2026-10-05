@@ -18,5 +18,5 @@ await p.evaluate(([x0,y0,x1,y1,manHinh]) => {
   a.ed.requestDraw();
 }, [x0,y0,x1,y1,!!process.env.MAN_HINH]);
 await p.waitForTimeout(600);
-await p.locator('canvas').screenshot({ path: process.argv[3] });
+await p.locator('canvas.canvas').screenshot({ path: process.argv[3] });
 await b.close();
