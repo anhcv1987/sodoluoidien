@@ -42,10 +42,8 @@ export interface ChuoiCongSuat {
 
 export interface DongCongSuat {
   chuoi: ChuoiCongSuat[];
-  /** Điểm công suất dừng lại vì gặp thiết bị đang cắt. */
-  diemDung: Pt[];
-  /** Thiết bị đang cắt có ít nhất một phía có điện (tâm + bán kính ký hiệu) - khoanh trên màn hình. */
-  thietBiCat: { p: Pt; r: number }[];
+  /** Điểm công suất dừng lại vì gặp thiết bị đang cắt (kv: cấp điện áp của thiết bị). */
+  diemDung: (Pt & { kv: VoltageKv })[];
   /** Thống kê để báo cho người dùng. */
   soNguon: number;
   soDoan: number;
@@ -520,7 +518,6 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   const cucTB = new Map<Id, number[]>();
   const catTB: { id: Id; u: number; v: number; p: Pt }[] = [];
   const mayCat: { id: Id; p: Pt; dong: boolean }[] = [];
-  const tbCat: { cuc: number[]; p: Pt; r: number }[] = []; // thiết bị đang cắt (mọi cực)
 
   /** Bắt một điểm vào đoạn dây gần nhất trong bán kính r -> [đỉnh, đoạn] hoặc null. */
   /**
@@ -802,7 +799,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   const diemTai = new Set<number>(); // cực thiết bị mang tải (MBA phân phối, tự dùng…)
   const diemKhongTai = new Set<number>(); // cực thiết bị đấu rẽ không mang tải
   const diemThietBi = new Set<number>(); // đỉnh có bắt cực thiết bị
-  const cucCat = new Set<number>(); // cực của thiết bị đang cắt
+  const cucCat = new Map<number, VoltageKv>(); // cực của thiết bị đang cắt -> cấp điện áp thiết bị
   const cucMayCat = new Set<number>(); // cực của máy cắt đang đóng
   const capCat: [number, number][] = []; // hai cực của từng thiết bị đang cắt
   const doanCat: [number, number, number, number][] = []; // khoảng dây nằm giữa hai cực thiết bị cắt
@@ -876,8 +873,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       for (let i = 1; i < dinhCuc.length; i++) noi(dinhCuc[0], dinhCuc[i]);
       continue;
     }
-    for (const v of dinhCuc) cucCat.add(v);
-    tbCat.push({ cuc: dinhCuc, p: { x: d.p.x, y: d.p.y }, r: def ? Math.max(def.bbox[0], def.bbox[1]) * d.scale * 0.5 : d.scale * 0.6 });
+    for (const v of dinhCuc) cucCat.set(v, d.kv);
     if (dinhCuc.length >= 2) {
       const [u, v] = dinhCuc;
       doanCat.push([vx[u], vy[u], vx[v], vy[v]]);
@@ -1214,7 +1210,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
     lop: string;
   }
   const khuc: Khuc[] = [];
-  const diemDung: Pt[] = [];
+  const diemDung: (Pt & { kv: VoltageKv })[] = [];
   const eps = saiSo * 1e-3;
   for (let i = 0; i < veU.length; i++) {
     if (!song[i]) continue;
@@ -1236,9 +1232,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       if (L - x > eps) khuc.push({ a: v, b: -1, ax: vx[v], ay: vy[v], bx: mx, by: my, pha: dv, L: L - x, kv, lop });
     }
   }
-  const coDienCuc = (u: number): boolean => isFinite(kc[u]) && bac[u] > 0;
-  for (const u of cucCat) if (coDienCuc(u)) diemDung.push({ x: vx[u], y: vy[u] });
-  const thietBiCat = tbCat.filter((t) => t.cuc.some(coDienCuc)).map(({ p, r }) => ({ p, r }));
+  for (const [u, kv] of cucCat) if (isFinite(kc[u]) && bac[u] > 0) diemDung.push({ x: vx[u], y: vy[u], kv });
 
   const ra = new Map<number, number[]>();
   const vao = new Map<number, number>();
@@ -1290,7 +1284,6 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   return {
     chuoi,
     diemDung,
-    thietBiCat,
     soNguon: nguon.size,
     soDoan: khuc.length,
     doThi: {

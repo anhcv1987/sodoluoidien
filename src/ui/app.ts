@@ -151,6 +151,13 @@ export class App {
       /* không đọc được: dùng mặc định */
     }
     this.ed.renderer.nguonTenTram = () => (this.store.sheet.cadCode === MA_TO_TONG ? tenTram : null);
+    // Chạy chiều công suất: không đánh dấu thiết bị đang cắt phía 110kV trong trạm 220kV (dao cách ly
+    // đường vòng -9... dày đặc, rối mắt) - chỉ trên tờ sơ đồ tổng
+    const tram220 = tenTram.filter((t) => t.kv === 220).map((t) => t.box);
+    this.congSuat.anDiemDung = (q) =>
+      q.kv === 110 &&
+      this.store.sheet.cadCode === MA_TO_TONG &&
+      tram220.some((b) => q.x >= b.minX && q.x <= b.maxX && q.y >= b.minY && q.y <= b.maxY);
     const nhanTai = (ev: PointerEvent): TenTramLon | undefined => {
       const r = this.canvas.getBoundingClientRect();
       return this.ed.renderer.tenTramTai(ev.clientX - r.left, ev.clientY - r.top);
@@ -1091,7 +1098,7 @@ export class App {
         if (!this.congSuat.dangChay) return;
         const d = this.congSuat.duLieu();
         this.setMsg(
-          `Đang hiển thị công suất chạy trên đường dây: ${d.thietBiCat.length} vị trí đang cắt (khoanh vòng vàng), công suất dừng ở ${d.diemDung.length} điểm. Đổi trạng thái thiết bị là chiều công suất cập nhật ngay. F6 để tắt.`,
+          `Đang hiển thị công suất chạy trên đường dây: ${d.diemDung.length} điểm dừng tại thiết bị đang cắt. Đổi trạng thái thiết bị là chiều công suất cập nhật ngay. F6 để tắt.`,
         );
       });
     } else {

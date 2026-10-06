@@ -26,6 +26,8 @@ export class ChayCongSuat {
   tocDo = 42;
   /** Được gọi sau khi tính lại chiều công suất (để báo số liệu). */
   onTinh?: (d: DongCongSuat, ms: number) => void;
+  /** Điểm dừng không vẽ (vd phía 110kV trong trạm 220kV - tránh rối mắt). */
+  anDiemDung?: (q: DongCongSuat['diemDung'][number]) => boolean;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -244,49 +246,25 @@ export class ChayCongSuat {
     }
     ctx.restore();
 
-    // Vị trí đang cắt: khoanh vòng hổ phách quanh thiết bị đang cắt (cỡ theo ký hiệu, tối thiểu
-    // 9 điểm ảnh - thấy được cả ở trạm 220kV dày đặc), chấm ở cực còn điện (chỗ công suất dừng),
-    // thêm vòng nhấp nháy loang ra để dễ tìm khi thu nhỏ.
+    // Điểm công suất dừng lại (thiết bị đang cắt): vòng tròn nhấp nháy
     const nhip = 0.5 + 0.5 * Math.sin(giay * Math.PI * 2 * 0.8);
-    const mau = inAn ? '#b45309' : '#fbbf24';
-    const vien = inAn ? '#ffffff' : '#111827';
-    const tai = (x: number, y: number, m: number): boolean => x < view.minX - m || x > view.maxX + m || y < view.minY - m || y > view.maxY + m;
     ctx.save();
-    for (const t of d.thietBiCat ?? []) {
-      if (tai(t.p.x, t.p.y, t.r)) continue;
-      const x = (t.p.x - vp.cx) * sc + w0;
-      const y = h0 - (t.p.y - vp.cy) * sc;
-      const r = Math.max(9, t.r * sc + 4);
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = vien;
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.strokeStyle = mau;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.globalAlpha = 0.8 * (1 - nhip);
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, r + 3 + 12 * nhip, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
+    ctx.strokeStyle = inAn ? '#b45309' : '#fbbf24';
+    ctx.fillStyle = inAn ? '#b45309' : '#fbbf24';
     for (const q of d.diemDung) {
-      if (tai(q.x, q.y, 0)) continue;
+      if (this.anDiemDung?.(q)) continue;
+      if (q.x < view.minX || q.x > view.maxX || q.y < view.minY || q.y > view.maxY) continue;
       const x = (q.x - vp.cx) * sc + w0;
       const y = h0 - (q.y - vp.cy) * sc;
-      ctx.fillStyle = vien;
+      ctx.globalAlpha = 0.9;
       ctx.beginPath();
-      ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+      ctx.arc(x, y, 2.6, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = mau;
+      ctx.globalAlpha = 0.85 * (1 - nhip);
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(x, y, 3.2, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.arc(x, y, 4 + 9 * nhip, 0, Math.PI * 2);
+      ctx.stroke();
     }
     ctx.restore();
   }

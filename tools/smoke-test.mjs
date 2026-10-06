@@ -421,9 +421,10 @@ const cs = await page.evaluate(() => {
     hien: !!lop && lop.style.display !== 'none' && lop.width > 0,
     chuoi: d.chuoi.length,
     dung: [gan(...__D(-2222.59, 87.41)), gan(1671.98, 3017.72), gan(-1628.16, 5059.23)],
-    // vị trí đang cắt được khoanh vòng (tâm thiết bị)
-    khoanh: [__D(-2222.59, 87.41), [1671.98, 3017.72], [-1628.16, 5059.23]].every(([x, y]) => d.thietBiCat.some((t) => Math.hypot(t.p.x - x, t.p.y - y) < 3)),
-    soKhoanh: d.thietBiCat.length,
+    // phía 110kV trong trạm 220kV không đánh dấu điểm cắt (tránh rối); trạm 110kV vẫn đánh dấu
+    an: d.diemDung.filter((q) => a.congSuat.anDiemDung(q)).length,
+    an220: d.diemDung.filter((q) => q.kv === 220 && a.congSuat.anDiemDung(q)).length,
+    hienMC: [__D(-2222.59, 87.41), [1671.98, 3017.72], [-1628.16, 5059.23]].every(([x, y]) => d.diemDung.some((q) => Math.hypot(q.x - x, q.y - y) < 12 && !a.congSuat.anDiemDung(q))),
     kv: [...new Set(d.chuoi.map((c) => c.kv))].sort((x, y) => x - y).join(','),
     // khung tủ RMU 01-383 E6.9 (cạnh trái x=465.8) không có công suất; lộ ra MBA T1
     // 4000kVA của C.TY Cơ khí Gang Thép (qua ngăn tủ RMU 01-381) thì có
@@ -437,7 +438,7 @@ check(
   cs.hien && cs.chuoi > 5000 && cs.dung.every(Boolean) && /220/.test(cs.kv) && /22/.test(cs.kv),
   `${cs.chuoi} chuỗi, cấp ${cs.kv}, dừng tại MC cắt: ${cs.dung.join('/')}`,
 );
-check('Khoanh vòng các vị trí đang cắt khi chạy công suất', cs.khoanh && cs.soKhoanh > 100, `${cs.soKhoanh} vị trí`);
+check('Không đánh dấu điểm cắt phía 110kV trong trạm 220kV', cs.an > 10 && cs.an220 === 0 && cs.hienMC, `ẩn ${cs.an} điểm, MC cắt trạm 110kV vẫn hiện: ${cs.hienMC}`);
 await page.keyboard.press('F6');
 
 const saiMk = await page.evaluate(async () => (await window.sodo.tk.dangNhap('admin', 'sai-mat-khau')) === null);

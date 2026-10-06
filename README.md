@@ -331,13 +331,10 @@ Dùng được cả ở chế độ xem, vẫn kéo / phóng bản vẽ bình th
   MBA hoặc các vòng tròn cuộn dây) → thanh cái trung áp → xuất tuyến. Mạch không nối
   về được 220kV thì lấy thanh cái cấp cao nhất của mạch đó làm nguồn.
 * Gặp **thiết bị đang cắt** - máy cắt, máy cắt hợp bộ, **dao cách ly** (kể cả khi nét
-  dây vẽ liền xuyên qua ký hiệu dao) - vạch sáng **dừng lại** ở đó. **Vị trí đang cắt**
-  (thiết bị cắt còn điện ít nhất một phía) được **khoanh vòng vàng viền tối** quanh ký hiệu
-  (tối thiểu 9 điểm ảnh, kèm vòng nhấp nháy loang ra), chấm vàng ở cực còn điện - thấy rõ cả
-  ở trạm 220kV dày đặc (trước 10/2026 chỉ là chấm nhỏ 2,6 điểm ảnh, gần như không thấy). Mạch
-  vòng thì hai dòng gặp nhau ở giữa. Phía 220kV các trạm E6.2, E6.16 bản vẽ gốc để mọi dao
-  cách ly ĐÓNG (chưa có kết dây thanh cái) - Phòng đặt trạng thái cắt thực tế trên phần mềm thì
-  vị trí đó được khoanh ngay.
+  dây vẽ liền xuyên qua ký hiệu dao) - vạch sáng **dừng lại** ở đó, có vòng tròn
+  màu cam nhấp nháy đánh dấu. Mạch vòng thì hai dòng gặp nhau ở giữa. **Trong các trạm
+  220kV không đánh dấu thiết bị cắt phía 110kV** (dao cách ly đường vòng -9... dày đặc, rối
+  mắt) - vạch sáng vẫn dừng đúng chỗ; phía 220kV, trung áp và các trạm 110kV vẫn đánh dấu.
 * **Tách hai đầu thì đoạn giữa mất điện**: đoạn dây, ngăn lộ, phân đoạn thanh cái bị
   cắt ra khỏi lưới có điện bằng thiết bị đang cắt thì không có công suất chạy (không
   lấy thanh cái của đoạn đó làm nguồn riêng). Chỉ mạch nào không nối được về lưới vì
