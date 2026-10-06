@@ -333,8 +333,8 @@ Dùng được cả ở chế độ xem, vẫn kéo / phóng bản vẽ bình th
 * Gặp **thiết bị đang cắt** - máy cắt, máy cắt hợp bộ, **dao cách ly** (kể cả khi nét
   dây vẽ liền xuyên qua ký hiệu dao) - vạch sáng **dừng lại** ở đó, có vòng tròn
   màu cam nhấp nháy đánh dấu. Mạch vòng thì hai dòng gặp nhau ở giữa. **Trong các trạm
-  220kV không đánh dấu thiết bị cắt phía 110kV** (dao cách ly đường vòng -9... dày đặc, rối
-  mắt) - vạch sáng vẫn dừng đúng chỗ; phía 220kV, trung áp và các trạm 110kV vẫn đánh dấu.
+  220kV không đánh dấu thiết bị cắt phía 220kV và 110kV** (dao cách ly đường vòng -9... dày
+  đặc, rối mắt) - vạch sáng vẫn dừng đúng chỗ; phía trung áp và các trạm 110kV vẫn đánh dấu.
 * **Tách hai đầu thì đoạn giữa mất điện**: đoạn dây, ngăn lộ, phân đoạn thanh cái bị
   cắt ra khỏi lưới có điện bằng thiết bị đang cắt thì không có công suất chạy (không
   lấy thanh cái của đoạn đó làm nguồn riêng). Chỉ mạch nào không nối được về lưới vì

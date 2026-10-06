@@ -151,11 +151,11 @@ export class App {
       /* không đọc được: dùng mặc định */
     }
     this.ed.renderer.nguonTenTram = () => (this.store.sheet.cadCode === MA_TO_TONG ? tenTram : null);
-    // Chạy chiều công suất: không đánh dấu thiết bị đang cắt phía 110kV trong trạm 220kV (dao cách ly
-    // đường vòng -9... dày đặc, rối mắt) - chỉ trên tờ sơ đồ tổng
+    // Chạy chiều công suất: không đánh dấu thiết bị đang cắt phía 220kV và 110kV trong trạm 220kV
+    // (dao cách ly đường vòng -9... dày đặc, rối mắt) - chỉ trên tờ sơ đồ tổng
     const tram220 = tenTram.filter((t) => t.kv === 220).map((t) => t.box);
     this.congSuat.anDiemDung = (q) =>
-      q.kv === 110 &&
+      q.kv >= 110 &&
       this.store.sheet.cadCode === MA_TO_TONG &&
       tram220.some((b) => q.x >= b.minX && q.x <= b.maxX && q.y >= b.minY && q.y <= b.maxY);
     const nhanTai = (ev: PointerEvent): TenTramLon | undefined => {
