@@ -1091,7 +1091,7 @@ export class App {
         if (!this.congSuat.dangChay) return;
         const d = this.congSuat.duLieu();
         this.setMsg(
-          `Đang hiển thị công suất chạy trên đường dây: ${d.diemDung.length} điểm dừng tại thiết bị đang cắt. Đổi trạng thái thiết bị là chiều công suất cập nhật ngay. F6 để tắt.`,
+          `Đang hiển thị công suất chạy trên đường dây: ${d.thietBiCat.length} vị trí đang cắt (khoanh vòng vàng), công suất dừng ở ${d.diemDung.length} điểm. Đổi trạng thái thiết bị là chiều công suất cập nhật ngay. F6 để tắt.`,
         );
       });
     } else {

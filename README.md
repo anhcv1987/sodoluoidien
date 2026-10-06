@@ -331,8 +331,13 @@ Dùng được cả ở chế độ xem, vẫn kéo / phóng bản vẽ bình th
   MBA hoặc các vòng tròn cuộn dây) → thanh cái trung áp → xuất tuyến. Mạch không nối
   về được 220kV thì lấy thanh cái cấp cao nhất của mạch đó làm nguồn.
 * Gặp **thiết bị đang cắt** - máy cắt, máy cắt hợp bộ, **dao cách ly** (kể cả khi nét
-  dây vẽ liền xuyên qua ký hiệu dao) - vạch sáng **dừng lại** ở đó, có vòng tròn
-  màu cam nhấp nháy đánh dấu. Mạch vòng thì hai dòng gặp nhau ở giữa.
+  dây vẽ liền xuyên qua ký hiệu dao) - vạch sáng **dừng lại** ở đó. **Vị trí đang cắt**
+  (thiết bị cắt còn điện ít nhất một phía) được **khoanh vòng vàng viền tối** quanh ký hiệu
+  (tối thiểu 9 điểm ảnh, kèm vòng nhấp nháy loang ra), chấm vàng ở cực còn điện - thấy rõ cả
+  ở trạm 220kV dày đặc (trước 10/2026 chỉ là chấm nhỏ 2,6 điểm ảnh, gần như không thấy). Mạch
+  vòng thì hai dòng gặp nhau ở giữa. Phía 220kV các trạm E6.2, E6.16 bản vẽ gốc để mọi dao
+  cách ly ĐÓNG (chưa có kết dây thanh cái) - Phòng đặt trạng thái cắt thực tế trên phần mềm thì
+  vị trí đó được khoanh ngay.
 * **Tách hai đầu thì đoạn giữa mất điện**: đoạn dây, ngăn lộ, phân đoạn thanh cái bị
   cắt ra khỏi lưới có điện bằng thiết bị đang cắt thì không có công suất chạy (không
   lấy thanh cái của đoạn đó làm nguồn riêng). Chỉ mạch nào không nối được về lưới vì
@@ -953,7 +958,8 @@ xử lý khoảng 0,3 giây khi mở phần mềm. Nhãn dời xa nhất là cá
 * Cỡ chữ mặc định **6pt** (trạm 220kV 7pt). Chỉnh bằng **Xem → Tên trạm khi thu nhỏ: chữ to hơn /
   nhỏ hơn** hoặc **Ctrl+]** / **Ctrl+[**, mỗi lần 1pt, từ 5 tới 30pt. Phần mềm nhớ cỡ đã chọn cho
   lần mở sau.
-* Bật / tắt: **Xem → Bật/tắt tên trạm lớn khi thu nhỏ**. Không hiện ở chế độ in.
+* **Mặc định TẮT** (10/2026). Bật / tắt: **Xem → Bật/tắt tên trạm lớn khi thu nhỏ**; chỉnh cỡ chữ
+  (Ctrl+] / Ctrl+[) cũng tự bật. Không hiện ở chế độ in.
 
 ### Danh mục trạm
 
@@ -991,10 +997,34 @@ tỷ số cạnh máy (vd "T1: 63000kVA 115/38,5/23 kV", "T2: 63000kVA 115/23/(6
   E26.2 T1;
 * **20 máy vẽ bằng block** (E6.5, E6.6, E6.7, E6.11, E6.12, E6.14, E6.18, E6.19,
   E6.21, E6.22, E6.24) trước đây tô một màu đỏ: nay mỗi cuộn một màu, cuộn cao áp có
-  thêm mũi tên điều áp dưới tải; máy tự ngẫu 220kV (AT) giữ nguyên;
+  thêm mũi tên điều áp dưới tải; máy tự ngẫu 220kV (AT) E6.2, E6.25: cuộn trên 220kV tím,
+  cuộn dưới 110kV đỏ, cuộn tam giác 22kV xanh (10/2026);
 * dây trung tính, chống sét van đấu vào cuộn đổi màu theo cuộn.
 
 Xuất DXF / SVG cũng giữ màu từng cuộn.
+
+#### Ký hiệu tổ đấu dây máy biến áp (10/2026)
+
+Bản CAD gốc vẽ ký hiệu sao / tam giác trong cuộn dây mỗi trạm một kiểu: sao xiên lệch, nhánh
+sao thò ra ngoài vòng tròn, tam giác xoay nghiêng, mũi tên điều áp đè lên nhánh sao, dây trung
+tính đâm xuyên qua tâm, dao tiếp địa trung tính đặt xiên trong cuộn; MBA tự ngẫu E6.2, E6.25 đặt
+quay 183,73° (sao lộn ngược, nghiêng). Nay vẽ thống nhất cho **58 máy** (24 block + 28 máy vẽ
+bằng vòng tròn, mọi trạm 110-220kV):
+
+* **sao**: thân thẳng đứng xuống, hai nhánh chếch lên 30°, dài nửa bán kính, tâm sao ở tâm cuộn;
+* **tam giác**: tam giác đều đỉnh hướng lên, tâm ở tâm cuộn;
+* **mũi tên điều áp dưới tải** (giữ ở cuộn có trong bản gốc): xiên 60° qua tâm cuộn, không trùng
+  nhánh sao;
+* **dây trung tính** kéo vào đúng tâm sao (đoạn ngang thì gập đứng vào tâm, trùng thân sao); dao
+  tiếp địa trung tính đặt trong cuộn (E6.2 T3, T4, E6.12) treo thẳng dưới thân sao;
+* **MBA tự ngẫu** E6.2 AT1, AT2, E6.25 AT1, AT2: đặt lại xoay 0°, cuộn 220kV ở trên ngay dưới dây
+  220kV, cuộn 110kV ở dưới (dây 110kV vào mép cuộn), cuộn tam giác 22kV bên cạnh phía dây 22kV.
+
+Loại cuộn (sao / tam giác) lấy theo nét gốc - khớp nhãn tổ đấu dây ghi trên sơ đồ (vd E6.4 T1
+"Yo/Δ-11/Yo-12", T2 "Yo/Yo-12(Δ11)"). Block MBA3 / MBA2 vẽ lại trong `src/symbols/blocks.ts`;
+máy vẽ bằng vòng tròn: `node tools/chuan-hoa-to-dau-day.mjs` (chạy lại được, `--thu` chỉ in).
+Kết dây không đổi: mô hình chiều công suất bỏ qua nét trong cuộn dây và mũi tên vắt qua cuộn;
+các công cụ rà soát (nối trung áp, cô lập thanh cái, cấp điện áp, màu MBA) giữ kết quả cũ.
 
 #### Đầu trạm 110kV vẽ ba nét song song
 
@@ -1073,6 +1103,7 @@ python3 tools/tach-so-do-tram.py tong.dxf tram/ --min-x 999999999 \
         --them-to 'LƯỚI ĐIỆN 220KV' --them-to 'ĐƯỜNG DÂY'
 node tools/dung-du-lieu-tram.mjs tram/ src/data/tram-sld.json
 node tools/chuan-hoa-dcl-lien-dong.mjs src/data/tram-sld.json
+node tools/chuan-hoa-to-dau-day.mjs src/data/tram-sld.json
 node tools/ra-soat-cap-dien-ap.mjs src/data/tram-sld.json
 node tools/ra-soat-mba.mjs src/data/tram-sld.json
 node tools/bo-net-dau-tram.mjs src/data/tram-sld.json
@@ -1685,6 +1716,7 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  bo-net-dau-tram.mjs    — bỏ 2 nét thừa ở đầu trạm 110kV ký hiệu 3 nét song song; vá dây hở trước vòng nhảy
                  ra-soat-co-lap-thanh-cai.mjs — cô lập từng thanh cái, tìm chỗ nối nhầm (thanh cái rò điện)
                  ra-soat-mba.mjs        — gán cấp điện áp (màu) từng cuộn dây MBA theo nhãn tỷ số
+                 chuan-hoa-to-dau-day.mjs — vẽ lại ký hiệu sao / tam giác / mũi tên điều áp trong cuộn dây MBA
                  ve-luoi-trung-ap.mjs   — vẽ lộ trung áp (trục + nhánh liên kết) từ tools/luoi-trung-ap/*.mjs
                  smoke-test.mjs         — kiểm thử bằng trình duyệt thật
                  noi-duong-day-110.mjs  — nối đường dây 110kV giữa các trạm (A*)

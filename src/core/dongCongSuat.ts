@@ -44,6 +44,8 @@ export interface DongCongSuat {
   chuoi: ChuoiCongSuat[];
   /** Điểm công suất dừng lại vì gặp thiết bị đang cắt. */
   diemDung: Pt[];
+  /** Thiết bị đang cắt có ít nhất một phía có điện (tâm + bán kính ký hiệu) - khoanh trên màn hình. */
+  thietBiCat: { p: Pt; r: number }[];
   /** Thống kê để báo cho người dùng. */
   soNguon: number;
   soDoan: number;
@@ -518,6 +520,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   const cucTB = new Map<Id, number[]>();
   const catTB: { id: Id; u: number; v: number; p: Pt }[] = [];
   const mayCat: { id: Id; p: Pt; dong: boolean }[] = [];
+  const tbCat: { cuc: number[]; p: Pt; r: number }[] = []; // thiết bị đang cắt (mọi cực)
 
   /** Bắt một điểm vào đoạn dây gần nhất trong bán kính r -> [đỉnh, đoạn] hoặc null. */
   /**
@@ -874,6 +877,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       continue;
     }
     for (const v of dinhCuc) cucCat.add(v);
+    tbCat.push({ cuc: dinhCuc, p: { x: d.p.x, y: d.p.y }, r: def ? Math.max(def.bbox[0], def.bbox[1]) * d.scale * 0.5 : d.scale * 0.6 });
     if (dinhCuc.length >= 2) {
       const [u, v] = dinhCuc;
       doanCat.push([vx[u], vy[u], vx[v], vy[v]]);
@@ -1232,7 +1236,9 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       if (L - x > eps) khuc.push({ a: v, b: -1, ax: vx[v], ay: vy[v], bx: mx, by: my, pha: dv, L: L - x, kv, lop });
     }
   }
-  for (const u of cucCat) if (isFinite(kc[u]) && bac[u] > 0) diemDung.push({ x: vx[u], y: vy[u] });
+  const coDienCuc = (u: number): boolean => isFinite(kc[u]) && bac[u] > 0;
+  for (const u of cucCat) if (coDienCuc(u)) diemDung.push({ x: vx[u], y: vy[u] });
+  const thietBiCat = tbCat.filter((t) => t.cuc.some(coDienCuc)).map(({ p, r }) => ({ p, r }));
 
   const ra = new Map<number, number[]>();
   const vao = new Map<number, number>();
@@ -1284,6 +1290,7 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
   return {
     chuoi,
     diemDung,
+    thietBiCat,
     soNguon: nguon.size,
     soDoan: khuc.length,
     doThi: {

@@ -53,7 +53,7 @@ export const defaultRenderOptions = (): RenderOptions => ({
   showPlaces: true,
   markDraft: true,
   showTerminals: false,
-  tenTramLon: true,
+  tenTramLon: false,
   coTenTram: 6,
 });
 

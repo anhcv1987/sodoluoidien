@@ -421,6 +421,9 @@ const cs = await page.evaluate(() => {
     hien: !!lop && lop.style.display !== 'none' && lop.width > 0,
     chuoi: d.chuoi.length,
     dung: [gan(...__D(-2222.59, 87.41)), gan(1671.98, 3017.72), gan(-1628.16, 5059.23)],
+    // vị trí đang cắt được khoanh vòng (tâm thiết bị)
+    khoanh: [__D(-2222.59, 87.41), [1671.98, 3017.72], [-1628.16, 5059.23]].every(([x, y]) => d.thietBiCat.some((t) => Math.hypot(t.p.x - x, t.p.y - y) < 3)),
+    soKhoanh: d.thietBiCat.length,
     kv: [...new Set(d.chuoi.map((c) => c.kv))].sort((x, y) => x - y).join(','),
     // khung tủ RMU 01-383 E6.9 (cạnh trái x=465.8) không có công suất; lộ ra MBA T1
     // 4000kVA của C.TY Cơ khí Gang Thép (qua ngăn tủ RMU 01-381) thì có
@@ -434,6 +437,7 @@ check(
   cs.hien && cs.chuoi > 5000 && cs.dung.every(Boolean) && /220/.test(cs.kv) && /22/.test(cs.kv),
   `${cs.chuoi} chuỗi, cấp ${cs.kv}, dừng tại MC cắt: ${cs.dung.join('/')}`,
 );
+check('Khoanh vòng các vị trí đang cắt khi chạy công suất', cs.khoanh && cs.soKhoanh > 100, `${cs.soKhoanh} vị trí`);
 await page.keyboard.press('F6');
 
 const saiMk = await page.evaluate(async () => (await window.sodo.tk.dangNhap('admin', 'sai-mat-khau')) === null);
@@ -861,13 +865,18 @@ check(
     a.gotoStation('E6.8');
     a.ed.zoomExtents();
     a.ed.draw();
+    // mặc định tắt tên trạm lớn; bật lại bằng Xem → Bật/tắt tên trạm lớn
+    const macDinhTat = !a.ed.renderer.opt.tenTramLon && a.ed.renderer.oTenTram.length === 0;
+    a.ed.renderer.opt.tenTramLon = true;
+    a.ed.draw();
     const t = a.store.entities.find((e) => e.kind === 'text' && e.text === 'TRẠM 110kV ĐỊNH HÓA (E6.22)');
     const o = a.ed.renderer.oTenTram.find((x) => x.t.ma === 'E6.22');
     const r = document.querySelector('canvas.canvas').getBoundingClientRect();
-    return { chu: !!t && t.align === 'center' && t.height === 16, so: a.ed.renderer.oTenTram.length, o: o && { x: r.left + (o.x0 + o.x1) / 2, y: r.top + (o.y0 + o.y1) / 2 } };
+    return { macDinhTat, chu: !!t && t.align === 'center' && t.height === 16, so: a.ed.renderer.oTenTram.length, o: o && { x: r.left + (o.x0 + o.x1) / 2, y: r.top + (o.y0 + o.y1) / 2 } };
   });
+  check('Mặc định tắt tên trạm lớn khi thu nhỏ', ten.macDinhTat);
   check('Tên trạm đặt lại: "TRẠM 110kV ĐỊNH HÓA (E6.22)" căn giữa, cao 16', ten.chu);
-  check('Thu nhỏ tờ tổng: hiện tên trạm lớn', ten.so >= 20 && !!ten.o, `${ten.so} nhãn`);
+  check('Bật tên trạm lớn, thu nhỏ tờ tổng: hiện tên trạm', ten.so >= 20 && !!ten.o, `${ten.so} nhãn`);
   if (ten.o) await page.mouse.click(ten.o.x, ten.o.y);
   const toi = await page.evaluate(() => {
     const a = window.sodo;

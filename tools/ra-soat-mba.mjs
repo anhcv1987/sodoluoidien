@@ -226,8 +226,13 @@ for (const d of s.d) {
     return { x: d[3] + x * Math.cos(g) - y * Math.sin(g), y: d[4] + x * Math.sin(g) + y * Math.cos(g), r: 1.174 * d[6], kv: d[1] };
   });
   const nhan = nhanGan(d[3], d[4], 250);
-  // máy tự ngẫu 220kV (AT): giữ một màu như cũ
-  if (!nhan || nhan.kv[0] === 220) continue;
+  // máy tự ngẫu 220kV (AT): giữ cấp từng cuộn đã ghi (tools/chuan-hoa-to-dau-day.mjs: cuộn trên
+  // 220kV, cuộn dưới 110kV, cuộn tam giác 22kV); chưa ghi thì giữ một màu như cũ
+  if (!nhan || nhan.kv[0] === 220) {
+    const cu = (s.kvCuon ?? []).find((k) => k[0] === d[3] && k[1] === d[4]);
+    if (cu) dsKvCuon.push(cu);
+    continue;
+  }
   const day = dayVaoCuon(cuon);
   const kv = ganCap(cuon, day, nhan.kv, 0);
   dsKvCuon.push([d[3], d[4], ...kv]);
