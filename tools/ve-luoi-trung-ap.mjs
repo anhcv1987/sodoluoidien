@@ -519,6 +519,37 @@ for (const lo of dsLo) {
  * phân phối và nhánh không liên kết.
  * ========================================================================== */
 const SC_PDF = { DCL: 7, LBS: 3.4, REC: 3.2 };
+/**
+ * TUYẾN KHAI TAY (tools/luoi-trung-ap/tuyen-tay.json): cáp ngăn lộ và dây liên thông mà Phòng Điều độ
+ * đã xem và chọn tay các điểm gấp khúc (ngắn nhất giữa hai đầu, không gấp khúc vô lý). Tuyến có khai
+ * thì vẽ đúng [đầu, ...qua, cuối], không tìm đường tự động, không tìm lại.
+ *   { "cáp 471 E6.4": { "qua": [[x, y], ...] }, "liên thông 20.json - 18.json": { ... } }
+ * Tên trùng nhau thì tuyến sau thêm " #2", " #3"... XUAT_TUYEN=<file>: ghi điểm gấp của mọi tuyến
+ * (tay lẫn tự động) sau khi vẽ - dùng làm bản khai ban đầu.
+ */
+const TUYEN_TA_TAY = (() => {
+  try {
+    return JSON.parse(readFileSync(resolve('tools/luoi-trung-ap/tuyen-tay.json'), 'utf8'));
+  } catch {
+    return {};
+  }
+})();
+const daDatTen = new Map();
+const tenTuyen = (ten) => {
+  const n = (daDatTen.get(ten) ?? 0) + 1;
+  daDatTen.set(ten, n);
+  return n === 1 ? ten : `${ten} #${n}`;
+};
+/** Đường khai tay của tuyến (đầu a, cuối b) hoặc null; báo đoạn xiên. */
+const duongTay = (ten, a, b) => {
+  const tay = TUYEN_TA_TAY[ten];
+  if (!tay) return null;
+  const d = [a, ...tay.qua, b];
+  for (let i = 1; i < d.length; i++) {
+    if (Math.abs(d[i][0] - d[i - 1][0]) > 0.6 && Math.abs(d[i][1] - d[i - 1][1]) > 0.6) console.log(`  ! tuyến tay ${ten}: đoạn xiên [${d[i - 1]}] -> [${d[i]}]`);
+  }
+  return d;
+};
 const HOP_BAN_VE = []; // hộp bao các bản vẽ đã đặt (đường cáp tự động tránh đi qua)
 const VI_TRI_PDF = new Map(); // tên file JSON -> hàm đổi điểm PDF sang toạ độ tờ tổng
 
@@ -539,6 +570,13 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
     }
     kv = l.kv ?? kvTaiDiem(l.tu) ?? kvTaiDiem(l.den) ?? 22;
     lop = data.layers.indexOf(`${kv}kV`);
+    const tenLT = l.tu_dong ? tenTuyen(`liên thông ${typeof l.tu[0] === 'string' ? l.tu[0] : 'trạm'} - ${typeof l.den[0] === 'string' ? l.den[0] : 'trạm'}`) : null;
+    const tayLT = tenLT && duongTay(tenLT, a, b);
+    if (tayLT) {
+      net(tayLT, !!l.cap);
+      TUYEN_TU_DONG.push({ ten: tenLT, tay: true, row: s.b.at(-1), duong: tayLT });
+      continue;
+    }
     if (l.tu_dong) {
       // tìm đường tự động (ra: hướng đi ra ở đầu 'tu', vao: hướng đi vào đầu 'den'). Có 'vao' thì tìm
       // đường tới điểm lùi ra 16 đơn vị rồi đi thẳng vào: đầu dây sát nét khác của bản vẽ (vd chân
@@ -566,9 +604,9 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
       const duong = tinh();
       if (duong) {
         net(duong, !!l.cap);
-        const ten = (d) => (typeof d[0] === 'string' ? d[0] : 'trạm');
-        TUYEN_TU_DONG.push({ ten: `liên thông ${ten(l.tu)} - ${ten(l.den)}`, tinh, row: s.b.at(-1), duong });
-        console.log(`  liên thông ${ten(l.tu)} - ${ten(l.den)}: ${duong.length - 1} đoạn, dài ${duong.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - duong[i][0], q[1] - duong[i][1]), 0).toFixed(0)}, thẳng ${(Math.abs(duong.at(-1)[0] - duong[0][0]) + Math.abs(duong.at(-1)[1] - duong[0][1])).toFixed(0)}`);
+ 
+        TUYEN_TU_DONG.push({ ten: tenLT, tinh, row: s.b.at(-1), duong });
+        console.log(`  ${tenLT}: ${duong.length - 1} đoạn, dài ${duong.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - duong[i][0], q[1] - duong[i][1]), 0).toFixed(0)}, thẳng ${(Math.abs(duong.at(-1)[0] - duong[0][0]) + Math.abs(duong.at(-1)[1] - duong[0][1])).toFixed(0)}`);
       }
       continue;
     }
@@ -1934,6 +1972,14 @@ function vePdf(dat) {
   const hopNay = [X0 + k * (hopPdf[0] - gx), Y0 - k * (hopPdf[3] - gy), X0 + k * (hopPdf[2] - gx), Y0 - k * (hopPdf[1] - gy)];
   CAP_HOAN.push(() => { for (const c of choNoi) {
     const a = c.noi.tu;
+    const tenCap = tenTuyen(`cáp ${c.ten}`);
+    const tayCap = duongTay(tenCap, a, c.dauLo);
+    if (tayCap) {
+      kv = c.kv; lop = c.lop;
+      net(tayCap, c.cap);
+      TUYEN_TU_DONG.push({ ten: tenCap, tay: true, row: s.b.at(-1), duong: tayCap });
+      continue;
+    }
     const qua = c.noi.qua ?? [];
     const diem = [a, ...qua, c.dauLo];
     const tinh = (bao = true) => {
@@ -1977,9 +2023,9 @@ function vePdf(dat) {
     if (!duong) continue;
     kv = c.kv; lop = c.lop;
     net(duong, c.cap);
-    TUYEN_TU_DONG.push({ ten: `cáp ${c.ten}`, tinh, row: s.b.at(-1), duong });
+    TUYEN_TU_DONG.push({ ten: tenCap, tinh, row: s.b.at(-1), duong });
     const mh = (d) => Math.abs(d.at(-1)[0] - d[0][0]) + Math.abs(d.at(-1)[1] - d[0][1]);
-    console.log(`  cáp ${c.ten}: ${duong.length - 1} đoạn, dài ${duong.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - duong[i][0], q[1] - duong[i][1]), 0).toFixed(0)}, thẳng ${mh(duong).toFixed(0)}`);
+    console.log(`  ${tenCap}: ${duong.length - 1} đoạn, dài ${duong.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - duong[i][0], q[1] - duong[i][1]), 0).toFixed(0)}, thẳng ${mh(duong).toFixed(0)}`);
   } });
   HOP_BAN_VE.push(hopNay);
   console.log(`  bản vẽ ${dat.json}: ${J.lo.map((l) => l.ten).join(', ')}`);
@@ -2016,6 +2062,7 @@ function toiUuTuyen(vong) {
     });
     let doiVong = 0;
     for (const T of ds) {
+      if (T.tay) continue;
       const i = s.b.indexOf(T.row);
       if (i < 0) continue;
       s.b.splice(i, 1);
@@ -2120,6 +2167,20 @@ if (existsSync(datPdf)) {
     resolve('tools/luoi-trung-ap/pdf/vi-tri.json'),
     JSON.stringify(Object.fromEntries(ds.map((d) => [d.json, { goc: d.goc, goc_pdf: d.goc_pdf, ti_le: d.ti_le ?? 1 }])), null, 1),
   );
+}
+if (process.env.XUAT_TUYEN) {
+  // điểm gấp của mọi tuyến cáp / liên thông (bỏ điểm thẳng hàng) - làm bản khai tay ban đầu
+  const ra = {};
+  for (const T of TUYEN_TU_DONG) {
+    const d = T.duong.map((q) => [+q[0].toFixed(2), +q[1].toFixed(2)]);
+    const g = d.filter((q, i) => {
+      if (i === 0 || i === d.length - 1) return true;
+      const [u, w] = [d[i - 1], d[i + 1]];
+      return !((Math.abs(u[0] - q[0]) < 0.01 && Math.abs(q[0] - w[0]) < 0.01) || (Math.abs(u[1] - q[1]) < 0.01 && Math.abs(q[1] - w[1]) < 0.01));
+    });
+    ra[T.ten] = { qua: g.slice(1, -1), dau: g[0], cuoi: g.at(-1), tay: !!T.tay };
+  }
+  writeFileSync(resolve(process.env.XUAT_TUYEN), JSON.stringify(ra, null, 1));
 }
 veGiaoCheo();
 writeFileSync(duongDan, JSON.stringify(data));

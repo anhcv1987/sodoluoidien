@@ -372,6 +372,8 @@ for (const [ma, b] of hop) {
 const SUA_DAU_LO = {
   'E26.3#171': [1742.82, 7327.02],
   'E26.3#172': [2143.17, 7326.69],
+  // Sông Công 2 ngăn 171: đầu dưới (-1752) nằm dưới dao cách ly 171-7 - đường dây phải vào đỉnh ngăn
+  'E6.21#171': [-2226.52, -1627.2],
 };
 for (const [khoaLo, [x, y]] of Object.entries(SUA_DAU_LO)) {
   let m = null;
@@ -484,9 +486,9 @@ for (const [ma, ten, x0Lo, yTC, dsLo, huong = -1, buoc = BUOC_LO] of TRAM_NGOAI)
 
 // Xem danh sách khoá đầu ngăn lộ nhận được:  XEM=1 node tools/noi-duong-day-110.mjs
 if (process.env.XEM) {
-  const ds = [...dauLo.entries()].map(([k, m]) => [k, m.p.map((v) => Math.round(v))]);
+  const ds = [...dauLo.entries()].map(([k, m]) => [k, m.p.map((v) => Math.round(v * 100) / 100), m.truoc.map((v) => Math.round(v * 100) / 100)]);
   ds.sort((x, y) => x[0].localeCompare(y[0]));
-  for (const [k, q] of ds) console.log(k.padEnd(18), q.join(', '));
+  for (const [k, q, tr] of ds) console.log(k.padEnd(18), q.join(', '), ' <- ', tr.join(', '));
   process.exit(0);
 }
 
@@ -1071,6 +1073,29 @@ function diDay(mA, mB, maTram) {
 /* 5. Ghi vào dữ liệu                                                   */
 /* ------------------------------------------------------------------ */
 
+/**
+ * TUYẾN KHAI TAY (tools/tuyen-110-tay.json): Phòng Điều độ xem từng đường dây trên sơ đồ rồi
+ * chọn tay các điểm gấp khúc - ngắn nhất giữa hai đầu ngăn lộ, không gấp khúc vô lý. Tuyến có
+ * khai thì vẽ đúng theo các điểm đó (không tìm đường tự động, không tự dời làn / làm thẳng nấc).
+ *   { "E6.2>E6.6|E6.6>E6.2": { "qua": [[x, y], ...], "ghi_chu": "..." } }
+ * Khoá = hai khoá đầu ngăn lộ của bảng DUONG_DAY nối bằng "|". Mọi đoạn phải ngang hoặc dọc.
+ */
+const TUYEN_TAY = (() => {
+  try {
+    return JSON.parse(readFileSync(resolve('tools/tuyen-110-tay.json'), 'utf8'));
+  } catch {
+    return {};
+  }
+})();
+function tuyenTay(mA, mB, qua, ten) {
+  const pts = [mA.p, ...qua, mB.p];
+  for (let i = 1; i < pts.length; i++) {
+    const [a, b] = [pts[i - 1], pts[i]];
+    if (Math.abs(a[0] - b[0]) > 0.6 && Math.abs(a[1] - b[1]) > 0.6) console.log(`  ! tuyến tay ${ten}: đoạn xiên [${a}] -> [${b}]`);
+  }
+  return { pts, o: [] };
+}
+
 const thieu = [];
 /** Các tuyến đã đi dây xong, chờ chèn ký hiệu nhảy dây rồi mới ghi. */
 const tuyen = [];
@@ -1083,12 +1108,13 @@ for (const [ka, kb, day, km] of DUONG_DAY) {
     continue;
   }
   const tru = [ka.split(/[>#]/)[0], kb.split(/[>#]/)[0]];
-  const d = diDay(mA, mB, tru);
+  const tay = TUYEN_TAY[`${ka}|${kb}`];
+  const d = tay ? tuyenTay(mA, mB, tay.qua, `${ka}|${kb}`) : diDay(mA, mB, tru);
   if (!d) {
     thieu.push(`${ka} <-> ${kb}  (không tìm được đường đi)`);
     continue;
   }
-  daDi.push({ ka, kb, day, km, mA, mB, tru, d });
+  daDi.push({ ka, kb, day, km, mA, mB, tru, d, tay: !!tay });
 }
 
 /* --- Tìm lại tuyến (gỡ ra - tìm lại) ---
@@ -1119,6 +1145,7 @@ for (const [ka, kb, day, km] of DUONG_DAY) {
   for (let lan = 0; lan < Number(process.env.VONG_110 ?? 2); lan++) {
     let doiLan = 0;
     for (const t of [...daDi].sort((a, b) => vong(b) - vong(a))) {
+      if (t.tay) continue;
       datDau(t.d.o, -1);
       const cu = chiPhi(t);
       const d2 = diDay(t.mA, t.mB, t.tru);
@@ -1132,7 +1159,7 @@ for (const [ka, kb, day, km] of DUONG_DAY) {
   if (doi) console.log(`Tìm lại tuyến: đổi ${doi} lượt.`);
 }
 
-for (const { day, km, d } of daDi) {
+for (const { day, km, d, tay } of daDi) {
   // gộp các điểm trùng nhau
   const pts = [];
   for (const p of d.pts) {
@@ -1147,7 +1174,7 @@ for (const { day, km, d } of daDi) {
       pts.splice(k, 1);
     }
   }
-  tuyen.push({ pts, day, km });
+  tuyen.push({ pts, day, km, tay });
 }
 
 /* --- Bỏ nấc gấp khúc tí hon ---
@@ -1157,6 +1184,7 @@ for (const { day, km, d } of daDi) {
 {
   let bo = 0;
   for (const t of tuyen) {
+    if (t.tay) continue;
     const p = t.pts;
     for (let k = 1; k + 1 < p.length; k++) {
       const a = p[k];
@@ -1198,6 +1226,7 @@ const LAN = 12;
   for (let luot = 0; luot < 4; luot++) {
     const doan = [];
     tuyen.forEach((t, i) => {
+      if (t.tay) return;
       for (let k = 1; k < t.pts.length; k++) {
         // không dời đoạn chạm đầu ngăn lộ (điểm đầu / cuối tuyến)
         if (k === 1 || k === t.pts.length - 1) continue;
@@ -1269,6 +1298,7 @@ const LAN = 12;
     for (const ds of kho.values()) {
       if (new Set(ds.map((x) => x[0])).size < 2) continue;
       const [i, k] = ds[ds.length - 1];
+      if (tuyen[i].tay) continue;
       const pts = tuyen[i].pts;
       let xong = false;
       // thử dời đoạn trước rồi đoạn sau của góc đó (không dời đoạn chạm đầu tuyến)
@@ -1352,6 +1382,7 @@ const NAC = 75;
   for (let luot = 0; luot < 6; luot++) {
     let doi = false;
     tuyen.forEach((t, x) => {
+      if (t.tay) return;
       const p = t.pts;
       for (let k = 1; k + 2 < p.length; k++) {
         const [a, b, c, d] = [p[k - 1], p[k], p[k + 1], p[k + 2]];

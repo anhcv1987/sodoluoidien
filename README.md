@@ -859,6 +859,40 @@ chúng **chỉ được đấu ở hai đầu**, đoạn giữa chỉ đi ngang 
 thì mọi điểm giao chéo sẽ bị coi là điểm đấu và **Shift+M** (tô sáng cả mạch) sẽ tô
 lem sang các tuyến không liên quan.
 
+### Rà soát, khai tay tuyến đường dây 110kV và cáp trung áp (10/2026)
+
+Toàn bộ **40 đường dây 110kV** được xem lại từng tuyến trên sơ đồ và **chọn tay các điểm gấp
+khúc** (không còn dùng kết quả tìm đường tự động), theo nguyên tắc: ngắn nhất giữa hai đầu
+ngăn lộ, mỗi tuyến tối đa 4 lần gấp, không đi vòng ra mép giấy, không chạy đè / chạm nét trung áp,
+không đi qua ô trạm khác (trừ dải trống trong ô E6.18 dẫn vào ngăn lộ 110kV của chính E6.18 và
+E6.17), các tuyến ra cùng một trạm xếp thành làn song song theo thứ tự ngăn lộ để ít giao chéo.
+
+* Điểm gấp ghi ở `tools/tuyen-110-tay.json` (khoá = hai đầu ngăn lộ trong bảng `DUONG_DAY`);
+  `noi-duong-day-110.mjs` vẽ đúng theo đó, chỉ còn tự chèn ký hiệu nhảy dây và nhãn mã dây.
+* Kết quả: tổng chiều dài tuyến 110kV trên tờ **170.761 → 144.775** (giảm 15%); cụm Phú Bình 220kV
+  (E6.16) không còn vòng xuống đáy tờ: 172→E6.3 đi khe giữa E6.16 và E6.7, 182→E6.17 đi dải trống
+  trong ô E6.18, 180/181→E6.14 vào từ phía tây; Lưu Xá 220kV (E6.20): 6 làn dưới hàng ngăn lộ,
+  174→E6.5 đi thẳng; Thái Nguyên 220kV (E6.2): 177/178→E6.8 và 174→E6.6 đi chung hành lang phía
+  đông, bỏ các nấc gấp; 173 E6.2 - E6.11 vào ngay dưới hàng đầu ngăn lộ (không đi xuyên thiết bị
+  35kV); E6.12-E6.11 bỏ đoạn vồng lên vô lý; 171 E6.21 nay vào đỉnh ngăn lộ (trước đây nối vào đầu
+  dưới, vẽ đè qua dao cách ly 171-7).
+* Làn của từng tuyến chọn chỗ trống: cách nét trung áp cố định, không đi qua / sát ký hiệu thiết bị
+  (< 12 đơn vị), không có đỉnh nét khác nằm trên tuyến (tránh đấu nối giả trong mô hình kết lưới).
+* Một số chỗ giao chéo không tránh được (hai ngăn lộ cạnh nhau đi về hai phía ngược nhau) đã
+  được xếp làn để chỉ còn đúng một chỗ nhảy dây.
+
+**Cáp trung áp** (cáp ngăn lộ - đầu lộ, dây liên thông giữa các bản vẽ, 212 tuyến): đã xem các
+tuyến vòng nhiều nhất; bỏ nấc / móc thừa ở đầu tuyến của 4 tuyến (471 E6.2, 373 E6.5, 473 E6.22,
+471 E26.1) - 3 đề xuất khác (474 E6.2, 371 E6.17, liên thông 36-35) bị loại vì đoạn mới đi sát
+máy biến áp / dao cách ly (cắt máy cắt đầu lộ 474 E6.2 mà lộ vẫn còn điện); các tuyến dạng chữ C / U còn lại là do hướng ra
+khỏi ngăn lộ và hướng vào bản vẽ bắt buộc, phải vòng qua ô trạm / bản vẽ - giữ nguyên. Điểm gấp
+của **cả 212 tuyến** được ghi cố định ở `tools/luoi-trung-ap/tuyen-tay.json` (khoá: `cáp <tên lộ>`,
+`liên thông <bản vẽ> - <bản vẽ>`, trùng tên thêm ` #2`...): chạy lại `ve-luoi-trung-ap.mjs` cho đúng
+hình đã duyệt, không tìm đường lại. Xoá khoá một tuyến khỏi file thì tuyến đó lại tìm đường tự động
+(vd khi dời bản vẽ); `XUAT_TUYEN=<file> node tools/ve-luoi-trung-ap.mjs` ghi điểm gấp mọi tuyến để
+khai lại. Các cáp rất dài (vd 375 E6.17, liên thông 49-13) là do bản vẽ lộ đặt xa trạm - muốn ngắn
+hơn phải dời bản vẽ (`tools/luoi-trung-ap/pdf/dat.mjs`).
+
 ### Dời chữ ra khỏi ký hiệu thiết bị
 
 Bản CAD gốc có nhiều nhãn nằm đè lên ký hiệu: số hiệu máy cắt ghi lọt vào trong thân
@@ -1243,9 +1277,9 @@ lần vẽ sau; `QUY_HOACH=1` để tính lại - xem mục làm gọn nét dò)
 
 Tổng chiều dài nét lưới trung áp trên tờ tổng: 119.592 → 81.311 (giảm 32%); sau khi dời trạm và
 chừa lề hành lang (mục 7.3) là 99.030 - thưa hơn, dễ xem hơn. Thứ tự chạy khi
-cần làm lại (có dời trạm thì chạy `node tools/doi-cho-tram.mjs` trước): `node tools/ve-luoi-trung-ap.mjs` → `node tools/noi-duong-day-110.mjs
-src/data/tram-sld.json` (đường dây 110kV đi vòng quanh lưới trung áp) → `node
-tools/ve-luoi-trung-ap.mjs` (vị trí bản vẽ không phụ thuộc đường dây 110kV nên không đổi) →
+cần làm lại (có dời trạm thì chạy `node tools/doi-cho-tram.mjs` trước): `node tools/noi-duong-day-110.mjs
+src/data/tram-sld.json` (tuyến 110kV khai tay, `tools/tuyen-110-tay.json`) → `node
+tools/ve-luoi-trung-ap.mjs` (cáp theo `tools/luoi-trung-ap/tuyen-tay.json`) →
 `node tools/diem-re-nhanh.mjs` (chấm điểm đấu rẽ nhánh, mục 7.2a) → `npx vite build`.
 
 ### 7.2a. Chấm điểm đấu rẽ nhánh
