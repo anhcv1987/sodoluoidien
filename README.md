@@ -890,8 +890,18 @@ của **cả 212 tuyến** được ghi cố định ở `tools/luoi-trung-ap/tu
 `liên thông <bản vẽ> - <bản vẽ>`, trùng tên thêm ` #2`...): chạy lại `ve-luoi-trung-ap.mjs` cho đúng
 hình đã duyệt, không tìm đường lại. Xoá khoá một tuyến khỏi file thì tuyến đó lại tìm đường tự động
 (vd khi dời bản vẽ); `XUAT_TUYEN=<file> node tools/ve-luoi-trung-ap.mjs` ghi điểm gấp mọi tuyến để
-khai lại. Các cáp rất dài (vd 375 E6.17, liên thông 49-13) là do bản vẽ lộ đặt xa trạm - muốn ngắn
-hơn phải dời bản vẽ (`tools/luoi-trung-ap/pdf/dat.mjs`).
+khai lại.
+
+**Rà soát toàn bộ 212 tuyến cáp trung áp (lần 2):** xem từng tuyến trên ảnh (đầu ngăn lộ, đầu vào bản
+vẽ, vùng bản vẽ lộ, ô trạm, thiết bị), thử các phương án chữ L / Z / U ngắn hơn - giữ hướng ra ở đầu
+ngăn lộ, không đi dọc nét bản vẽ ở đầu vào, không đè / chạm nét khác, cách ký hiệu thiết bị ≥ 14,
+không đi xuyên bản vẽ lộ hay ô trạm khác. Sửa thêm 11 tuyến (474 E6.4; 376, 380, 456 E6.3; 473 E6.7;
+473 E6.19; 473 E26.1; 451, 471 E6.17; liên thông 05-04 #2, 35-34): bớt 16 điểm gấp, ngắn 583. Các tuyến
+còn lại giữ nguyên: chỗ vòng là để không đi xuyên bản vẽ lộ / ô trạm hoặc vì hướng vào bản vẽ bắt
+buộc. Các cáp rất dài (375, 377, 373 E6.17; liên thông 49-13, 49-65, 47-25, 48-25...) là dây liên thông
+giữa hai trạm ở xa nhau trên sơ đồ (vd bản vẽ 10 "374+375 E6.3 (LT 375 E6.17)" nối E6.3 phía tây với
+E6.17 phía đông): dời bản vẽ về trạm này thì cáp sang trạm kia dài ra, không rút ngắn được bằng
+cách dời bản vẽ.
 
 ### Dời chữ ra khỏi ký hiệu thiết bị
 
