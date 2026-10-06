@@ -72,6 +72,8 @@ export interface RenderState {
 }
 
 const FONT = '"Segoe UI", "Times New Roman", system-ui, sans-serif';
+/** Font giao diện (nhúng sẵn, src/fonts.css) cho nhãn nổi trên bản vẽ: tên trạm khi thu nhỏ, mã trạm. */
+const FONT_UI = '"Be Vietnam Pro", "Segoe UI", system-ui, sans-serif';
 
 export class Renderer {
   /**
@@ -111,7 +113,7 @@ export class Renderer {
   }
 
   private bg(): string {
-    return this.opt.printMode ? '#ffffff' : '#12161d';
+    return this.opt.printMode ? '#ffffff' : '#0e1116';
   }
 
   private fg(): string {
@@ -156,7 +158,7 @@ export class Renderer {
       if (s.x < -200 || s.y < -50 || s.x > this.vp.width + 200 || s.y > this.vp.height + 50) continue;
       const nhan = `${t.ma} · ${t.ten}`;
       const co = t.kv >= 220 ? co110 + 4 / 3 : co110;
-      ctx.font = `700 ${co}px ${FONT}`;
+      ctx.font = `600 ${co}px ${FONT_UI}`;
       const w = ctx.measureText(nhan).width + co * 1.1;
       const h = co * 1.6;
       // chồng nhãn đã vẽ thì thử dịch lên / xuống một, hai dòng; vẫn chồng thì bỏ
@@ -176,7 +178,7 @@ export class Renderer {
       daVe.push(o);
       const mau = colorOf(t.kv, false);
       ctx.globalAlpha = 0.88;
-      ctx.fillStyle = '#0f172a';
+      ctx.fillStyle = '#11151b';
       ctx.beginPath();
       ctx.roundRect(o.x0, o.y0, w, h, co * 0.35);
       ctx.fill();
@@ -450,8 +452,8 @@ export class Renderer {
       }
     }
     const v = this.vp.viewBox(0);
-    const minor = this.opt.printMode ? '#eceff4' : '#1b212b';
-    const major = this.opt.printMode ? '#dde3ec' : '#252d3a';
+    const minor = this.opt.printMode ? '#eceff4' : '#161b22';
+    const major = this.opt.printMode ? '#dde3ec' : '#1f2630';
     ctx.lineWidth = 1;
     for (let k = 0; k < 2; k++) {
       const s = k === 0 ? step : step * 10;
@@ -736,7 +738,7 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(c.x, c.y, 3.5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.font = `600 10px ${FONT}`;
+        ctx.font = `600 10px ${FONT_UI}`;
         put(s.code, c.x, c.y - 9, 10, colorOf(s.kv, this.opt.printMode));
         continue;
       }

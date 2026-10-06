@@ -149,15 +149,15 @@
 
   var st = document.createElement('style');
   st.textContent =
-    '.kh-nen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#141820;font:14px system-ui,Segoe UI,Arial,sans-serif;color:#e5e9f0}' +
-    '.kh-hop{width:min(440px,92vw);background:#1e2430;border:1px solid #39414f;border-radius:10px;padding:22px 26px}' +
-    '.kh-dau{font-size:11.5px;letter-spacing:.04em;color:#ffd400;margin-bottom:6px}' +
+    '.kh-nen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0e1116;font:14px Segoe UI,system-ui,Arial,sans-serif;color:#e3e7ed}' +
+    '.kh-hop{width:min(440px,92vw);background:#151920;border:1px solid #364050;border-radius:9px;padding:24px 28px;box-shadow:0 24px 60px rgba(0,0,0,.55)}' +
+    '.kh-dau{font-size:11.5px;letter-spacing:.04em;color:#f5b400;margin-bottom:6px;font-weight:600}' +
     '.kh-hop h2{margin:4px 0 12px;font-size:19px}.kh-hop p{margin:8px 0;line-height:1.45}' +
-    '.kh-ma{font-family:Consolas,monospace;font-size:16px;color:#7fd1ff;letter-spacing:.06em}' +
-    '.kh-hop label{display:block;margin:10px 0 0;font-size:12.5px;color:#aab3c2}' +
-    '.kh-hop input{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:7px 9px;background:#141820;border:1px solid #39414f;border-radius:6px;color:#e5e9f0;font:inherit}' +
-    '.kh-hop button{margin-top:14px;width:100%;padding:9px;border:0;border-radius:6px;background:#3fa9f5;color:#06121e;font-weight:600;font:inherit;cursor:pointer}' +
-    '.kh-hop button:disabled{opacity:.6;cursor:wait}.kh-tb{color:#ff8a80;min-height:1.2em}.kh-chu{font-size:11.5px;color:#8a93a3}';
+    '.kh-ma{font-family:Consolas,monospace;font-size:16px;color:#6aa6ff;letter-spacing:.06em}' +
+    '.kh-hop label{display:block;margin:10px 0 0;font-size:12.5px;color:#949eac}' +
+    '.kh-hop input{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:7px 9px;background:#0e1116;border:1px solid #364050;border-radius:5px;color:#e3e7ed;font:inherit}' +
+    '.kh-hop button{margin-top:14px;width:100%;padding:9px;border:0;border-radius:5px;background:#3d8bfd;color:#fff;font:inherit;font-weight:600;cursor:pointer}' +
+    '.kh-hop button:disabled{opacity:.6;cursor:wait}.kh-tb{color:#f05a5a;min-height:1.2em}.kh-chu{font-size:11.5px;color:#69727f}';
   document.head.appendChild(st);
 
   if (!window.crypto || !crypto.subtle || typeof DecompressionStream === 'undefined') {

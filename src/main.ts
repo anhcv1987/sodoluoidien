@@ -1,3 +1,4 @@
+import './fonts.css';
 import './style.css';
 import { App } from './ui/app';
 import { ketQuaDoiChu } from './data/tramSheets';
@@ -11,6 +12,8 @@ try {
   const app = new App(root);
   // Cho phep go loi nhanh tu Console cua trinh duyet khi can ho tro nguoi dung.
   (window as unknown as Record<string, unknown>).sodo = app;
+  // font nhúng nạp xong (không đồng bộ) thì vẽ lại nhãn trên bản vẽ bằng font đúng
+  void document.fonts?.ready.then(() => app.ed.requestDraw());
   // Số nhãn đã dời ra khỏi ký hiệu thiết bị ở từng tờ (xem tools/smoke-test.mjs)
   (window as unknown as Record<string, unknown>).sodoDoiChu = ketQuaDoiChu;
 } catch (err) {

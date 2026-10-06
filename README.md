@@ -89,6 +89,22 @@ npm i -D playwright && npx playwright install chromium
 MAT_KHAU_KICH_HOAT='...' npm run build && MAT_KHAU_KICH_HOAT='...' node tools/smoke-test.mjs anh-kiem-thu.png
 ```
 
+### Giao diện và font chữ (10/2026)
+
+Giao diện theo tinh thần **HMI hiệu năng cao** dùng trong phòng điều khiển (ISA-101 / EEMUA 201):
+nền xám than trung tính ít mỏi mắt khi trực ca, khung giao diện gần như đơn sắc - màu sắc dành cho
+**ý nghĩa vận hành** (cấp điện áp, chiều công suất, cảnh báo); chỉ một màu nhấn xanh cho thao tác đang
+chọn (công cụ, tab, nút bật/tắt).
+
+* **Font chữ**: **Be Vietnam Pro** (chữ không chân do người Việt thiết kế, dấu tiếng Việt cân đối, rõ ở
+  cỡ nhỏ) cho toàn bộ giao diện và nhãn nổi trên bản vẽ (tên trạm khi thu nhỏ); **JetBrains Mono**
+  (đơn cách) cho số liệu: toạ độ con trỏ, mã trạm, phím tắt, phiên bản. Hai font **nhúng sẵn trong
+  file** (`src/fonts.css`, chỉ bộ ký tự latin + tiếng Việt, woff2, giấy phép OFL) - máy trực không có
+  Internet vẫn hiện đúng. Chữ trong bản vẽ CAD giữ font cũ để không đổi bố cục bản vẽ.
+* Thanh tiêu đề có biểu tượng; menu ghi **phím tắt căn phải** (Ctrl+Z, F6...); tab dạng gạch chân;
+  tiêu đề các khối thu gọn được (mũi tên); nút công cụ, ô nhập, hộp thoại, bảng, thanh cuộn kiểu dáng
+  thống nhất; thanh trạng thái các nút bật/tắt gộp thành một dải.
+
 ---
 
 ## 2. Quy ước màu theo cấp điện áp

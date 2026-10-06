@@ -343,8 +343,18 @@ export class App {
     const h = el('header', { class: 'header' });
     h.append(
       el('div', { class: 'brand' }, [
-        el('strong', { text: 'Sơ đồ lưới điện Thái Nguyên' }),
-        el('span', { class: 'brand-sub', text: 'Phòng Điều độ — Công ty Điện lực Thái Nguyên' }),
+        // biểu tượng: cột điện + tia sét trên nền xanh
+        el('span', {
+          class: 'brand-logo',
+          html:
+            '<svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true"><rect width="28" height="28" rx="6" fill="#1f5fbf"/>' +
+            '<path d="M14 4 8.5 24M14 4l5.5 20M9.6 20h8.8M10.8 15.5h6.4M12 11h4M7 9.5h14" stroke="#cfe0ff" stroke-width="1.4" fill="none" stroke-linecap="round"/>' +
+            '<path d="M15.6 9.2 12.6 14.4h2.6l-1.7 4.6 4-6h-2.7l1.6-3.8z" fill="#ffd34d"/></svg>',
+        }),
+        el('div', { class: 'brand-text' }, [
+          el('strong', { text: 'Sơ đồ lưới điện Thái Nguyên' }),
+          el('span', { class: 'brand-sub', text: 'Phòng Điều độ — Công ty Điện lực Thái Nguyên' }),
+        ]),
       ]),
     );
     const menu = el('nav', { class: 'menu' });
@@ -447,7 +457,12 @@ export class App {
         list.append(el('div', { class: 'sep' }));
         continue;
       }
-      const it = el('button', { class: `dropdown-item${canSua === 'qt' ? ' can-qt' : canSua ? ' can-sua' : ''}`, type: 'button', text });
+      // phím tắt ghi trong ngoặc cuối nhãn ("Hoàn tác (Ctrl+Z)") -> tách ra căn phải
+      const pt = /^(.*?)\s*\(((?:Ctrl|Shift|Alt)\+[^()]+|F\d{1,2}|Home|Del|Esc)\)$/.exec(text);
+      const it = el('button', { class: `dropdown-item${canSua === 'qt' ? ' can-qt' : canSua ? ' can-sua' : ''}`, type: 'button', title: text }, [
+        el('span', { class: 'nhan', text: pt ? pt[1] : text }),
+        pt ? el('kbd', { class: 'phim', text: pt[2] }) : null,
+      ]);
       it.addEventListener('click', () => {
         list.classList.remove('open');
         fn();
@@ -615,13 +630,13 @@ export class App {
     }
     this.paletteApi?.refresh();
     this.toggles.replaceChildren(
-      this.toggleChip('ORTHO', this.ed.snap.ortho, () => (this.ed.snap.ortho = !this.ed.snap.ortho), 'F8'),
-      this.toggleChip('BẮT ĐIỂM', this.ed.snap.osnap, () => (this.ed.snap.osnap = !this.ed.snap.osnap), 'F3'),
-      this.toggleChip('LƯỚI', this.ed.snap.grid, () => (this.ed.snap.grid = !this.ed.snap.grid), 'F9'),
-      this.toggleChip('HIỆN LƯỚI', this.ed.renderer.opt.showGrid, () => this.toggleOpt('showGrid'), 'F7'),
-      this.toggleChip('ĐIỂM ĐẤU NỐI', this.ed.renderer.opt.showTerminals, () => this.batDiemNoi(), 'F4'),
-      this.toggleChip('CHẠY CÔNG SUẤT', this.congSuat.dangChay, () => this.batCongSuat(), 'F6'),
-      this.toggleChip('CHẾ ĐỘ IN', this.ed.renderer.opt.printMode, () => this.toggleOpt('printMode'), ''),
+      this.toggleChip('Ortho', this.ed.snap.ortho, () => (this.ed.snap.ortho = !this.ed.snap.ortho), 'F8'),
+      this.toggleChip('Bắt điểm', this.ed.snap.osnap, () => (this.ed.snap.osnap = !this.ed.snap.osnap), 'F3'),
+      this.toggleChip('Lưới', this.ed.snap.grid, () => (this.ed.snap.grid = !this.ed.snap.grid), 'F9'),
+      this.toggleChip('Hiện lưới', this.ed.renderer.opt.showGrid, () => this.toggleOpt('showGrid'), 'F7'),
+      this.toggleChip('Điểm đấu nối', this.ed.renderer.opt.showTerminals, () => this.batDiemNoi(), 'F4'),
+      this.toggleChip('Chạy công suất', this.congSuat.dangChay, () => this.batCongSuat(), 'F6'),
+      this.toggleChip('Chế độ in', this.ed.renderer.opt.printMode, () => this.toggleOpt('printMode'), ''),
     );
     this.layersHost.replaceChildren(buildLayers(this.ed, () => this.refreshChrome()));
     this.ed.requestDraw();
