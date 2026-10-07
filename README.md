@@ -351,6 +351,18 @@ Dùng được cả ở chế độ xem, vẫn kéo / phóng bản vẽ bình th
   màu cam nhấp nháy đánh dấu. Mạch vòng thì hai dòng gặp nhau ở giữa. **Trong các trạm
   220kV không đánh dấu thiết bị cắt phía 220kV và 110kV** (dao cách ly đường vòng -9... dày
   đặc, rối mắt) - vạch sáng vẫn dừng đúng chỗ; phía trung áp và các trạm 110kV vẫn đánh dấu.
+* **Không chạy vào thiết bị đo lường / bảo vệ** (10/2026): TU thanh cái, TU đường dây, chống sét van, bộ
+  đo đếm, tiếp địa trực tiếp - nhánh rẽ tới đó không có vạch sáng, kể cả ngăn TU có máy cắt hợp bộ / cầu
+  chì (trước đây coi như xuất tuyến). TU vẽ bằng vòng tròn (TUC41, TU C31...) nhận theo nhãn "TU..." ngay
+  cạnh (nhóm vòng tròn bán kính < 12 - MBA lực lớn hơn): dây cắt tại mép cuộn TU, nét vẽ trong cuộn và dây
+  nhị thứ xuống đất không nối xuyên qua. Ký hiệu tiếp địa trực tiếp (block TD) trước đây bị xếp nhầm là
+  phụ tải - nay không mang tải (dây trung tính MBA xuống đất cũng hết vạch sáng). MBA tự dùng, MBA phân
+  phối vẫn là phụ tải. Còn sót: chống sét vẽ tay bằng nét thường (không phải ký hiệu), vd CS3-TUC31 E26.1.
+  Sau khi tỉa nhánh cụt, cụm nét có vòng kín treo lủng lẳng (chữ V của máy cắt hợp bộ, ký hiệu TU) mà
+  không nằm trên đường đi giữa nguồn và phụ tải / đầu dây / xuất tuyến (tính theo khối song liên thông)
+  cũng bị bỏ nếu có dính thiết bị; nét vẽ trùng ở đầu thanh cái vẫn giữ như nhánh cụt thường. Hai chỗ
+  bản vẽ thiếu điểm nối lộ ra nhờ bước này đã vá bằng `tools/va-noi-tram.mjs` (MCHB 431 E6.5 hụt 5 đv
+  so với cáp tổng; ngăn liên lạc 112 E6.16 vắt qua C11 không có điểm nối).
 * **Tách hai đầu thì đoạn giữa mất điện**: đoạn dây, ngăn lộ, phân đoạn thanh cái bị
   cắt ra khỏi lưới có điện bằng thiết bị đang cắt thì không có công suất chạy (không
   lấy thanh cái của đoạn đó làm nguồn riêng). Chỉ mạch nào không nối được về lưới vì
@@ -1141,6 +1153,7 @@ node tools/ra-soat-cap-dien-ap.mjs src/data/tram-sld.json
 node tools/ra-soat-mba.mjs src/data/tram-sld.json
 node tools/bo-net-dau-tram.mjs src/data/tram-sld.json
 node tools/doi-cho-tram.mjs src/data/tram-sld.json
+node tools/va-noi-tram.mjs src/data/tram-sld.json
 node tools/ve-luoi-trung-ap.mjs src/data/tram-sld.json
 node tools/noi-duong-day-110.mjs src/data/tram-sld.json
 node tools/phuong-thuc-van-hanh.mjs src/data/tram-sld.json
@@ -1747,6 +1760,7 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  ra-soat-cap-dien-ap.mjs — sửa màu (cấp điện áp) vẽ nhầm lớp theo liên kết điện
                  phuong-thuc-van-hanh.mjs — đặt các máy cắt cắt theo kết dây cơ bản, sửa tên trạm
                  bo-net-dau-tram.mjs    — bỏ 2 nét thừa ở đầu trạm 110kV ký hiệu 3 nét song song; vá dây hở trước vòng nhảy
+                 va-noi-tram.mjs        — vá chỗ bản vẽ trạm thiếu điểm nối (dây hụt, vắt qua thanh cái)
                  ra-soat-co-lap-thanh-cai.mjs — cô lập từng thanh cái, tìm chỗ nối nhầm (thanh cái rò điện)
                  ra-soat-mba.mjs        — gán cấp điện áp (màu) từng cuộn dây MBA theo nhãn tỷ số
                  chuan-hoa-to-dau-day.mjs — vẽ lại ký hiệu sao / tam giác / mũi tên điều áp trong cuộn dây MBA

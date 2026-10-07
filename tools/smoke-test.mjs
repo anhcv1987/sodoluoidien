@@ -421,11 +421,25 @@ const cs = await page.evaluate(() => {
     hien: !!lop && lop.style.display !== 'none' && lop.width > 0,
     chuoi: d.chuoi.length,
     dung: [gan(...__D(-2222.59, 87.41)), gan(1671.98, 3017.72), gan(-1628.16, 5059.23)],
+    // công suất không chạy vào TU thanh cái (TUC41 E6.22 - TU vẽ vòng tròn), nhánh chống sét CS-4T1 E6.5;
+    // nhánh MBA tự dùng TD32 E6.7 (phụ tải) vẫn có
     // phía 220kV, 110kV trong trạm 220kV không đánh dấu điểm cắt (tránh rối); trạm 110kV vẫn đánh dấu
     an: d.diemDung.filter((q) => a.congSuat.anDiemDung(q)).length,
     an220: d.diemDung.filter((q) => q.kv === 220 && a.congSuat.anDiemDung(q)).length,
     con220: d.diemDung.filter((q) => q.kv === 220 && !a.congSuat.anDiemDung(q)).length,
     hienMC: [__D(-2222.59, 87.41), [1671.98, 3017.72], [-1628.16, 5059.23]].every(([x, y]) => d.diemDung.some((q) => Math.hypot(q.x - x, q.y - y) < 12 && !a.congSuat.anDiemDung(q))),
+    // [TUC41 E6.22, nhánh CS-4T1 E6.5, MBA tự dùng TD32 E6.7]
+    doLuong: [[-1800, 4615], [1097, -2069.6], [-1705.4, -4970]].map(([x, y]) =>
+      d.chuoi.some((c) => {
+        for (let k = 2; k < c.pts.length; k += 2) {
+          const [ax, ay, bx, by] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+          const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+          const t = L ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)) : 0;
+          if (Math.hypot(ax + t * dx - x, ay + t * dy - y) < 1) return true;
+        }
+        return false;
+      }),
+    ),
     kv: [...new Set(d.chuoi.map((c) => c.kv))].sort((x, y) => x - y).join(','),
     // khung tủ RMU 01-383 E6.9 (cạnh trái x=465.8) không có công suất; lộ ra MBA T1
     // 4000kVA của C.TY Cơ khí Gang Thép (qua ngăn tủ RMU 01-381) thì có
@@ -438,6 +452,11 @@ check(
   'Công suất chạy trên đường dây (F6), dừng tại các MC đang cắt',
   cs.hien && cs.chuoi > 5000 && cs.dung.every(Boolean) && /220/.test(cs.kv) && /22/.test(cs.kv),
   `${cs.chuoi} chuỗi, cấp ${cs.kv}, dừng tại MC cắt: ${cs.dung.join('/')}`,
+);
+check(
+  'Công suất không chạy vào TU thanh cái, chống sét van; vẫn chạy tới MBA tự dùng',
+  !cs.doLuong[0] && !cs.doLuong[1] && cs.doLuong[2],
+  `TUC41 E6.22 ${cs.doLuong[0]}, CS-4T1 E6.5 ${cs.doLuong[1]}, TD32 E6.7 ${cs.doLuong[2]}`,
 );
 check('Không đánh dấu điểm cắt phía 220kV, 110kV trong trạm 220kV', cs.an > 10 && cs.an220 > 0 && cs.con220 === 0 && cs.hienMC, `ẩn ${cs.an} điểm (220kV ${cs.an220}), MC cắt trạm 110kV vẫn hiện: ${cs.hienMC}`);
 await page.keyboard.press('F6');

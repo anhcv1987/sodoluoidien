@@ -1,0 +1,88 @@
+/**
+ * VÁ CÁC CHỖ BẢN VẼ TRẠM THIẾU ĐIỂM NỐI (TRA THEO TOẠ ĐỘ SAU doi-cho-tram.mjs).
+ *
+ *   node tools/va-noi-tram.mjs [src/data/tram-sld.json]
+ *
+ * Chạy chiều công suất (F6) chỉ đi theo các nét thực sự nối với nhau. Vài chỗ bản CAD
+ * vẽ hụt / vắt qua mà không có điểm nối nên ngăn lộ bị cô lập; trước đây công suất vẫn
+ * hiện ở đó chỉ vì nét ký hiệu TU, MCHB tạo vòng kín giữ lại nhánh cụt. Công cụ này:
+ *   - keo : dời đầu mút một nét từ điểm `tu` tới điểm `den`;
+ *   - tach: tách nét đi xuyên qua điểm đó thành hai nét có chung đầu mút tại đó (để
+ *           nhận ra rẽ chữ T vào thanh cái); `doc` = chỉ tách nét dọc (không tách
+ *           chính thanh cái nằm ngang đi qua điểm đó).
+ * Chạy lại bao nhiêu lần cũng được.
+ */
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const VA = [
+  {
+    tram: 'E6.5',
+    mo_ta: 'ngăn MCHB 431: dây xuống dao -38 dừng ở cực dao, hụt 5 đv so với cáp tổng 3x400 từ MBA T1',
+    keo: { tu: [1187.5, -2279.19], den: [1187.5, -2284.32] },
+  },
+  {
+    tram: 'E6.16',
+    mo_ta: 'ngăn liên lạc 112: dây từ TUC11 xuống dao 112-1 vắt qua thanh cái C11 không có điểm nối',
+    tach: [-3453, -5399.21],
+    doc: true,
+  },
+];
+
+const duongDan = resolve(process.argv[2] ?? 'src/data/tram-sld.json');
+const data = JSON.parse(readFileSync(duongDan, 'utf8'));
+const s = data.sheets.find((x) => x.code === 'TONG');
+const E = 0.05;
+const trung = (x, y, p) => Math.abs(x - p[0]) <= E && Math.abs(y - p[1]) <= E;
+let doi = 0;
+
+for (const v of VA) {
+  if (v.keo) {
+    const { tu, den } = v.keo;
+    let co = 0;
+    for (const r of s.b) {
+      const n = r.length;
+      for (const k of [4, n - 2]) {
+        if (trung(r[k], r[k + 1], den)) co = -1;
+        else if (trung(r[k], r[k + 1], tu) && co >= 0) {
+          r[k] = den[0];
+          r[k + 1] = den[1];
+          co++;
+        }
+      }
+    }
+    console.log(`${v.tram} ${v.mo_ta}: ${co > 0 ? `dời ${co} đầu mút` : co < 0 ? 'đã vá' : 'KHÔNG THẤY'}`);
+    if (co > 0) doi += co;
+  }
+  if (v.tach) {
+    const P = v.tach;
+    let co = 0;
+    let da = false;
+    const them = [];
+    for (const r of s.b) {
+      const n = r.length;
+      if (trung(r[4], r[5], P) || trung(r[n - 2], r[n - 1], P)) {
+        da = true;
+        continue;
+      }
+      for (let k = 4; k + 3 < n; k += 2) {
+        const [ax, ay, bx, by] = [r[k], r[k + 1], r[k + 2], r[k + 3]];
+        const L = Math.hypot(bx - ax, by - ay);
+        if (L < E || (v.doc && Math.abs(bx - ax) > E)) continue;
+        const t = ((P[0] - ax) * (bx - ax) + (P[1] - ay) * (by - ay)) / (L * L);
+        const d = Math.abs((bx - ax) * (P[1] - ay) - (by - ay) * (P[0] - ax)) / L;
+        if (t <= 0 || t >= 1 || d > E) continue;
+        them.push([...r.slice(0, 4), P[0], P[1], ...r.slice(k + 2)]);
+        r.length = k + 2;
+        r.push(P[0], P[1]);
+        co++;
+        break;
+      }
+    }
+    s.b.push(...them);
+    console.log(`${v.tram} ${v.mo_ta}: ${co ? `tách ${co} nét` : da ? 'đã vá' : 'KHÔNG THẤY'}`);
+    doi += co;
+  }
+}
+if (doi) writeFileSync(duongDan, JSON.stringify(data));
+console.log(doi ? `Đã sửa ${doi} chỗ.` : 'Không có gì thay đổi.');
