@@ -19,6 +19,7 @@
     { "json": "36.json", "lo": "ĐZ 475 E6.24", "ten": "DPT 473E6.7-7/59", "mo": true, "ghi": "DCL 473E6.7-7/59-1 LT 475E6.24" },
     { "json": "38.json", "ten": "DCL 371E6.8-7/111", "mo": true, "ghi": "LBS 371E6.8/111 Văn Hán LT 371 TCCN" },
     { "json": "40.json", "ten": "MC 372E6.8/01", "mo": true, "ghi": "Văn Lăng" },
+    { "json": "41.json", "ten": "DCL 375 E6.8-7/319", "mo": true, "ghi": "LT 371E6.8: văn bản ghi MC 375E6.8/317 LT 371E6.8 thường cắt - bản vẽ không có MC này, dao cột 319 kề bên trên cùng nhánh liên thông" },
     { "json": "40.json", "ten": "DCL 372E6.8-7/02", "mo": true, "ghi": "DCL 371E6.8-7/02 LT 372E6.8" },
     { "json": "49.json", "ten": "DCL 31-1/485E6.13", "mo": true, "ghi": "MV 473E6.17" },
     { "json": "49.json", "ten": "DCL 31-1/486E6.13", "mo": true, "ghi": "MV 471E6.17" },

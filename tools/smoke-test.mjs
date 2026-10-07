@@ -292,7 +292,7 @@ const tt0 = await page.evaluate(() => {
   const doi = a.ed.doiTrangThai([dtd.id]);
   return { dclCat: dcl.filter((e) => e.state === 'mo').length, soDcl: dcl.length, chuGiai, doi, dtdId: dtd.id, dtdSt: a.store.get(dtd.id).state };
 });
-check('Dao cách ly đều Đóng, trừ dao thanh cái đường vòng (-9) Cắt', tt0.dclCat === 51 && tt0.soDcl > 500, `${tt0.soDcl} DCL, ${tt0.dclCat} đang cắt`);
+check('Dao cách ly đều Đóng, trừ dao thanh cái đường vòng (-9) và ký hiệu nhận nhầm nối tắt hai lộ 373/371 E6.17 Cắt', tt0.dclCat === 52 && tt0.soDcl > 500, `${tt0.soDcl} DCL, ${tt0.dclCat} đang cắt`);
 check('Có khung chú giải trạng thái thiết bị', tt0.chuGiai === 12, `${tt0.chuGiai} ký hiệu mẫu`);
 check('Chế độ xem không đổi được trạng thái thiết bị', tt0.doi === 0 && tt0.dtdSt === 'mo');
 

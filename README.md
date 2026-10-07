@@ -1107,6 +1107,23 @@ Hai chỗ sửa LOGIC để lỗi này không lặp lại / không bị che:
   là "đầu xuất tuyến" (trước đây mọi đầu dây hở đều giữ lại để công suất chạy tới, nên đường dây
   nối nhầm vẫn hiện công suất chạy tới tận trạm, trông như đã nối). Nay đường dây hở đầu không có
   dòng tải - nối nhầm là thấy ngay. Smoke test kiểm tra cả 40 đường dây liên trạm đều có công suất.
+
+**Lưới trung áp - rà cùng kiểu** (`tools/ra-soat-dau-lo-trung-ap.mjs`): với 122 cáp đầu lộ, (1) trên
+đồ thị điện cáp có tới được cực máy cắt đầu lộ của chính ngăn đó; (2) `--thu-cat` cắt MC đầu lộ rồi
+tính lại - cáp còn điện thì in đường đi và các bước nối sang lộ khác. Đã sửa:
+* **471 E6.17** - đoạn cáp Cu-3x240-0,15km trong trạm hụt 15 đv trước mũi tên đầu ra: cáp lộ không
+  nối vào ngăn, chỉ có điện vòng từ E6.3 (lỗi giống 110kV) - vá ở `va-noi-tram.mjs`;
+* **hai lộ vẽ dính nhau**: 373/374 E6.8 (cáp 374 chạy sát 0,5 đv đoạn rẽ đầu tuyến 373), 477/475 E6.19
+  (cáp 477 đi qua đúng điểm đầu bản vẽ 475), 475/477 E6.24 (góc tuyến cách nhau 1,85 đv), 373 E6.17
+  (cáp chạy dưới mũi tên đầu ra ngăn 375 có 3,5 đv) - sửa tuyến khai tay; 376/377 E6.2 (bản PDF vẽ
+  hai lộ chụm vào nhau cách 1pt) - `nan_diem`; ký hiệu "dao" cỡ 42 nằm ngang giữa đầu ra 373 và 371
+  E6.17 (nét CAD nhận nhầm, đang đóng thì nối tắt hai lộ) - đặt cắt;
+* **DCL 371E6.7-7/06** (thường cắt, hai bản vẽ đều không vẽ) - vẽ trên dây liên thông 32 - 33
+  (`noi_ban_ve[].tb`); DCL 375E6.8-7/319 đặt cắt (văn bản: MC 375E6.8/317 LT 371E6.8 thường cắt).
+Còn lại (cắt MC đầu lộ vẫn có điện): 5 lộ Bắc Kạn có thuỷ điện (đúng); 472/474 E6.7 cùng cấp Thép
+Đại Việt; các chỗ bản vẽ thiếu điểm thường cắt so với văn bản (DCL 376TCCN-7/171, DCL 374E6.3-7/19,
+lèo cột 10 lộ 472E6.3, DPT 478E6.21-7/04 LT 454E6.3, DCL 375E6.8-7/13, tủ RMU 16-471 / 63-476 E6.7,
+RMU 01-475 / 01-453 E6.17, CD 472-7/1 E26.1) - chờ Phòng xác nhận vị trí.
 Công cụ cũng vá chỗ **đầu dây để hở ngay trước vòng nhảy** (cáp tổng MBA T1 E6.4 hở
 5,2 đơn vị trước vòng nhảy qua C41 - trước đây chỉ "nối" được nhờ đỉnh vòng nhảy chạm
 thanh cái).
@@ -1790,6 +1807,7 @@ tools/           tach-so-do-tram.py     — tách từng tờ sơ đồ trạm t
                  phuong-thuc-van-hanh.mjs — đặt các máy cắt cắt theo kết dây cơ bản, sửa tên trạm
                  bo-net-dau-tram.mjs    — bỏ 2 nét thừa ở đầu trạm 110kV ký hiệu 3 nét song song; vá dây hở trước vòng nhảy
                  va-noi-tram.mjs        — vá chỗ bản vẽ trạm thiếu điểm nối (dây hụt, vắt qua thanh cái)
+                 ra-soat-dau-lo-trung-ap.mjs — cáp đầu lộ trung áp nối đúng ngăn? cắt MC đầu lộ thì mất điện?
                  ra-soat-co-lap-thanh-cai.mjs — cô lập từng thanh cái, tìm chỗ nối nhầm (thanh cái rò điện)
                  ra-soat-mba.mjs        — gán cấp điện áp (màu) từng cuộn dây MBA theo nhãn tỷ số
                  chuan-hoa-to-dau-day.mjs — vẽ lại ký hiệu sao / tam giác / mũi tên điều áp trong cuộn dây MBA

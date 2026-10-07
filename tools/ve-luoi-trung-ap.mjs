@@ -558,6 +558,12 @@ const VI_TRI_PDF = new Map(); // tên file JSON -> hàm đổi điểm PDF sang 
  * bản vẽ này qua các điểm gấp khúc tới đầu dây của bản vẽ kia.
  *   { tu: ['20.json', [x, y]], den: ['18.json', [x, y]] | [X, Y], qua: [[X, Y], ...], cap, kv }
  */
+/**
+ * Thiết bị trên dây liên thông giữa hai bản vẽ (noi_ban_ve.tb = { loai, ten, mo }): điểm thường cắt
+ * văn bản phương thức có mà bản vẽ hai bên đều không vẽ (vd DCL 371E6.7-7/06) - không có thì dây
+ * liên thông nối thẳng hai lộ. Vẽ ở giữa đoạn dài nhất của dây, sau khi đã tìm lại tuyến.
+ */
+const LT_TB = [];
 function veNoiGiuaBanVe(ds, { hoan } = {}) {
   const conLai = [];
   for (const l of ds) {
@@ -574,6 +580,7 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
     const tayLT = tenLT && duongTay(tenLT, a, b);
     if (tayLT) {
       net(tayLT, !!l.cap);
+      l._row = s.b.at(-1);
       TUYEN_TU_DONG.push({ ten: tenLT, tay: true, row: s.b.at(-1), duong: tayLT });
       continue;
     }
@@ -604,6 +611,7 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
       const duong = tinh();
       if (duong) {
         net(duong, !!l.cap);
+        l._row = s.b.at(-1);
  
         TUYEN_TU_DONG.push({ ten: tenLT, tinh, row: s.b.at(-1), duong });
         console.log(`  ${tenLT}: ${duong.length - 1} đoạn, dài ${duong.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - duong[i][0], q[1] - duong[i][1]), 0).toFixed(0)}, thẳng ${(Math.abs(duong.at(-1)[0] - duong[0][0]) + Math.abs(duong.at(-1)[1] - duong[0][1])).toFixed(0)}`);
@@ -611,9 +619,14 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
       continue;
     }
     net([a, ...(l.qua ?? []), b], !!l.cap);
+    l._row = s.b.at(-1);
   }
   return conLai;
 }
+/** Ghi thiết bị của dây liên thông: gọi sau veNoiGiuaBanVe - hàng tuyến là hàng cuối cùng được vẽ cho mục đó. */
+const ghiLtTb = (ds) => {
+  for (const l of ds) if (l.tb && l._row) LT_TB.push({ tb: l.tb, row: l._row, kv: l._row[1], lop: l._row[0] });
+};
 
 /** Vùng bản vẽ lật ngang (dat.mjs 'lat'): tên file JSON -> [{ vung: [x0, y0, x1, y1], truc }] (toạ độ PDF). */
 const LAT_PDF = new Map();
@@ -2252,8 +2265,10 @@ const hopCuaRa = (noi) => {
   return v;
 };
 const datPdf = resolve('tools/luoi-trung-ap/pdf/dat.mjs');
+let DS_PDF = [];
 if (existsSync(datPdf)) {
   const ds = (await import(pathToFileURL(datPdf).href)).default;
+  DS_PDF = ds;
   for (const d of ds) if (d.lat) LAT_PDF.set(d.json, d.lat);
   for (const d of ds) if (d.nan_diem) NAN_PDF.set(d.json, d.nan_diem);
   // toạ độ tờ tổng khai trong dat.mjs theo bản CAD gốc: đổi theo trạm đã dời (tools/vi-tri-tram.mjs)
@@ -2325,6 +2340,47 @@ if (process.env.XUAT_TUYEN) {
   writeFileSync(resolve(process.env.XUAT_TUYEN), JSON.stringify(ra, null, 1));
 }
 veGiaoCheo();
+// Thiết bị trên dây liên thông (noi_ban_ve.tb): cắt dây ở giữa đoạn dài nhất, chừa khe hai cực
+{
+  for (const d of DS_PDF) ghiLtTb(d.noi_ban_ve ?? []);
+  const def = getBlock(KY_HIEU.DCL);
+  for (const { tb, row } of LT_TB) {
+    const loai = tb.loai ?? 'DCL';
+    const dBlock = getBlock(KY_HIEU[loai] ?? loai) ?? def;
+    const sc = SC_PDF[loai] * 1.2;
+    const nua = Math.max(...(dBlock?.cuc ?? [[0, 0.5]]).map((c) => Math.hypot(c[0], c[1]))) * sc;
+    const p = [];
+    for (let k = 4; k + 1 < row.length; k += 2) p.push([row[k], row[k + 1]]);
+    let m = -1, L = 0;
+    for (let k = 1; k < p.length; k++) {
+      const l = Math.hypot(p[k][0] - p[k - 1][0], p[k][1] - p[k - 1][1]);
+      if (l > L) [m, L] = [k, l];
+    }
+    if (m < 0 || L < nua * 4) {
+      console.log(`  ! thiết bị ${tb.ten}: dây liên thông quá ngắn`);
+      continue;
+    }
+    const [a, b] = [p[m - 1], p[m]];
+    const u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+    const M = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const dau = [...p.slice(0, m), [M[0] - u[0] * nua, M[1] - u[1] * nua]];
+    const cuoi = [[M[0] + u[0] * nua, M[1] + u[1] * nua], ...p.slice(m)];
+    const hdr = row.slice(0, 4);
+    row.length = 4;
+    row.push(...dau.flat().map((v) => +v.toFixed(3)));
+    s.b.push([...hdr, ...cuoi.flat().map((v) => +v.toFixed(3))]);
+    kv = row[1];
+    lop = row[0];
+    const goc = (Math.atan2(u[1], u[0]) * 180) / Math.PI;
+    thietBi(loai, M[0], M[1], gocDat(loai, goc), !!tb.mo, sc);
+    // tên ghi bên dưới (dây ngang) / bên trái (dây dọc)
+    const ngang = Math.abs(u[0]) > Math.abs(u[1]);
+    const h = 1.9 * 1.2;
+    chu(M[0] + (ngang ? 0 : -nua - 1), M[1] + (ngang ? -nua - h - 1 : -h / 2), h, tb.ten, ngang ? 'giua' : 'phai');
+    if (tb.mo) chu(M[0] + (ngang ? 0 : -nua - 1), M[1] + (ngang ? -nua - 2 * h - 2 : -h * 1.6), h * 0.85, '(Thường cắt)', ngang ? 'giua' : 'phai');
+    console.log(`  Thiết bị trên dây liên thông: ${tb.ten} (${tb.mo ? 'thường cắt' : 'đóng'})`);
+  }
+}
 writeFileSync(duongDan, JSON.stringify(data));
 const dem = (k, i) => s[k].filter((r) => r[i] === SRC).length;
 console.log(`Lưới trung áp: ${dsLo.length} lộ - ${dem('b', 3)} nét, ${dem('d', 8)} thiết bị, ${dem('t', 7)} chữ.`);

@@ -14,6 +14,8 @@
  *             [[x2, y2], [x3, y3]...]], ...]: dời đỉnh tuyến (x, y) tới (x2, y2), null = bỏ đỉnh đó, danh sách
  *             = thay bằng các đỉnh đó; hoặc { tu: [x, y], den: [x, y], thay: [[x, y]...], cap: true } thay
  *             cả khúc từ đỉnh tu tới đỉnh den (cap: khúc mới vẫn vẽ cáp ngầm) (toạ độ PDF, làm trước 'lat')
+ *   noi_ban_ve[].tb: thiết bị đặt trên dây liên thông { loai, ten, mo } - điểm thường cắt văn bản phương thức
+ *             có mà cả hai bản vẽ đều không vẽ
  *   nha_may : nhà máy điện ở cuối nhánh - { p: điểm dây vào khung nhà máy (PDF), huong: phía đặt ký hiệu
  *             máy phát (phai/trai/len/xuong), ten, ma (mã điều độ), cs (công suất), noi: đoạn dây vẽ thêm }
  * Vị trí thực sau khi đặt ghi ra tools/luoi-trung-ap/pdf/vi-tri.json.
@@ -241,6 +243,14 @@ export default [
     json: '02.json',
     goc: 'tu_dong',
     ti_le: 1.2,
+    // bản PDF vẽ 376 và 377 chụm vào nhau một đoạn (cách 1pt) rồi lại tách ra - hai lộ dính nhau:
+    // tách đoạn chụm (376 lên, 377 xuống)
+    nan_diem: [
+      [[229.33, 369.23], [229.33, 366.23]],
+      [[243.04, 369.23], [243.04, 366.23]],
+      [[229.34, 370.24], [229.34, 373.24]],
+      [[243.05, 370.24], [243.05, 373.24]],
+    ],
     noi: {
       'ĐZ 376 E6.2': { tu: [-1042.31, 328.94], ra: 'xuong' },
       'ĐZ 377 E6.2': { tu: [-1093.68, 329.13], ra: 'xuong' },
@@ -384,8 +394,9 @@ export default [
     },
     cap_noi: { 'ĐZ 371 E6.7': true, 'ĐZ 371 E6.24': true },
     noi_ban_ve: [
-      // DCL 371E6.7-7/06 (thường cắt) LT 372 E6.7 - lộ 372 vẽ ở bản vẽ 33
-      { tu: ['32.json', [197.93, 368.0]], den: ['33.json', [111.71, 229.93]], tu_dong: true },
+      // DCL 371E6.7-7/06 (thường cắt) LT 372 E6.7 - lộ 372 vẽ ở bản vẽ 33. Hai bản vẽ đều không vẽ dao
+      // này: vẽ trên dây liên thông (không có thì 371 và 372 E6.7 nối thẳng vào nhau)
+      { tu: ['32.json', [197.93, 368.0]], den: ['33.json', [111.71, 229.93]], tu_dong: true, tb: { loai: 'DCL', ten: 'DCL 371E6.7-7/06', mo: true } },
     ],
   },
   {

@@ -9,6 +9,7 @@
  *   - keo : dời đầu mút một nét từ điểm `tu` tới điểm `den`;
  *   - net : thay nét có đúng dãy đỉnh `cu` bằng dãy đỉnh `moi` (null = xoá nét) - nét vẽ lặp,
  *           đi rồi quay lại làm sai đầu mút ngăn lộ;
+ *   - tb  : đặt trạng thái thiết bị gần toạ độ `p` (cùng loại `block`) thành `state`;
  *   - tach: tách nét đi xuyên qua điểm đó thành hai nét có chung đầu mút tại đó (để
  *           nhận ra rẽ chữ T vào thanh cái); `doc` = chỉ tách nét dọc (không tách
  *           chính thanh cái nằm ngang đi qua điểm đó).
@@ -18,6 +19,16 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const VA = [
+  {
+    tram: 'E6.17',
+    mo_ta: 'ký hiệu "dao cách ly" cỡ 42 (gấp 5 lần dao thường) nằm ngang giữa đầu ra ngăn 373 và ngăn 371 - nét gạch chéo của bản CAD nhận nhầm thành dao; đang đóng thì nối tắt hai lộ: đặt cắt',
+    tb: { p: [4019.08, -4911.33], block: 'DCL', state: 'mo' },
+  },
+  {
+    tram: 'E6.17',
+    mo_ta: 'ngăn 471: cáp Cu-3x240-0,15km trong trạm dừng cách mũi tên đầu ra 15 đv - cáp lộ 471 không nối vào ngăn (chỉ có điện vòng từ E6.3)',
+    keo: { tu: [3032.57, -5217.6], den: [3032.57, -5232.32] },
+  },
   {
     tram: 'E6.23',
     mo_ta: 'đầu ngăn đường dây ký hiệu 3 nét: nét giữa đứt làm hai khúc, ngắn hơn nét bên - đường dây bắt nhầm vào nét bên phải',
@@ -75,6 +86,19 @@ for (const v of VA) {
     else s.b.splice(i, 1);
     console.log(`${v.tram} ${v.mo_ta}: ${moi ? 'sửa' : 'xoá'} 1 nét`);
     doi++;
+  }
+  if (v.tb) {
+    const { p, block, state } = v.tb;
+    const iB = data.blocks.indexOf(block);
+    const iS = data.states.indexOf(state);
+    const r = s.d.find((r) => r[2] === iB && trung(r[3], r[4], p));
+    if (!r) console.log(`${v.tram} ${v.mo_ta}: KHÔNG THẤY`);
+    else if (r[7] === iS) console.log(`${v.tram} ${v.mo_ta}: đã vá`);
+    else {
+      r[7] = iS;
+      doi++;
+      console.log(`${v.tram} ${v.mo_ta}: đặt ${state}`);
+    }
   }
   if (v.keo) {
     const { tu, den } = v.keo;
