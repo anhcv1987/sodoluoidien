@@ -5,8 +5,9 @@
  *
  * Mọi máy cắt, dao cách ly mặc định ĐÓNG (tools/chuan-hoa-dcl-lien-dong.mjs). Các
  * thiết bị CẮT theo kết dây cơ bản của Phòng Điều độ ghi trong bảng CAT dưới đây:
- * tìm theo nhãn ngăn lộ trong đúng trạm, lấy máy cắt gần nhãn nhất. Chạy lại bao nhiêu
- * lần cũng được.
+ * tìm theo nhãn ngăn lộ trong đúng trạm, lấy máy cắt gần nhãn nhất (hoặc gần toạ độ ghi
+ * kèm). Chạy lại bao nhiêu lần cũng được. Thiết bị trên lưới trung áp đặt theo phương
+ * thức ở tools/luoi-trung-ap/phuong-thuc.json (đọc khi vẽ lưới trung áp).
  *
  * Ngoài ra mọi dao cách ly nối thanh cái đường vòng (nhãn "xxx-9") đặt CẮT - đúng
  * phương thức bình thường; Phòng đóng lại trên phần mềm khi dùng máy cắt vòng.
@@ -19,10 +20,25 @@ const CAT = [
   ['E6.4', '171', 'MC 171 Thịnh Đán'],
   ['E6.8', '112', 'MC 112 Xi măng Thái Nguyên'],
   ['E6.22', '171', 'MC 171 Định Hóa'],
-  // Tủ phân phối 6kV của C.ty Xi măng TN nhận hai nguồn (lộ 671 từ C61, lộ 672 từ C62):
-  // máy cắt liên lạc C08 thường cắt, nếu đóng thì C61 cấp ngược qua tủ khách hàng
-  // sang C62 dù đã cắt MC 632, 612.
-  ['E6.8', 'C08', 'MC liên lạc C08 tủ 6kV C.ty Xi măng TN'],
+  // --- Phương thức kết dây cơ bản năm 2026 (CV 409/PCTN-ĐĐ ngày 26/01/2026), mục C ---
+  // Ngăn lộ dự phòng
+  ['E6.3', '375', 'MC 375 Gò Đầm (lộ 375 cắt dự phòng)'],
+  ['E6.5', '373', 'MC 373 Lưu Xá (dự phòng mạch liên thông Lưu Xá - Đán)'],
+  ['E6.8', '672', 'MC 672 Xi măng TN (cáp dự phòng NM Xi măng Quang Sơn)'],
+  // Máy cắt liên lạc thanh cái: MBA nào cấp thanh cái nấy ("MBA T1 cấp điện cơ bản TCC41,
+  // MBA T2 ... TCC42" - không vận hành song song). Nhãn đặt bên trái ngăn nên ghi kèm toạ
+  // độ máy cắt khi máy cắt ngăn bên cạnh gần nhãn hơn.
+  ['E6.3', '412', 'MC liên lạc 412 Gò Đầm (T1 - C41, T2 - C42)'],
+  ['E6.4', '412', 'MC liên lạc 412 Thịnh Đán (T1 - C41, T2 - C42)', [-1574.16, 33.74]],
+  ['E6.5', '412', 'MC liên lạc 412 Lưu Xá (T1 - C41, T2 - C42)', [799, -2223.9]],
+  ['E6.5', '312', 'MC liên lạc 312 Lưu Xá (T1 - C31, T2 - C32)'],
+  ['E6.8', '312', 'MC liên lạc 312 Xi măng TN (T1 - C31, T2 - C32)'],
+  ['E6.14', '412', 'MC liên lạc 412 Yên Bình 2 (T1 - C41, T2 - C42)'],
+  ['E6.17', '412', 'MC liên lạc 412 Phú Bình (T1 - C41, T2 - C42)'],
+  ['E6.17', '413', 'MC liên lạc 413 Phú Bình (T3 - C43)'],
+  ['E6.17', '423', 'MC liên lạc 423 Phú Bình (T3 - C43)'],
+  ['E6.18', '412', 'MC liên lạc 412 Yên Bình 3 (T1 - C41, T2 - C42)'],
+  ['E6.18', '413', 'MC liên lạc 413 Yên Bình 3 (T3 - C43)'],
 ];
 
 /** Sửa chữ ghi trên sơ đồ: [chữ cũ, chữ mới]. */
@@ -39,16 +55,18 @@ const iMo = data.states.indexOf('mo');
 const laMC = new Set(['MC', 'MCHB'].map((b) => data.blocks.indexOf(b)));
 
 let cat = 0;
-for (const [ma, nhan, ten] of CAT) {
+for (const [ma, nhan, ten, vt] of CAT) {
   const t = s.t.find((t) => String(t[8]).trim() === nhan && tram(t[2], t[3]) === ma);
   if (!t) {
     console.log(`Không thấy nhãn ${nhan} trong ${ma} (${ten})`);
     continue;
   }
+  // toạ độ máy cắt ghi sẵn (vt) hoặc máy cắt gần nhãn nhất
+  const [px, py] = vt ?? [t[2], t[3]];
   let tot = null;
   for (const r of s.d) {
     if (!laMC.has(r[2])) continue;
-    const d = Math.hypot(r[3] - t[2], r[4] - t[3]);
+    const d = Math.hypot(r[3] - px, r[4] - py);
     if (d < 40 && (!tot || d < tot.d)) tot = { d, r };
   }
   if (!tot) {
@@ -60,6 +78,30 @@ for (const [ma, nhan, ten] of CAT) {
     cat++;
   }
   console.log(`  ${ten}: CẮT`);
+}
+
+// Thiết bị ĐÓNG theo phương thức (trước đây đặt cắt)
+const DONG = [
+  // Tủ phân phối 6kV C.ty Xi măng TN nhận lộ 671 (C61) và 672 (C62). Phương thức 2026: lộ 671
+  // cấp cho nhà máy, lộ 672 cắt dự phòng (MC 672 cắt) - MC liên lạc C08 trong tủ đóng.
+  ['E6.8', 'C08', 'MC liên lạc C08 tủ 6kV C.ty Xi măng TN'],
+];
+const iDong = data.states.indexOf('dong');
+for (const [ma, nhan, ten] of DONG) {
+  const t = s.t.find((t) => String(t[8]).trim() === nhan && tram(t[2], t[3]) === ma);
+  let tot = null;
+  if (t)
+    for (const r of s.d) {
+      if (!laMC.has(r[2])) continue;
+      const d = Math.hypot(r[3] - t[2], r[4] - t[3]);
+      if (d < 40 && (!tot || d < tot.d)) tot = { d, r };
+    }
+  if (!tot) {
+    console.log(`Không thấy ${ten} (${ma})`);
+    continue;
+  }
+  tot.r[7] = iDong;
+  console.log(`  ${ten}: ĐÓNG`);
 }
 
 // Dao cách ly nối thanh cái ĐƯỜNG VÒNG (nhãn "xxx-9"): bình thường cắt, chỉ đóng khi

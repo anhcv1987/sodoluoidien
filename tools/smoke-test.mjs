@@ -403,8 +403,8 @@ const pt = await page.evaluate(() => {
   return { mcCat, tieuDe, conDan, de };
 });
 check(
-  'Kết dây cơ bản: MC 171 Thịnh Đán, 112 Xi măng TN, 171 Định Hóa cắt',
-  pt.mcCat.join(' ') === [[-1628.16, 5059.23], [-2222.59, 87.41], [1671.98, 3017.72]].map(([x, y]) => doiDiem(x, y).map((v) => v.toFixed(0)).join(',')).sort().join(' '),
+  'Kết dây cơ bản: MC 171 Thịnh Đán, 112 Xi măng TN, 171 Định Hóa, 375 Gò Đầm (dự phòng) cắt',
+  pt.mcCat.join(' ') === [...[[-1628.16, 5059.23], [-2222.59, 87.41], [1671.98, 3017.72]].map(([x, y]) => doiDiem(x, y).map((v) => v.toFixed(0)).join(',')), '-3852,-2207'].sort().join(' '),
   pt.mcCat.join(' '),
 );
 check('Đổi tên trạm 110kV Đán thành Thịnh Đán', pt.tieuDe && !pt.conDan);
@@ -576,8 +576,8 @@ const pdf17 = await page.evaluate(() => {
   return { ten, truoc, cat473 };
 });
 check(
-  'Lộ 471/473/481 E6.4 (bản vẽ PDF): đủ thiết bị, có điện; cắt MC 473 thì trục 473 mất điện (DCL 7/19 thường cắt không cấp ngược từ 481), 471 và 481 vẫn có điện',
-  pdf17.ten && pdf17.truoc.every(Boolean) && JSON.stringify(pdf17.cat473) === '[false,false,true,true]',
+  'Lộ 471/473/481 E6.4 (bản vẽ PDF): đủ thiết bị, có điện; cắt MC 473 thì đầu trục 473 mất điện (DCL 7/19 thường cắt không cấp ngược từ 481), 471 và 481 vẫn có điện; đoạn Ao Cang (MC 473E6.4/64 đóng theo phương thức 2026) vẫn có điện từ 473E6.3 tới LBS 473E6.4/36 thường cắt',
+  pdf17.ten && pdf17.truoc.every(Boolean) && JSON.stringify(pdf17.cat473) === '[true,false,true,true]',
   JSON.stringify(pdf17),
 );
 
@@ -835,7 +835,7 @@ const cumE62 = await page.evaluate(() => {
 check('Cụm E6.2: cắt MC đầu lộ 472/473/474/475 E6.2 thì chỉ lộ đó mất điện', cumE62.truoc && !cumE62.loi.length, JSON.stringify(cumE62));
 // E6.4: cáp tổng MBA T2 vẽ nhảy qua C42 (nửa vòng tròn) xuống MC 432 - chỗ nhảy không
 // phải đấu nối. Cắt 432 + 412 -> C42 mất điện, C41 vẫn có (T1 qua 431); cắt 431 + 412
-// -> C41 mất điện; chỉ cắt 432 -> C42 nhận điện từ C41 qua 412
+// -> C41 mất điện; đóng 412 (thường cắt) rồi cắt 432 -> C42 nhận điện từ C41 qua 412
 const e64 = await page.evaluate(() => {
   const a = window.sodo;
   const tim = (x, y) => a.store.entities.find((e) => e.kind === 'device' && Math.hypot(e.p.x - x, e.p.y - y) < 0.5);
@@ -857,14 +857,18 @@ const e64 = await page.evaluate(() => {
   a.ed.doiTrangThai([mc431.id, mc412.id], 'mo');
   kq.cat431_412 = { c41: c41(), c42: c42() };
   a.store.undo();
+  // 412 thường cắt (phương thức 2026: T1 cấp C41, T2 cấp C42) - đóng 412 rồi cắt 432
+  kq.mc412 = mc412.state;
+  a.ed.doiTrangThai([mc412.id], 'dong');
   a.ed.doiTrangThai([mc432.id], 'mo');
   kq.cat432 = { c41: c41(), c42: c42() };
+  a.store.undo();
   a.store.undo();
   return kq;
 });
 check(
-  'E6.4: cắt MC 432 + 412 thì C42 mất điện (cáp T2 nhảy qua C42 không đấu vào), cắt 431 + 412 thì C41 mất điện',
-  e64.cat432_412.c41 && !e64.cat432_412.c42 && !e64.cat431_412.c41 && e64.cat431_412.c42 && e64.cat432.c41 && e64.cat432.c42,
+  'E6.4: MC 412 thường cắt; cắt MC 432 thì C42 mất điện (cáp T2 nhảy qua C42 không đấu vào), cắt 431 thì C41 mất điện; đóng 412 cắt 432 thì C42 nhận điện qua 412',
+  e64.mc412 === 'mo' && e64.cat432_412.c41 && !e64.cat432_412.c42 && !e64.cat431_412.c41 && e64.cat431_412.c42 && e64.cat432.c41 && e64.cat432.c42,
   JSON.stringify(e64),
 );
 check('Cắt MC 632 và 612 (E6.8): thanh cái C62 mất điện', c62.truoc && !c62.sau, JSON.stringify(c62));

@@ -279,8 +279,22 @@ C61 và lộ 672 từ C62 của E6.8) cũng đặt **Cắt**: nếu đóng thì 
 khách hàng sang C62 dù đã cắt MC 632, 612.
 Ngoài ra **51 dao cách ly nối thanh cái đường vòng (nhãn “xxx-9”)** ở E6.2, E6.16,
 E6.20, E6.25 đặt **Cắt** theo phương thức bình thường (đóng lại khi dùng máy cắt vòng).
+**Theo phương thức kết dây cơ bản năm 2026** (CV 409/PCTN-ĐĐ ngày 26/01/2026, mục C) đặt thêm:
+* trong trạm: lộ dự phòng **MC 375 E6.3, MC 373 E6.5, MC 672 E6.8** cắt; **máy cắt liên lạc thanh
+  cái** cắt ở các trạm văn bản ghi mỗi MBA cấp riêng thanh cái (“MBA T1 cấp điện cơ bản TCC41, MBA
+  T2 … TCC42”): 412 E6.3, 412 E6.4, 412 + 312 E6.5, 312 E6.8, 412 E6.14, 412 + 413 + 423 E6.17,
+  412 + 413 E6.18. MC liên lạc C08 tủ 6kV Xi măng TN chuyển sang **đóng** (lộ 671 cấp cả nhà máy,
+  672 dự phòng). Chưa đổi: E6.6, E6.9, E6.13 (văn bản ghi thanh cái chưa rõ), E6.7 (đổi theo giờ),
+  E6.21 (T1, T2 vận hành song song);
+* trên lưới trung áp: bảng `tools/luoi-trung-ap/phuong-thuc.json` (đọc khi chạy
+  `tools/ve-luoi-trung-ap.mjs`) đè trạng thái ghi trên bản vẽ PDF lộ - 24 điểm thường cắt mới (vd MC
+  377E6.2/101A, MC 373TCCN/65, LBS 473E6.4/36 Ao Cang, MC 475E6.5/19, MC 371E6.6/125, MC 373E6.3/74,
+  DCL 471E6.22-7/61…) và 3 điểm cắt cũ chuyển sang đóng vì điểm cắt dời đi (MC 473E6.4/64 Ao Cang,
+  DCL 477E6.5-7/01 Trường nghề, LBS 471E6.22/60B). Mục nào trên bản vẽ khác tên văn bản / chưa rõ
+  đường cấp điện ghi ở `ghi_chu` trong file để Phòng xác nhận.
 Danh sách ghi trong `tools/phuong-thuc-van-hanh.mjs` (tìm theo nhãn ngăn lộ trong
-đúng trạm, lấy máy cắt gần nhãn nhất) - sửa bảng `CAT` ở đầu file rồi chạy lại
+đúng trạm, lấy máy cắt gần nhãn nhất hoặc gần toạ độ ghi kèm khi nhãn đặt lệch sang ngăn bên
+cạnh) - sửa bảng `CAT` / `DONG` ở đầu file rồi chạy lại
 `node tools/phuong-thuc-van-hanh.mjs` khi phương thức thay đổi. Công cụ cũng đổi tên
 **Trạm 110kV Đán → Trạm 110kV Thịnh Đán** trên tờ sơ đồ.
 

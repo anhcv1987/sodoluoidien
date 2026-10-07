@@ -1,0 +1,33 @@
+{
+  "nguon": "Phương thức kết dây cơ bản lưới điện tỉnh Thái Nguyên năm 2026 (CV 409/PCTN-ĐĐ ngày 26/01/2026), mục C. Đặt trạng thái thiết bị trên bản vẽ lộ theo phương thức; bản PDF lộ vẽ trước đó.",
+  "ghi_chu": "mo: true = Cắt, false = Đóng. Chưa đặt (bản vẽ khác văn bản, cần xác nhận): MC 373E26.1/247A (Cắt thì đoạn tới MC 373/47 mất điện - chưa rõ 374E26.1 vào từ đâu); DCL 472E6.2-7/34 Bảo Tàng (bản vẽ không có tủ RMU 34-472E6.2); DCL 475E6.4-7/01 LT 478E6.4 (trên bản vẽ là DCL 478E6.4-7/01 - đã cắt); ngăn 475-7/02 tủ RMU 01-475E6.17 và 450-7/01-03 tủ RMU 01-450E6.3 (tên ngăn bản vẽ khác văn bản).",
+  "sua": [
+    { "json": "01.json", "ten": "DCL 373E6.2-7/27", "mo": true, "ghi": "MV Lưu Xá - Đán (1F)" },
+    { "json": "01.json", "ten": "DCL 477E6.5-7/01", "mo": false, "ghi": "Trường nghề - nối tiếp ngay trước DCL 373E6.2-7/27: 373E6.2 và 375E6.5 cùng cấp đến 7/27" },
+    { "json": "02.json", "ten": "MC 377E6.2/101A", "mo": true, "ghi": "LT 375E6.19" },
+    { "json": "04.json", "ten": "MC 373TCCN/65", "mo": true, "ghi": "LT 372E6.8" },
+    { "json": "05.json", "ten": "MC 371TCCN/126", "mo": true, "ghi": "Tân Thành" },
+    { "json": "05.json", "ten": "DCL 371Đồng Liên-7/65", "mo": true, "ghi": "MC 65/371 Đồng Liên LT 387E6.9 - 377E6.17 (bản vẽ chỉ có DCL)" },
+    { "json": "09.json", "ten": "MC 373E6.3/74", "mo": true, "ghi": "LT 372 TCVB" },
+    { "json": "17.json", "ten": "LBS 473E6.4/36", "mo": true, "ghi": "Ao Cang" },
+    { "json": "17.json", "ten": "MC 473E6.4/64", "mo": false, "ghi": "Ao Cang LT 473E6.3: 473E6.3 cấp đến LBS 473E6.4/36 (điểm cắt dời về /36)" },
+    { "json": "17.json", "rmu": "TỦ RMU 01-481E6.4 (Viện A)", "ngan": "481-7/03", "mo": true, "ghi": "DCL 481E6.4-7/01-03 LT 473E6.4" },
+    { "json": "26.json", "ten": "MC 475E6.5/19", "mo": true, "ghi": "LT 478E6.4" },
+    { "json": "28.json", "ten": "MC 371E6.6/125", "mo": true, "ghi": "LT 371E6.22" },
+    { "json": "34.json", "ten": "MC 471E6.7/1A", "mo": true, "ghi": "Tiên Phong" },
+    { "json": "36.json", "ten": "MC 473E6.7/41B", "mo": true, "ghi": "MC 475E6.7/41B - LT 477E6.24" },
+    { "json": "36.json", "lo": "ĐZ 475 E6.24", "ten": "DPT 473E6.7-7/59", "mo": true, "ghi": "DCL 473E6.7-7/59-1 LT 475E6.24" },
+    { "json": "38.json", "ten": "DCL 371E6.8-7/111", "mo": true, "ghi": "LBS 371E6.8/111 Văn Hán LT 371 TCCN" },
+    { "json": "40.json", "ten": "MC 372E6.8/01", "mo": true, "ghi": "Văn Lăng" },
+    { "json": "40.json", "ten": "DCL 372E6.8-7/02", "mo": true, "ghi": "DCL 371E6.8-7/02 LT 372E6.8" },
+    { "json": "49.json", "ten": "DCL 31-1/485E6.13", "mo": true, "ghi": "MV 473E6.17" },
+    { "json": "49.json", "ten": "DCL 31-1/486E6.13", "mo": true, "ghi": "MV 471E6.17" },
+    { "json": "49.json", "rmu": "RMU 01-451 E6.17", "ngan": "451-7/01-03", "mo": true },
+    { "json": "49.json", "rmu": "RMU 01-453 E6.17", "ngan": "453-7/01-03", "mo": true },
+    { "json": "49.json", "rmu": "RMU 01- 477E6.17", "ngan": "477-7/02", "mo": true },
+    { "json": "64.json", "rmu": "RMU 01 - 478 E6.21", "ngan": "478-7/01-04", "mo": true, "ghi": "LT 475E6.3" },
+    { "json": "67.json", "ten": "DCL 471E6.22-7/61", "mo": true, "ghi": "LT 473E6.22" },
+    { "json": "67.json", "ten": "LBS 471E6.22/60B", "mo": false, "ghi": "nối tiếp ngay trước DCL 471E6.22-7/61: 471E6.22 và 473E6.22 cùng cấp đến 7/61" },
+    { "json": "bk04.json", "ten": "MC 373E26.1/150A", "mo": true, "ghi": "371E26.3 cấp sau MC 373/150A" }
+  ]
+}

@@ -717,7 +717,41 @@ const latBanVe = (json, J) => {
   for (const o of J.cot_le ?? []) latO(o);
   return J;
 };
-const docBanVe = (json) => latBanVe(json, JSON.parse(readFileSync(resolve('tools/luoi-trung-ap/pdf', json), 'utf8')));
+/**
+ * Trạng thái thiết bị theo PHƯƠNG THỨC KẾT DÂY CƠ BẢN (tools/luoi-trung-ap/phuong-thuc.json): đè lên
+ * trạng thái ghi trên bản PDF lộ (bản vẽ có thể cũ hơn phương thức). Thiết bị tìm theo tên đầu tiên
+ * (kèm tên lộ nếu cùng tên), ngăn tủ RMU theo tên tủ + tên ngăn.
+ */
+const PHUONG_THUC = JSON.parse(readFileSync(resolve('tools/luoi-trung-ap/phuong-thuc.json'), 'utf8')).sua;
+const datPhuongThuc = (json, J) => {
+  const ds = [];
+  for (const v of PHUONG_THUC) {
+    if (v.json !== json) continue;
+    if (v.rmu) {
+      for (const r of J.rmu ?? []) if (r.ten === v.rmu) for (const n of r.ngan) if (n.t === v.ngan) ds.push([v, n]);
+      continue;
+    }
+    for (const lo of J.lo) {
+      if (v.lo && lo.ten !== v.lo) continue;
+      for (const c of lo.chuoi) for (const t of c.tb ?? []) if (t.ten[0] === v.ten) ds.push([v, t]);
+    }
+  }
+  for (const [v, t] of ds) t.mo = v.mo;
+  return ds;
+};
+const docBanVe = (json) => {
+  const J = JSON.parse(readFileSync(resolve('tools/luoi-trung-ap/pdf', json), 'utf8'));
+  datPhuongThuc(json, J);
+  return latBanVe(json, J);
+};
+{
+  // mục nào không tìm thấy thiết bị (bản vẽ đổi tên...) thì báo ra
+  const thay = new Set();
+  for (const json of new Set(PHUONG_THUC.map((v) => v.json)))
+    for (const [v] of datPhuongThuc(json, JSON.parse(readFileSync(resolve('tools/luoi-trung-ap/pdf', json), 'utf8')))) thay.add(v);
+  for (const v of PHUONG_THUC) if (!thay.has(v)) console.log(`  ! phuong-thuc.json: không thấy ${v.json} ${v.rmu ? `${v.rmu} / ${v.ngan}` : v.ten}`);
+  console.log(`Phương thức kết dây: đặt trạng thái ${thay.size}/${PHUONG_THUC.length} thiết bị theo phuong-thuc.json`);
+}
 /** Cấp điện áp của lộ trên bản vẽ đi qua điểm d = ['xx.json', [x, y]] (đỉnh chuỗi gần nhất); không rõ thì undefined. */
 function kvTaiDiem(d) {
   if (typeof d?.[0] !== 'string') return undefined;
