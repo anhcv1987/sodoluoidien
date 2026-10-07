@@ -10,6 +10,9 @@
  *   lat     : lật ngang một vùng bản vẽ quanh trục đứng (toạ độ PDF) - [{ vung: [x0, y0, x1, y1], truc: x }]:
  *             đoạn tuyến bản PDF vẽ quay ngược về phía khác với hướng dây liên thông đi tiếp (phải vòng chữ U)
  *             thì lật sang phía kia; thiết bị, tên, số cột lật theo, thứ tự trên tuyến giữ nguyên
+ *   nan_diem: nắn điểm gấp của bản PDF (bậc thang thừa không có thiết bị) - [[[x, y], [x2, y2] | null |
+ *             [[x2, y2], [x3, y3]...]], ...]: dời đỉnh tuyến (x, y) tới (x2, y2), null = bỏ đỉnh đó, danh sách
+ *             = thay bằng các đỉnh đó (toạ độ PDF, làm trước 'lat')
  *   nha_may : nhà máy điện ở cuối nhánh - { p: điểm dây vào khung nhà máy (PDF), huong: phía đặt ký hiệu
  *             máy phát (phai/trai/len/xuong), ten, ma (mã điều độ), cs (công suất), noi: đoạn dây vẽ thêm }
  * Vị trí thực sau khi đặt ghi ra tools/luoi-trung-ap/pdf/vi-tri.json.
@@ -662,6 +665,15 @@ export default [
     // đoạn trên (cột 174 - DCL 473E6.4-7/22 - MC 473E6.4/20 - DCL 473E6.4-7/20) bản PDF vẽ quay sang
     // trái, còn dây liên thông về 473 E6.4 đi sang phải - phải vòng chữ U: lật sang phải quanh cột đứng
     lat: [{ vung: [530, 170, 694.6, 214], truc: 694.73 }],
+    // bậc thang thừa trước DCL 471E6.19-7/136 (dây lên 18pt rồi mới tới cột đứng, không có thiết bị):
+    // đi thẳng tới chân cột đứng rồi lên
+    nan_diem: [
+      [[666.5, 344.98], null],
+      [[666.5, 327.34], null],
+      // góc mới ở chân cột đứng; giữ đỉnh cũ (khúc 4,7pt sát ký hiệu DCL như bản gốc - để khúc dài
+      // 18,7pt không bị tính lây thành cáp theo cụm nét ngắn quanh ký hiệu dao)
+      [[694.58, 327.37], [[694.58, 346.06], [694.58, 327.37]]],
+    ],
     cap_noi: { 'ĐZ 471 E6.19': true },
     noi_ban_ve: [
       // MC 473E6.4/20 LT 471 E6.19 (thường cắt) - đoạn 473 E6.4 tới LBS 473E6.4/47 vẽ ở bản vẽ 17

@@ -927,7 +927,9 @@ PDF) thì `ve-luoi-trung-ap.mjs` lật ngang vùng đó quanh trục đứng: th
 theo, thứ tự trên tuyến giữ nguyên; điểm liên thông khai trong dat.mjs và số cột ở điểm rẽ
 (`diem-re-nhanh.mjs`) đổi theo. Đã áp dụng: bản vẽ 59 (ĐZ 471 E6.19) - đoạn cột 174 - DCL
 473E6.4-7/22 - MC 473E6.4/20 - DCL 473E6.4-7/20 (LT 473 E6.4) lật sang phải, dây liên thông về 473
-E6.4 hết vòng chữ U quanh MC 473E6.4/20.
+E6.4 hết vòng chữ U quanh MC 473E6.4/20. Khai `nan_diem: [[[x, y], [x2, y2] | null | [[x2, y2], ...]], ...]`
+thì dời / bỏ / thay đỉnh tuyến của bản PDF (bậc thang thừa không có thiết bị) - bản vẽ 59: bỏ bậc 18pt
+trước DCL 471E6.19-7/136, dây đi thẳng tới chân cột đứng rồi lên.
 
 ### Dời chữ ra khỏi ký hiệu thiết bị
 

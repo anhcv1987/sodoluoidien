@@ -623,7 +623,31 @@ const latDiem = (json, p) => {
   for (const l of LAT_PDF.get(json) ?? []) if (trongVung(p, l.vung)) return [2 * l.truc - p[0], p[1]];
   return p;
 };
+/** Đỉnh tuyến nắn tay (dat.mjs 'nan_diem'): tên file JSON -> [[[x, y], [x2, y2] | null], ...] (toạ độ PDF). */
+const NAN_PDF = new Map();
 const latBanVe = (json, J) => {
+  const nan = NAN_PDF.get(json);
+  if (nan) {
+    for (const lo of J.lo)
+      for (const c of lo.chuoi) {
+        const moi = [];
+        let dau = -1; // đỉnh đầu tiên bị nắn
+        c.pts.forEach((p, i) => {
+          const n = nan.find(([a]) => Math.abs(a[0] - p[0]) < 0.06 && Math.abs(a[1] - p[1]) < 0.06);
+          if (n && dau < 0) dau = i;
+          if (!n) moi.push(p);
+          else if (Array.isArray(n[1]?.[0])) moi.push(...n[1]);
+          else if (n[1]) moi.push(n[1]);
+        });
+        if (dau < 0) continue;
+        // chiều dài dọc tuyến (s) của thiết bị / cột / nhãn dây phía sau chỗ nắn: trừ phần đường ngắn đi
+        const dai = (P) => P.reduce((t, q, k) => (k ? t + Math.hypot(q[0] - P[k - 1][0], q[1] - P[k - 1][1]) : 0), 0);
+        const s0 = dai(c.pts.slice(0, dau));
+        const bot = dai(c.pts) - dai(moi);
+        for (const t of [...(c.tb ?? []), ...(c.cot ?? []), ...(c.day ?? [])]) if (t.s > s0) t.s = +(t.s - bot).toFixed(2);
+        c.pts = moi;
+      }
+  }
   const ds = LAT_PDF.get(json);
   if (!ds) return J;
   const L = (p) => latDiem(json, p);
@@ -2167,6 +2191,7 @@ const datPdf = resolve('tools/luoi-trung-ap/pdf/dat.mjs');
 if (existsSync(datPdf)) {
   const ds = (await import(pathToFileURL(datPdf).href)).default;
   for (const d of ds) if (d.lat) LAT_PDF.set(d.json, d.lat);
+  for (const d of ds) if (d.nan_diem) NAN_PDF.set(d.json, d.nan_diem);
   // toạ độ tờ tổng khai trong dat.mjs theo bản CAD gốc: đổi theo trạm đã dời (tools/vi-tri-tram.mjs)
   const D = (p) => doiDiem(p[0], p[1]);
   for (const d of ds) {
