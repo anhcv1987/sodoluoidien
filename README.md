@@ -929,7 +929,17 @@ theo, thứ tự trên tuyến giữ nguyên; điểm liên thông khai trong da
 473E6.4-7/22 - MC 473E6.4/20 - DCL 473E6.4-7/20 (LT 473 E6.4) lật sang phải, dây liên thông về 473
 E6.4 hết vòng chữ U quanh MC 473E6.4/20. Khai `nan_diem: [[[x, y], [x2, y2] | null | [[x2, y2], ...]], ...]`
 thì dời / bỏ / thay đỉnh tuyến của bản PDF (bậc thang thừa không có thiết bị) - bản vẽ 59: bỏ bậc 18pt
-trước DCL 471E6.19-7/136, dây đi thẳng tới chân cột đứng rồi lên.
+trước DCL 471E6.19-7/136, dây đi thẳng tới chân cột đứng rồi lên. Dạng khúc `{ tu, den, thay, cap }` thay
+cả khúc đỉnh (cap: khúc mới vẫn vẽ cáp ngầm); tủ RMU tham chiếu đỉnh theo chỉ số được đánh lại.
+
+**Rà soát bậc thang thừa toàn lưới trung áp (10/2026):** `XUAT_CHUOI=<file>` cho `ve-luoi-trung-ap.mjs`
+ghi hình chuỗi sau khi làm gọn; quét mẫu "ngang - bậc đứng - ngang ngắn - đứng cùng chiều bậc" (gộp được
+thành chữ L) trên mọi bản vẽ: 15 chỗ. Xem từng chỗ trên ảnh, nắn 5 chỗ (bậc không có thiết bị, vùng giữa
+đường cũ và góc mới trống): 59 (471 E6.19, trước DCL 471E6.19-7/136), 20 (474 E6.4, sau LBS 474E6.4/59 -
+đoạn cáp vẫn là cáp), 26 (481 E6.9, sau cột 38 / LBS 475E6.5/37A), 47 (474 E6.17, cột 07A trước MC
+472E6.17/16), bk07 (371 E26.2, trước DCL 371E26.2-7/57). Giữ nguyên các chỗ còn lại: bậc mang thiết bị
+đóng cắt (17: DCL/LBS 473E6.4-7/14A; 18: DCL 472E6.4-7/25-1, -7/26; 26: LBS 475E6.5/37A; bk15: DCL
+472E26.1-7/31; 15: DCL 477E6.3-7/07) hoặc nét trong cụm tủ RMU (bk16 474 E26.1).
 
 ### Dời chữ ra khỏi ký hiệu thiết bị
 

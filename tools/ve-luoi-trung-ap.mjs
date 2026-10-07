@@ -623,30 +623,58 @@ const latDiem = (json, p) => {
   for (const l of LAT_PDF.get(json) ?? []) if (trongVung(p, l.vung)) return [2 * l.truc - p[0], p[1]];
   return p;
 };
+const XUAT_CHUOI = [];
 /** Đỉnh tuyến nắn tay (dat.mjs 'nan_diem'): tên file JSON -> [[[x, y], [x2, y2] | null], ...] (toạ độ PDF). */
 const NAN_PDF = new Map();
 const latBanVe = (json, J) => {
   const nan = NAN_PDF.get(json);
   if (nan) {
-    for (const lo of J.lo)
-      for (const c of lo.chuoi) {
+    J.lo.forEach((lo, li) =>
+      lo.chuoi.forEach((c, ci) => {
+        const trung = (a, p) => Math.abs(a[0] - p[0]) < 0.06 && Math.abs(a[1] - p[1]) < 0.06;
         const moi = [];
         let dau = -1; // đỉnh đầu tiên bị nắn
+        // dạng khúc { tu, den, thay, cap }: thay cả khúc từ đỉnh tu tới đỉnh den; cap: khúc mới vẫn là cáp
+        // ngầm (chia thành nét ngắn như nét đứt bản PDF để nhận ra cáp)
+        const khuc = nan.filter((n) => !Array.isArray(n)).map((n) => ({ ...n, i0: c.pts.findIndex((p) => trung(n.tu, p)), i1: c.pts.findIndex((p) => trung(n.den, p)) })).filter((n) => n.i0 > 0 && n.i1 >= n.i0);
+        const chiSo = []; // chỉ số đỉnh cũ -> mới (tủ RMU tham chiếu đỉnh theo chỉ số)
         c.pts.forEach((p, i) => {
-          const n = nan.find(([a]) => Math.abs(a[0] - p[0]) < 0.06 && Math.abs(a[1] - p[1]) < 0.06);
+          const k = khuc.find((n) => i >= n.i0 && i <= n.i1);
+          chiSo[i] = moi.length;
+          if (k) {
+            if (dau < 0) dau = i;
+            if (i !== k.i1) return;
+            if (!k.cap) return void moi.push(...k.thay);
+            // chia nét: từ đỉnh trước khúc qua các đỉnh thay tới đỉnh sau khúc, mỗi nét 1,5pt
+            const duong = [moi.at(-1), ...k.thay, c.pts[i + 1] ?? k.thay.at(-1)];
+            for (let m = 1; m < duong.length; m++) {
+              const [a, b] = [duong[m - 1], duong[m]];
+              const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 1.5));
+              for (let t = 1; t <= n; t++) if (m < duong.length - 1 || t < n) moi.push([+(a[0] + ((b[0] - a[0]) * t) / n).toFixed(2), +(a[1] + ((b[1] - a[1]) * t) / n).toFixed(2)]);
+            }
+            return;
+          }
+          const n = nan.find((x) => Array.isArray(x) && trung(x[0], p));
           if (n && dau < 0) dau = i;
           if (!n) moi.push(p);
           else if (Array.isArray(n[1]?.[0])) moi.push(...n[1]);
           else if (n[1]) moi.push(n[1]);
         });
-        if (dau < 0) continue;
+        if (dau < 0) return;
+        for (const r of J.rmu ?? [])
+          for (const q of r.cua)
+            if (q.ij[0] === li && q.ij[1] === ci) {
+              q.k = chiSo[q.k] ?? q.k;
+              q.kc = chiSo[q.kc] ?? q.kc;
+            }
         // chiều dài dọc tuyến (s) của thiết bị / cột / nhãn dây phía sau chỗ nắn: trừ phần đường ngắn đi
         const dai = (P) => P.reduce((t, q, k) => (k ? t + Math.hypot(q[0] - P[k - 1][0], q[1] - P[k - 1][1]) : 0), 0);
         const s0 = dai(c.pts.slice(0, dau));
         const bot = dai(c.pts) - dai(moi);
         for (const t of [...(c.tb ?? []), ...(c.cot ?? []), ...(c.day ?? [])]) if (t.s > s0) t.s = +(t.s - bot).toFixed(2);
         c.pts = moi;
-      }
+      }),
+    );
   }
   const ds = LAT_PDF.get(json);
   if (!ds) return J;
@@ -1585,6 +1613,8 @@ function vePdf(dat) {
       const [x, y] = process.env.XEM_PDF.split(':')[1].split(',').map(Number);
       for (const lo of J.lo) for (const c of lo.chuoi) { const g = c.pts.filter((q) => Math.hypot(q[0] - x, q[1] - y) < 25); if (g.length) console.log(`XEM_PDF ${lo.ten} ${JSON.stringify(g)}`); }
     }
+    // XUAT_CHUOI=<file>: ghi hình chuỗi sau khi làm gọn (toạ độ PDF + tờ tổng) - rà soát hình tuyến
+    if (process.env.XUAT_CHUOI) XUAT_CHUOI.push({ json: dat.json, W: [dat.goc, dat.goc_pdf, dat.ti_le ?? 1], lo: J.lo.map((lo) => ({ ten: lo.ten, chuoi: lo.chuoi.map((c) => ({ pts: c.pts, tb: (c.tb ?? []).map((t) => [t.p, t.ten[0]]), cot: (c.cot ?? []).map((t) => [t.p, t.ten]) })) })), lien: J.lien ?? [] });
     // XEM_TB='tên thiết bị': in chuỗi quanh thiết bị sau khi làm gọn (soát lỗi hình)
     if (process.env.XEM_TB) for (const lo of J.lo) for (const c of lo.chuoi) for (const t of c.tb ?? []) if (t.ten[0] === process.env.XEM_TB) console.log(`XEM_TB ${dat.json} ${JSON.stringify(t.p)} ${JSON.stringify(c.pts.filter((q) => Math.hypot(q[0] - t.p[0], q[1] - t.p[1]) < 20))}`);
   }
@@ -2245,6 +2275,7 @@ if (existsSync(datPdf)) {
     JSON.stringify(Object.fromEntries(ds.map((d) => [d.json, { goc: d.goc, goc_pdf: d.goc_pdf, ti_le: d.ti_le ?? 1 }])), null, 1),
   );
 }
+if (process.env.XUAT_CHUOI) writeFileSync(resolve(process.env.XUAT_CHUOI), JSON.stringify(XUAT_CHUOI));
 if (process.env.XUAT_TUYEN) {
   // điểm gấp của mọi tuyến cáp / liên thông (bỏ điểm thẳng hàng) - làm bản khai tay ban đầu
   const ra = {};

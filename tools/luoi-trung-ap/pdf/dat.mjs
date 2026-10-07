@@ -12,7 +12,8 @@
  *             thì lật sang phía kia; thiết bị, tên, số cột lật theo, thứ tự trên tuyến giữ nguyên
  *   nan_diem: nắn điểm gấp của bản PDF (bậc thang thừa không có thiết bị) - [[[x, y], [x2, y2] | null |
  *             [[x2, y2], [x3, y3]...]], ...]: dời đỉnh tuyến (x, y) tới (x2, y2), null = bỏ đỉnh đó, danh sách
- *             = thay bằng các đỉnh đó (toạ độ PDF, làm trước 'lat')
+ *             = thay bằng các đỉnh đó; hoặc { tu: [x, y], den: [x, y], thay: [[x, y]...], cap: true } thay
+ *             cả khúc từ đỉnh tu tới đỉnh den (cap: khúc mới vẫn vẽ cáp ngầm) (toạ độ PDF, làm trước 'lat')
  *   nha_may : nhà máy điện ở cuối nhánh - { p: điểm dây vào khung nhà máy (PDF), huong: phía đặt ký hiệu
  *             máy phát (phai/trai/len/xuong), ten, ma (mã điều độ), cs (công suất), noi: đoạn dây vẽ thêm }
  * Vị trí thực sau khi đặt ghi ra tools/luoi-trung-ap/pdf/vi-tri.json.
@@ -48,6 +49,9 @@ export default [
     json: '20.json',
     goc: 'tu_dong',
     ti_le: 1.2,
+    // bậc thang thừa sau LBS 474E6.4/59 (xuống 12pt, ngang 44pt rồi mới xuống tủ RMU 62): đi ngang thẳng
+    // tới trên tủ rồi xuống - khúc nắn vẫn vẽ cáp ngầm như bản gốc
+    nan_diem: [{ tu: [289.4, 280.33], den: [333.65, 291.43], thay: [[333.65, 279.52]], cap: true }],
     noi: {
       'ĐZ 474 E6.4': { tu: [-1875.05, -389.2], ra: 'xuong' },
     },
@@ -146,6 +150,8 @@ export default [
     json: '26.json',
     goc: 'tu_dong',
     ti_le: 1.1,
+    // bậc thang thừa sau cột 38 (LBS 475E6.5/37A): đi thẳng tới chân cột đứng rồi lên
+    nan_diem: [{ tu: [754.94, 297.31], den: [804.88, 297.42], thay: [[804.92, 333.25], [804.92, 297.42]] }],
     noi: {
       'ĐZ 475 E6.5': { tu: [-951.2, -1312.46], ra: 'xuong' },
       'ĐZ 472 E6.5': { tu: [-1338.5, -1336.06], ra: 'xuong' },
@@ -564,6 +570,8 @@ export default [
     json: '47.json',
     goc: 'tu_dong',
     ti_le: 1.2,
+    // bậc thang thừa ở cột 07A (trước MC 472E6.17/16): đi thẳng tới chân cột đứng rồi lên
+    nan_diem: [{ tu: [579.23, 433.51], den: [614.09, 433.51], thay: [[614.09, 446.32], [614.09, 433.51]] }],
     noi: {
       'ĐZ 472 E6.17': { tu: [1150.37, -3127.8], ra: 'xuong' },
       'ĐZ 474 E6.17': { tu: [1613.82, -3127.8], ra: 'xuong' },
@@ -817,6 +825,8 @@ export default [
     json: 'bk07.json',
     goc: 'tu_dong',
     ti_le: 1.2,
+    // bậc thang thừa trước DCL 371E26.2-7/57: xuống thẳng tới hàng ngang rồi rẽ
+    nan_diem: [{ tu: [553.26, 328.71], den: [557.39, 330.85], thay: [[541.52, 338.47]] }],
     noi: {
       'ĐZ 371 E26.2': { tu: [-1462.98, 5492.07], ra: 'xuong' },
     },
