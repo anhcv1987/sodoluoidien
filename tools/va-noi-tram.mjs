@@ -7,6 +7,8 @@
  * vẽ hụt / vắt qua mà không có điểm nối nên ngăn lộ bị cô lập; trước đây công suất vẫn
  * hiện ở đó chỉ vì nét ký hiệu TU, MCHB tạo vòng kín giữ lại nhánh cụt. Công cụ này:
  *   - keo : dời đầu mút một nét từ điểm `tu` tới điểm `den`;
+ *   - net : thay nét có đúng dãy đỉnh `cu` bằng dãy đỉnh `moi` (null = xoá nét) - nét vẽ lặp,
+ *           đi rồi quay lại làm sai đầu mút ngăn lộ;
  *   - tach: tách nét đi xuyên qua điểm đó thành hai nét có chung đầu mút tại đó (để
  *           nhận ra rẽ chữ T vào thanh cái); `doc` = chỉ tách nét dọc (không tách
  *           chính thanh cái nằm ngang đi qua điểm đó).
@@ -16,6 +18,24 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const VA = [
+  {
+    tram: 'E6.23',
+    mo_ta: 'đầu ngăn đường dây ký hiệu 3 nét: nét giữa đứt làm hai khúc, ngắn hơn nét bên - đường dây bắt nhầm vào nét bên phải',
+    net: [
+      { cu: [[1320.01, -3604.81], [1320.01, -3502.07]], moi: [[1320.01, -3604.81], [1320.01, -3497.34]] },
+      { cu: [[1320.01, -3502.07], [1320.01, -3497.34]], moi: null },
+      { cu: [[1327.11, -3497.34], [1327.11, -3502.07], [1327.11, -3514.79]], moi: null },
+      { cu: [[1312.91, -3497.34], [1312.91, -3502.07], [1312.91, -3514.79]], moi: null },
+    ],
+  },
+  {
+    tram: 'E6.7',
+    mo_ta: 'ngăn 171: nét dây ngăn vẽ đi lên rồi quay xuống, kèm một nét vẽ trùng - đường dây 174 E6.16 bắt nhầm vào giữa ngăn',
+    net: [
+      { cu: [[-2299.61, -4347.08], [-2299.61, -4342.58], [-2299.61, -4347.08], [-2299.61, -4425.27]], moi: [[-2299.61, -4342.58], [-2299.61, -4425.27]] },
+      { cu: [[-2299.61, -4382.83], [-2299.58, -4425.27]], moi: null },
+    ],
+  },
   {
     tram: 'E6.5',
     mo_ta: 'ngăn MCHB 431: dây xuống dao -38 dừng ở cực dao, hụt 5 đv so với cáp tổng 3x400 từ MBA T1',
@@ -36,7 +56,26 @@ const E = 0.05;
 const trung = (x, y, p) => Math.abs(x - p[0]) <= E && Math.abs(y - p[1]) <= E;
 let doi = 0;
 
+const dinhNet = (r) => {
+  const p = [];
+  for (let k = 4; k + 1 < r.length; k += 2) p.push([r[k], r[k + 1]]);
+  return p;
+};
 for (const v of VA) {
+  for (const { cu, moi } of v.net ?? []) {
+    const i = s.b.findIndex((r) => {
+      const p = dinhNet(r);
+      return p.length === cu.length && p.every((q, k) => trung(q[0], q[1], cu[k]));
+    });
+    if (i < 0) {
+      console.log(`${v.tram} ${v.mo_ta}: ${s.b.some((r) => moi && dinhNet(r).length === moi.length && dinhNet(r).every((q, k) => trung(q[0], q[1], moi[k]))) || !moi ? 'đã vá' : 'KHÔNG THẤY'}`);
+      continue;
+    }
+    if (moi) s.b[i] = [...s.b[i].slice(0, 4), ...moi.flat()];
+    else s.b.splice(i, 1);
+    console.log(`${v.tram} ${v.mo_ta}: ${moi ? 'sửa' : 'xoá'} 1 nét`);
+    doi++;
+  }
   if (v.keo) {
     const { tu, den } = v.keo;
     let co = 0;

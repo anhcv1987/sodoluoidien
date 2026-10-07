@@ -60,7 +60,8 @@ for (const g of net) {
         Math.abs(h.c - g.c) < 12 &&
         h.L < g.L * 0.6 &&
         h.L < 40 &&
-        Math.abs(h[dauG] - muc) < 0.2,
+        // cùng đầu mút; hoặc nét giữa nhô ra ngoài quá đầu hai nét bên vài đơn vị (171 E6.7)
+        (Math.abs(h[dauG] - muc) < 0.2 || (dauG === 'a1' ? muc - h.a1 : h.a0 - muc) > 0 && Math.abs(h[dauG] - muc) < 6),
     );
     const trai = ben.filter((h) => h.c < g.c);
     const phai = ben.filter((h) => h.c > g.c);
@@ -69,7 +70,7 @@ for (const g of net) {
     if (!cap) continue;
     for (const h of cap) {
       xoa.add(h.i);
-      const dau = g.doc ? [h.c, muc] : [muc, h.c];
+      const dau = g.doc ? [h.c, h[dauG]] : [h[dauG], h.c];
       const moi = g.doc ? [g.c, muc] : [muc, g.c];
       doiDau.push([dau, moi]);
     }

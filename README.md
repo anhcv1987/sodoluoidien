@@ -1091,7 +1091,13 @@ các công cụ rà soát (nối trung áp, cô lập thanh cái, cấp điện 
 là dây dẫn đi xuống ngăn lộ, hai nét ngắn hai bên chỉ là ký hiệu. Đường dây liên trạm
 có chỗ bắt nhầm vào nét bên (lộ 171 E6.8 Xi măng Thái Nguyên) nên trạm không nối
 được vào lưới. `tools/bo-net-dau-tram.mjs` bỏ hai nét bên ở **13 đầu dây** (E6.7,
-E6.8, E6.9, E6.11, E6.12, E6.21) và dời đầu đường dây đang bắt nhầm sang nét giữa.
+E6.8, E6.9, E6.11, E6.12, E6.21) và dời đầu đường dây đang bắt nhầm sang nét giữa; nhận cả
+kiểu nét giữa nhô quá đầu hai nét bên vài đơn vị (10/2026: 171 E6.7 - đường dây 174 E6.16
+trước đây bắt vào nét bên phải, chạy song song cạnh ngăn lộ mà không nối). Hai đầu ngăn vẽ
+lỗi khác vá bằng `tools/va-noi-tram.mjs` (thao tác `net`: sửa / xoá nét theo đúng dãy đỉnh):
+nét dây ngăn 171 E6.7 vẽ đi lên rồi quay xuống kèm nét trùng; đầu ngăn 172 E6.23 (đi E6.5)
+nét giữa đứt hai khúc, ngắn hơn nét bên. Rà toàn bộ đầu đường dây 110kV: không còn đầu nào
+bắt vào nét bên.
 Công cụ cũng vá chỗ **đầu dây để hở ngay trước vòng nhảy** (cáp tổng MBA T1 E6.4 hở
 5,2 đơn vị trước vòng nhảy qua C41 - trước đây chỉ "nối" được nhờ đỉnh vòng nhảy chạm
 thanh cái).
