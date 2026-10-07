@@ -921,6 +921,14 @@ giữa hai trạm ở xa nhau trên sơ đồ (vd bản vẽ 10 "374+375 E6.3 (L
 E6.17 phía đông): dời bản vẽ về trạm này thì cáp sang trạm kia dài ra, không rút ngắn được bằng
 cách dời bản vẽ.
 
+**Lật vùng bản vẽ lộ (dat.mjs `lat`):** khi bản PDF vẽ một đoạn tuyến quay ngược về phía khác với hướng
+dây liên thông đi tiếp, dây phải vòng chữ U. Khai `lat: [{ vung: [x0, y0, x1, y1], truc: x }]` (toạ độ
+PDF) thì `ve-luoi-trung-ap.mjs` lật ngang vùng đó quanh trục đứng: thiết bị, tên, số cột, nhãn dây lật
+theo, thứ tự trên tuyến giữ nguyên; điểm liên thông khai trong dat.mjs và số cột ở điểm rẽ
+(`diem-re-nhanh.mjs`) đổi theo. Đã áp dụng: bản vẽ 59 (ĐZ 471 E6.19) - đoạn cột 174 - DCL
+473E6.4-7/22 - MC 473E6.4/20 - DCL 473E6.4-7/20 (LT 473 E6.4) lật sang phải, dây liên thông về 473
+E6.4 hết vòng chữ U quanh MC 473E6.4/20.
+
 ### Dời chữ ra khỏi ký hiệu thiết bị
 
 Bản CAD gốc có nhiều nhãn nằm đè lên ký hiệu: số hiệu máy cắt ghi lọt vào trong thân

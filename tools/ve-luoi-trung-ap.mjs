@@ -561,7 +561,7 @@ const VI_TRI_PDF = new Map(); // tên file JSON -> hàm đổi điểm PDF sang 
 function veNoiGiuaBanVe(ds, { hoan } = {}) {
   const conLai = [];
   for (const l of ds) {
-    const diem = (d) => (typeof d[0] === 'string' ? VI_TRI_PDF.get(d[0])?.(d[1]) : d);
+    const diem = (d) => (typeof d[0] === 'string' ? VI_TRI_PDF.get(d[0])?.(latDiem(d[0], d[1])) : d);
     const a = diem(l.tu), b = diem(l.den);
     if (!a || !b) {
       if (hoan) conLai.push(l); // bản vẽ bên kia chưa đặt: để vẽ sau
@@ -615,13 +615,64 @@ function veNoiGiuaBanVe(ds, { hoan } = {}) {
   return conLai;
 }
 
-const docBanVe = (json) => JSON.parse(readFileSync(resolve('tools/luoi-trung-ap/pdf', json), 'utf8'));
+/** Vùng bản vẽ lật ngang (dat.mjs 'lat'): tên file JSON -> [{ vung: [x0, y0, x1, y1], truc }] (toạ độ PDF). */
+const LAT_PDF = new Map();
+const trongVung = (p, v) => p[0] >= v[0] && p[0] <= v[2] && p[1] >= v[1] && p[1] <= v[3];
+/** Điểm PDF sau khi lật vùng (điểm khai trong dat.mjs theo bản PDF gốc cũng đổi theo). */
+const latDiem = (json, p) => {
+  for (const l of LAT_PDF.get(json) ?? []) if (trongVung(p, l.vung)) return [2 * l.truc - p[0], p[1]];
+  return p;
+};
+const latBanVe = (json, J) => {
+  const ds = LAT_PDF.get(json);
+  if (!ds) return J;
+  const L = (p) => latDiem(json, p);
+  // ô chữ: lật theo tâm ô, giữ bề rộng
+  const latO = (o) => {
+    const c = [(o.x0 + o.x1) / 2, (o.y0 + o.y1) / 2];
+    const m = L(c);
+    if (m === c) return;
+    const w = o.x1 - o.x0;
+    o.x0 = m[0] - w / 2;
+    o.x1 = m[0] + w / 2;
+  };
+  for (const lo of J.lo) {
+    if (lo.nguon) lo.nguon = L(lo.nguon);
+    for (const c of lo.chuoi) {
+      c.pts = c.pts.map(L);
+      for (const t of c.tb ?? []) {
+        const m = L(t.p);
+        if (m !== t.p) {
+          t.p = m;
+          if (t.h) t.h = [-t.h[0], t.h[1]];
+        }
+        for (const o of t.nhan ?? []) latO(o);
+      }
+      for (const t of c.cot ?? []) {
+        if (t.p) t.p = L(t.p);
+        if (t.nhan) latO(t.nhan);
+      }
+      for (const t of c.day ?? []) if (t.nhan) latO(t.nhan);
+    }
+  }
+  for (const l of J.lien ?? []) {
+    l.pts = l.pts.map(L);
+    if (l.vung) {
+      const a = L([l.vung[0], l.vung[1]]), b = L([l.vung[2], l.vung[3]]);
+      l.vung = [Math.min(a[0], b[0]), l.vung[1], Math.max(a[0], b[0]), l.vung[3]];
+    }
+  }
+  for (const o of J.cot_le ?? []) latO(o);
+  return J;
+};
+const docBanVe = (json) => latBanVe(json, JSON.parse(readFileSync(resolve('tools/luoi-trung-ap/pdf', json), 'utf8')));
 /** Cấp điện áp của lộ trên bản vẽ đi qua điểm d = ['xx.json', [x, y]] (đỉnh chuỗi gần nhất); không rõ thì undefined. */
 function kvTaiDiem(d) {
   if (typeof d?.[0] !== 'string') return undefined;
   let tot = null, kc = 3;
+  const q = latDiem(d[0], d[1]);
   for (const lo of docBanVe(d[0]).lo) for (const c of lo.chuoi) for (const [x, y] of c.pts) {
-    const k = Math.hypot(x - d[1][0], y - d[1][1]);
+    const k = Math.hypot(x - q[0], y - q[1]);
     if (k < kc) { kc = k; tot = lo; }
   }
   return tot?.kv;
@@ -2115,6 +2166,7 @@ const hopCuaRa = (noi) => {
 const datPdf = resolve('tools/luoi-trung-ap/pdf/dat.mjs');
 if (existsSync(datPdf)) {
   const ds = (await import(pathToFileURL(datPdf).href)).default;
+  for (const d of ds) if (d.lat) LAT_PDF.set(d.json, d.lat);
   // toạ độ tờ tổng khai trong dat.mjs theo bản CAD gốc: đổi theo trạm đã dời (tools/vi-tri-tram.mjs)
   const D = (p) => doiDiem(p[0], p[1]);
   for (const d of ds) {

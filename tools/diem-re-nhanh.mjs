@@ -165,9 +165,21 @@ for (let v = 0; v < nV; v++) {
 const RE_COT = /^\d{1,3}[A-Za-z]?(-\d)?$/;
 const thuMuc = resolve('tools/luoi-trung-ap/pdf');
 const viTri = JSON.parse(readFileSync(join(thuMuc, 'vi-tri.json'), 'utf8'));
+// vùng bản vẽ lật ngang (dat.mjs 'lat' - ve-luoi-trung-ap.mjs lật y như vậy khi vẽ)
+const LAT = new Map(
+  (await import(pathToFileURL(join(thuMuc, 'dat.mjs')).href)).default.filter((d) => d.lat).map((d) => [d.json, d.lat]),
+);
 const cotPdf = [];
 for (const [ten, v] of Object.entries(viTri)) {
   const J = JSON.parse(readFileSync(join(thuMuc, ten), 'utf8'));
+  for (const c of J.cot_le ?? []) {
+    const m = [(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2];
+    const l = (LAT.get(ten) ?? []).find((q) => m[0] >= q.vung[0] && m[0] <= q.vung[2] && m[1] >= q.vung[1] && m[1] <= q.vung[3]);
+    if (!l) continue;
+    const w = c.x1 - c.x0;
+    c.x0 = 2 * l.truc - m[0] - w / 2;
+    c.x1 = c.x0 + w;
+  }
   const [X0, Y0] = v.goc;
   const [gx, gy] = v.goc_pdf;
   const k = v.ti_le;

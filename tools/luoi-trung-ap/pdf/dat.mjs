@@ -7,6 +7,9 @@
  *   noi     : cáp từ đầu ra ngăn lộ trong trạm (tu) tới đầu lộ trên bản vẽ, tìm đường tự động
  *   noi_ban_ve: dây nối chỗ liên thông giữa hai bản vẽ (mỗi bản vẽ chỉ vẽ một phía), tìm đường tự động
  *   chu     : chữ thêm (toạ độ PDF); giao: khúc đường dây cấp khác cắt ngang tuyến (toạ độ PDF)
+ *   lat     : lật ngang một vùng bản vẽ quanh trục đứng (toạ độ PDF) - [{ vung: [x0, y0, x1, y1], truc: x }]:
+ *             đoạn tuyến bản PDF vẽ quay ngược về phía khác với hướng dây liên thông đi tiếp (phải vòng chữ U)
+ *             thì lật sang phía kia; thiết bị, tên, số cột lật theo, thứ tự trên tuyến giữ nguyên
  *   nha_may : nhà máy điện ở cuối nhánh - { p: điểm dây vào khung nhà máy (PDF), huong: phía đặt ký hiệu
  *             máy phát (phai/trai/len/xuong), ten, ma (mã điều độ), cs (công suất), noi: đoạn dây vẽ thêm }
  * Vị trí thực sau khi đặt ghi ra tools/luoi-trung-ap/pdf/vi-tri.json.
@@ -656,6 +659,9 @@ export default [
     noi: {
       'ĐZ 471 E6.19': { tu: [-2786.42, 3317.15], ra: 'xuong' },
     },
+    // đoạn trên (cột 174 - DCL 473E6.4-7/22 - MC 473E6.4/20 - DCL 473E6.4-7/20) bản PDF vẽ quay sang
+    // trái, còn dây liên thông về 473 E6.4 đi sang phải - phải vòng chữ U: lật sang phải quanh cột đứng
+    lat: [{ vung: [530, 170, 694.6, 214], truc: 694.73 }],
     cap_noi: { 'ĐZ 471 E6.19': true },
     noi_ban_ve: [
       // MC 473E6.4/20 LT 471 E6.19 (thường cắt) - đoạn 473 E6.4 tới LBS 473E6.4/47 vẽ ở bản vẽ 17
