@@ -1098,6 +1098,15 @@ lỗi khác vá bằng `tools/va-noi-tram.mjs` (thao tác `net`: sửa / xoá n�
 nét dây ngăn 171 E6.7 vẽ đi lên rồi quay xuống kèm nét trùng; đầu ngăn 172 E6.23 (đi E6.5)
 nét giữa đứt hai khúc, ngắn hơn nét bên. Rà toàn bộ đầu đường dây 110kV: không còn đầu nào
 bắt vào nét bên.
+Hai chỗ sửa LOGIC để lỗi này không lặp lại / không bị che:
+* `tools/noi-duong-day-110.mjs` chỉ nhận đầu ngăn lộ là đầu nét THUỘC NGĂN LỘ - cụm nét nối liền
+  với nó (chạm nhau, hở tới 3 đơn vị như dao cách ly vẽ bằng nét) phải tới được MC / DCL / TI /
+  MBA 110kV. Nét ký hiệu đứng riêng (nét bên ký hiệu 3 nét cách nét giữa ~7 đơn vị) bị loại; chạy
+  trên dữ liệu cũ thì tự chọn đúng ở cả 171 E6.7 và E6.23.
+* Mô hình công suất (`src/core/dongCongSuat.ts`): đầu đường dây 110kV liên trạm không còn được coi
+  là "đầu xuất tuyến" (trước đây mọi đầu dây hở đều giữ lại để công suất chạy tới, nên đường dây
+  nối nhầm vẫn hiện công suất chạy tới tận trạm, trông như đã nối). Nay đường dây hở đầu không có
+  dòng tải - nối nhầm là thấy ngay. Smoke test kiểm tra cả 40 đường dây liên trạm đều có công suất.
 Công cụ cũng vá chỗ **đầu dây để hở ngay trước vòng nhảy** (cáp tổng MBA T1 E6.4 hở
 5,2 đơn vị trước vòng nhảy qua C41 - trước đây chỉ "nối" được nhờ đỉnh vòng nhảy chạm
 thanh cái).

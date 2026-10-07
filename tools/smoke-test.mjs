@@ -441,6 +441,32 @@ const cs = await page.evaluate(() => {
       }),
     ),
     kv: [...new Set(d.chuoi.map((c) => c.kv))].sort((x, y) => x - y).join(','),
+    // đường dây 110kV liên trạm: đều có công suất (đường dây nối hở / nối nhầm vào nét ký hiệu cạnh
+    // ngăn lộ thì không có dòng tải - vd 174 E6.16 từng bắt vào nét bên của ngăn 171 E6.7)
+    lienTram: (() => {
+      const co = (x, y) =>
+        d.chuoi.some((c) => {
+          for (let k = 2; k < c.pts.length; k += 2) {
+            const [ax, ay, bx, by] = [c.pts[k - 2], c.pts[k - 1], c.pts[k], c.pts[k + 1]];
+            const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+            const t = L ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)) : 0;
+            if (Math.hypot(ax + t * dx - x, ay + t * dy - y) < 1) return true;
+          }
+          return false;
+        });
+      const ds = a.store.entities.filter((e) => e.kind === 'branch' && e.srcLayer === 'Kết lưới 110kV');
+      const khong = [];
+      for (const e of ds) {
+        const p = e.nodes.map((id) => a.store.get(id)?.p).filter(Boolean);
+        let tot = null;
+        for (let k = 1; k < p.length; k++) {
+          const L = Math.hypot(p[k].x - p[k - 1].x, p[k].y - p[k - 1].y);
+          if (!tot || L > tot[0]) tot = [L, (p[k].x + p[k - 1].x) / 2, (p[k].y + p[k - 1].y) / 2];
+        }
+        if (tot && !co(tot[1], tot[2])) khong.push(`${p[0].x.toFixed(0)},${p[0].y.toFixed(0)}`);
+      }
+      return { n: ds.length, khong };
+    })(),
     // khung tủ RMU 01-383 E6.9 (cạnh trái x=465.8) không có công suất; lộ ra MBA T1
     // 4000kVA của C.TY Cơ khí Gang Thép (qua ngăn tủ RMU 01-381) thì có
     khungRMU: d.chuoi.some((c) => c.minX > 465 && c.maxX < 466.5 && c.minY < -700 && c.maxY > -700),
@@ -458,6 +484,7 @@ check(
   !cs.doLuong[0] && !cs.doLuong[1] && cs.doLuong[2],
   `TUC41 E6.22 ${cs.doLuong[0]}, CS-4T1 E6.5 ${cs.doLuong[1]}, TD32 E6.7 ${cs.doLuong[2]}`,
 );
+check('Mọi đường dây 110kV liên trạm đều có công suất (không nối hở / nối nhầm vào nét ký hiệu)', cs.lienTram.n >= 40 && !cs.lienTram.khong.length, `${cs.lienTram.n} đường dây, không có công suất: ${cs.lienTram.khong.join(' ')}`);
 check('Không đánh dấu điểm cắt phía 220kV, 110kV trong trạm 220kV', cs.an > 10 && cs.an220 > 0 && cs.con220 === 0 && cs.hienMC, `ẩn ${cs.an} điểm (220kV ${cs.an220}), MC cắt trạm 110kV vẫn hiện: ${cs.hienMC}`);
 await page.keyboard.press('F6');
 

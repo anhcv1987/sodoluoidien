@@ -150,10 +150,10 @@ function laDauTanCung(p, q) {
 }
 
 const dauMut = [];
-for (const r of to.b) {
-  if (r[1] !== 110) continue;
+to.b.forEach((r, idx) => {
+  if (r[1] !== 110) return;
   const n = (r.length - 4) / 2;
-  if (n < 2) continue;
+  if (n < 2) return;
   const at = (i) => [r[4 + i * 2], r[5 + i * 2]];
   for (const [i, j] of [
     [0, 1],
@@ -161,8 +161,70 @@ for (const r of to.b) {
   ]) {
     const p = at(i);
     const q = at(j);
-    if ((dem.get(khoa(p[0], p[1])) ?? 0) === 1 || laDauTanCung(p, q)) dauMut.push({ p, truoc: q });
+    if ((dem.get(khoa(p[0], p[1])) ?? 0) === 1 || laDauTanCung(p, q)) dauMut.push({ p, truoc: q, net: idx });
   }
+});
+/**
+ * Đầu ngăn lộ phải là đầu nét THUỘC NGĂN LỘ: cụm nét nối liền với nó (chung đỉnh / chạm vào
+ * nhau) phải tới được thiết bị đóng cắt / TI / MBA cấp 110kV. Nét ký hiệu đứng riêng (hai nét
+ * bên của ký hiệu đầu ngăn "3 nét song song", nét ghi chú...) không phải chỗ đấu đường dây -
+ * trước đây đường dây 174 E6.16 bắt vào nét bên phải của ngăn 171 E6.7, đi song song sát
+ * ngăn lộ mà không nối vào.
+ */
+{
+  const THIET_BI = new Set(['MC', 'MCHB', 'DCL', 'DCLTA', 'DCLHB', 'LBS', 'REC', 'TI', 'MBA3', 'MBA2']);
+  const ds = [];
+  to.b.forEach((r, i) => {
+    if (r[1] === 110) ds.push(i);
+  });
+  const cha = new Map(ds.map((i) => [i, i]));
+  const goc = (i) => {
+    while (cha.get(i) !== i) {
+      cha.set(i, cha.get(cha.get(i)));
+      i = cha.get(i);
+    }
+    return i;
+  };
+  const O = 20;
+  const luoi = new Map();
+  const doanCua = (r) => {
+    const out = [];
+    for (let k = 4; k + 3 < r.length; k += 2) out.push([r[k], r[k + 1], r[k + 2], r[k + 3]]);
+    return out;
+  };
+  for (const i of ds)
+    for (const [ax, ay, bx, by] of doanCua(to.b[i]))
+      for (let gx = Math.floor(Math.min(ax, bx) / O); gx <= Math.floor(Math.max(ax, bx) / O); gx++)
+        for (let gy = Math.floor(Math.min(ay, by) / O); gy <= Math.floor(Math.max(ay, by) / O); gy++) {
+          const k = `${gx}|${gy}`;
+          (luoi.get(k) ?? luoi.set(k, []).get(k)).push([i, ax, ay, bx, by]);
+        }
+  const kc = (px, py, ax, ay, bx, by) => {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const L = dx * dx + dy * dy;
+    const t = L ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L)) : 0;
+    return Math.hypot(ax + t * dx - px, ay + t * dy - py);
+  };
+  const quanh = (x, y) => luoi.get(`${Math.floor(x / O)}|${Math.floor(y / O)}`) ?? [];
+  // đỉnh của nét này nằm trên / sát nét kia -> cùng cụm. Nới 3 đơn vị: dao cách ly vẽ bằng nét
+  // (không phải ký hiệu) hở vài đơn vị ở cực (E6.18); hai nét bên ký hiệu 3 nét cách nét giữa ~7.
+  for (const i of ds) {
+    const r = to.b[i];
+    for (let k = 4; k + 1 < r.length; k += 2)
+      for (const [j, ax, ay, bx, by] of quanh(r[k], r[k + 1])) if (j !== i && kc(r[k], r[k + 1], ax, ay, bx, by) < 3) cha.set(goc(i), goc(j));
+  }
+  const coTB = new Set();
+  for (const d of to.d) {
+    if (d[1] !== 110 || !THIET_BI.has(data.blocks[d[2]])) continue;
+    const R = Math.max(1, d[6] * 0.6);
+    for (let gx = Math.floor((d[3] - R) / O); gx <= Math.floor((d[3] + R) / O); gx++)
+      for (let gy = Math.floor((d[4] - R) / O); gy <= Math.floor((d[4] + R) / O); gy++)
+        for (const [j, ax, ay, bx, by] of luoi.get(`${gx}|${gy}`) ?? []) if (kc(d[3], d[4], ax, ay, bx, by) <= R) coTB.add(goc(j));
+  }
+  const truoc = dauMut.length;
+  for (let i = dauMut.length - 1; i >= 0; i--) if (!coTB.has(goc(dauMut[i].net))) dauMut.splice(i, 1);
+  console.log(`Đầu mút 110kV: bỏ ${truoc - dauMut.length} đầu nét không thuộc ngăn lộ (không nối tới thiết bị).`);
 }
 // cùng một đầu mút có thể được thêm hai lần (hai nét vẽ lặp) - bỏ bản trùng
 {

@@ -1106,10 +1106,17 @@ export function tinhDongCongSuat(entities: Entity[], diem: (id: Id) => Pt | unde
       veNhanh.push(tuyen[doanTuyen[s]].b.id);
     }
   }
+  // Đầu mút của ĐƯỜNG DÂY 110kV LIÊN TRẠM (lớp "Kết lưới 110kV", vẽ trọn từ ngăn lộ trạm này
+  // tới ngăn lộ trạm kia) không phải đầu xuất tuyến: còn hở là đường dây chưa nối vào ngăn lộ -
+  // không có dòng tải chạy tới đó (trước đây 174 E6.16 bắt vào nét ký hiệu cạnh ngăn 171 E6.7
+  // vẫn hiện công suất chạy tới tận trạm), kể cả khi trùng đầu một nét ký hiệu cụt. Đường dây
+  // nối đúng thì đầu đó có dây ngăn lộ đi tiếp, không bị tỉa.
+  const dauLienTram = new Set<number>();
   tuyen.forEach((t) => {
-    dauMut.add(dinh(t.p[0].x, t.p[0].y));
-    dauMut.add(dinh(t.p[t.p.length - 1].x, t.p[t.p.length - 1].y));
+    const ds = [dinh(t.p[0].x, t.p[0].y), dinh(t.p[t.p.length - 1].x, t.p[t.p.length - 1].y)];
+    for (const u of ds) (t.b.srcLayer === 'Kết lưới 110kV' ? dauLienTram : dauMut).add(u);
   });
+  for (const u of dauLienTram) dauMut.delete(u);
 
   /* ---------- 5. Kề và nguồn ---------- */
   const n = vx.length;
